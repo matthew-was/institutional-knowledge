@@ -30,7 +30,7 @@ Then determine what work is needed:
 
 - `documentation/decisions/architecture-decisions.md` is empty (scaffold only) → begin the ADR review phase, then proceed to decision facilitation
 - `documentation/decisions/architecture-decisions.md` has content and `documentation/project/architecture.md` does not exist → cross-reference the Architectural Flags and the three additional cross-cutting questions against the ADRs already written; if any remain unresolved, resume decision facilitation from the first unresolved item in priority order; if all are resolved, proceed to writing the output documents
-- Both output documents exist but neither is approved → present the developer with a summary and ask what to continue
+- Both output documents exist but neither is approved → check whether `documentation/decisions/adr-consistency-review.md` exists; if not, write it now before presenting a summary; if it exists, present the developer with a summary and ask what to continue
 - Both output documents are approved → summarise completed work and present the handoff checklist
 
 If `documentation/approvals.md` does not exist, treat all documents as unapproved.
@@ -85,6 +85,96 @@ Resolve questions in this sequence. Do not skip ahead:
 18. **Testing strategy for Python components** — pipeline testing patterns, fixture strategy for OCR, embedding isolation
 
 If a dependency between questions requires reordering, surface it explicitly before skipping.
+
+## Writing the consistency review
+
+After all decisions are resolved but before presenting the output documents to the developer,
+write a consistency review to `documentation/decisions/adr-consistency-review.md` using the
+Write tool.
+
+The review evaluates the full set of ADRs in `documentation/decisions/architecture-decisions.md`
+for internal consistency. It is NOT a restatement of decisions — it surfaces issues that an
+implementer could stumble on.
+
+Check for:
+
+- **Cross-ADR contradictions** — two ADRs that make mutually exclusive statements about the
+  same mechanism, state, or constraint
+- **Unreachable states** — enum values, status flags, or schema fields that have no defined
+  write path given the constraints of other ADRs
+- **Mislabelled cross-references** — Source or cross-reference annotations that describe the
+  wrong ADR's content
+- **Inconsistent terminology** — the same mechanism named differently across ADRs, creating
+  ambiguity for an implementer
+- **Overstated guarantees** — an ADR claims a property (e.g. "no changes required") that
+  another ADR's tradeoffs quietly contradict
+- **Gaps** — a component or concern referenced by multiple ADRs but with no ADR defining its
+  interface or behaviour
+
+Classify each finding as either a **Confirmed Issue** (must be resolved before approval) or
+an **Observation** (lower priority; may be deferred).
+
+If no issues are found, write a brief review file stating the document is internally
+consistent and no pre-approval changes are required.
+
+Once the review is written, present a summary to the developer and tell them:
+
+> "To work through this review, use the `adr-review-workflow` skill in a new session."
+
+Do not edit `architecture-decisions.md` directly during this phase. Do not proceed to
+presenting output documents for approval until the review is written.
+
+### Review file format
+
+```markdown
+# ADR Consistency Review
+
+Pre-approval review of `architecture-decisions.md` (ADR-001 to ADR-NNN), conducted
+[date] before the document is formally approved. Each item requires a resolution
+decision before the ADR document is finalised.
+
+Items are grouped by priority: **Confirmed Issues** must be resolved before approval;
+**Observations** are lower-priority and may be deferred.
+
+---
+
+## Confirmed Issues
+
+---
+
+### CI-001 — [Short title]
+
+**ADRs involved**: ADR-NNN, ADR-NNN
+
+**The issue**:
+[Describe the inconsistency with quoted text from the relevant ADRs.]
+
+**Resolution options**:
+[State the concrete options. For unambiguous fixes, a single option is sufficient.]
+
+**Status**: Open
+
+---
+
+## Observations
+
+---
+
+### OB-001 — [Short title]
+
+[Description and options.]
+
+---
+
+## Resolution Tracker
+
+| ID | Summary | Type | Status |
+| --- | --- | --- | --- |
+| CI-001 | [summary] | [Mechanical fix / Decision required / Gap / Clarification] | Open |
+| OB-001 | [summary] | [type] | Open |
+```
+
+---
 
 ## Writing architecture.md and pipeline-diagram.mermaid
 
@@ -169,10 +259,12 @@ The Head of Development phase is complete when:
 3. Python placement question resolved and recorded as an ADR
 4. Data ownership and transaction boundaries resolved and recorded as an ADR
 5. Testing strategy for Python components resolved and recorded as an ADR
-6. `documentation/project/architecture.md` written as a fresh synthesis of all decisions
-7. `documentation/project/pipeline-diagram.mermaid` written reflecting the confirmed component structure and data flows
-8. Developer has explicitly approved `documentation/decisions/architecture-decisions.md`, `documentation/project/architecture.md`, and `documentation/project/pipeline-diagram.mermaid`
-9. Approvals recorded in `documentation/approvals.md` following the approval-workflow skill
+6. `documentation/decisions/adr-consistency-review.md` written and presented to developer
+7. All Confirmed Issues in the consistency review resolved via the `adr-review-workflow` skill
+8. `documentation/project/architecture.md` written as a fresh synthesis of all decisions
+9. `documentation/project/pipeline-diagram.mermaid` written reflecting the confirmed component structure and data flows
+10. Developer has explicitly approved `documentation/decisions/architecture-decisions.md`, `documentation/project/architecture.md`, and `documentation/project/pipeline-diagram.mermaid`
+11. Approvals recorded in `documentation/approvals.md` following the approval-workflow skill
 
 ## Handoff
 
