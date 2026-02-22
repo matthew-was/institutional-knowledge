@@ -1,0 +1,115 @@
+graph TD
+    %% External Actors
+    Archivist([Primary Archivist])
+    WebUI[Web UI<br/>Next.js]
+    CLI[CLI]
+
+    %% Component 1: Document Intake
+    subgraph C1["Component 1: Document Intake"]
+        WebUpload[Web UI Upload<br/>Three-step flow<br/>ADR-007, ADR-017]
+        BulkIngest[Bulk Ingestion<br/>Run-level staging<br/>ADR-018]
+        Validate[Validation<br/>Format, size, hash<br/>ADR-009]
+        Staging[(Staging Area)]
+    end
+
+    %% Shared Infrastructure
+    subgraph Infra["Shared Infrastructure"]
+        DB[(PostgreSQL + pgvector<br/>ADR-004)]
+        Storage[(File Storage<br/>Local / S3<br/>ADR-008)]
+        Config[/Runtime Config File<br/>ADR-016/]
+    end
+
+    %% Express Backend
+    subgraph Backend["Express Backend — Sole DB Writer (ADR-031)"]
+        API[Express API<br/>Intake + Processing trigger + Query]
+        Knex[Knex.js Migrations<br/>ADR-028, ADR-029]
+        TxWriter[Transaction Writer<br/>Atomic writes]
+    end
+
+    %% Component 2: Text Extraction, Processing and Embedding
+    subgraph C2["Component 2: Processing (Python Docker Service — ADR-015)"]
+        OCR[Text Extraction<br/>Docling / Tesseract<br/>ADR-011]
+        Quality[Quality Scoring<br/>Per-page + whole-doc]
+        MetaDetect[Metadata Extraction<br/>Pattern-based detection<br/>ADR-012]
+        Completeness[Completeness Scoring<br/>Weighted field presence<br/>ADR-021]
+        VocabCandidate[Vocabulary Candidate<br/>Identification<br/>ADR-014]
+        Chunking[Semantic Chunking<br/>LLM-based<br/>ADR-025]
+        Embedding[Embedding Generation<br/>Local model<br/>ADR-024]
+    end
+
+    %% Component 3: Query and Retrieval
+    subgraph C3["Component 3: Query and Retrieval"]
+        QueryEmbed[Query Embedding]
+        VectorSearch[Vector Similarity Search<br/>pgvector]
+        RAG[RAG Context Assembly<br/>+ LLM]
+        Response[Response with Citations<br/>ADR-023]
+    end
+
+    %% Phase 2+ Component 4
+    subgraph C4["Component 4: Continuous Ingestion (Phase 2+)"]
+        AutoTrigger[Automated Triggers<br/>LISTEN/NOTIFY candidate]
+    end
+
+    %% Archivist interactions
+    Archivist --> WebUI
+    Archivist --> CLI
+
+    %% Intake flows
+    WebUI --> API
+    CLI -->|Bulk ingestion| BulkIngest
+    CLI -->|Query| API
+    API --> WebUpload
+    WebUpload --> Validate
+    BulkIngest --> Validate
+    Validate --> Staging
+    Staging -->|Finalize / Run complete| Storage
+
+    %% Processing trigger
+    API -->|Fire-and-forget trigger<br/>ADR-026| OCR
+
+    %% Processing pipeline (sequential within Python service)
+    OCR --> Quality
+    Quality --> MetaDetect
+    MetaDetect --> Completeness
+    Completeness --> VocabCandidate
+    VocabCandidate --> Chunking
+    Chunking --> Embedding
+
+    %% Python returns results to Express
+    Embedding -->|Structured response<br/>via HTTP/RPC| TxWriter
+
+    %% Express writes to DB
+    TxWriter --> DB
+    Knex -->|Schema management| DB
+    API --> TxWriter
+
+    %% File references
+    Storage -.->|File location| OCR
+    Storage -.->|Original docs| RAG
+
+    %% Query flow
+    API --> QueryEmbed
+    QueryEmbed --> VectorSearch
+    DB -->|Embeddings + metadata| VectorSearch
+    VectorSearch --> RAG
+    RAG --> Response
+    Response --> API
+
+    %% Phase 2+ automated trigger
+    AutoTrigger -.->|Phase 2+| API
+
+    %% Config drives all services
+    Config -.->|Provider selection| API
+    Config -.->|Provider selection| OCR
+
+    %% Pipeline tracking
+    DB -.->|Pipeline step status<br/>ADR-027| API
+
+    %% Styling
+    style DB fill:#99d6ff
+    style Storage fill:#99d6ff
+    style Config fill:#ffffcc
+    style Response fill:#a8d5a8
+    style Archivist fill:#ffb366
+    style C4 fill:#f0f0f0,stroke-dasharray: 5 5
+    style AutoTrigger fill:#f0f0f0,stroke-dasharray: 5 5
