@@ -91,8 +91,9 @@ thousands). Unified database simplifies backup, migration, and querying.
 
 **Risk accepted**: May hit pgvector performance limits at very high scale. Acceptable for
 Phase 1 through Phase 3; can migrate to dedicated vector DB (e.g. OpenSearch) in Phase 4
-if needed — the `VectorStore` abstraction (ADR-033) makes this swap possible without
-changing C3 or C2.
+if needed — C2 requires no changes; C3 query logic in Express may require changes to handle
+application-level joins when pgvector is replaced by a dedicated vector DB (see ADR-033
+Tradeoffs).
 
 **Source**: Carried forward from pre-approval ADR-004. Consistent with UR-133. Revised
 2026-02-22 to reference ADR-033 (VectorStore interface).
@@ -204,6 +205,11 @@ staging plus delete non-finalized records.
 **Revision note**: Revised 2026-02-21 to make the staging area explicit as part of the cleanup
 scope and to reference the status column lifecycle from ADR-007/ADR-017.
 
+For bulk ingestion, immediate cleanup applies when the system halts gracefully on a known
+error. If the process is killed or crashes before cleanup can occur, the run-start sweep at
+the beginning of the next run handles the deferred cleanup (ADR-018). The run-start sweep is
+a fallback for ungraceful termination, not a replacement for immediate cleanup.
+
 **Risk accepted**: Upload must restart completely on failure. Acceptable for document sizes
 within the configurable file size limit.
 
@@ -303,7 +309,7 @@ The following pre-approval ADRs were evaluated and found to conflict with the ap
 
 ### ADR-015: Python as a Separate Docker Service in the Monorepo
 
-**Decision**: Python processing code lives at `services/processing/` within the monorepo and runs as a separate Docker container. It communicates with the TypeScript backend via internal HTTP. Each language uses its own idiomatic configuration library to load a shared runtime configuration file. The Python config library choice is deliberately left open as a learning exercise.
+**Decision**: Python processing code lives at `services/processing/` within the monorepo and runs as a separate Docker container. It communicates with the TypeScript backend via internal HTTP. Each service has its own runtime configuration file containing only the values it requires. The files share the same format (nconf-style) but are scoped per service — Express receives database credentials, storage config, and backend settings; the Python processing service receives only processing-related config (OCR, LLM, embedding providers and thresholds). This follows the principle of least privilege: a compromised processing service has no access to database connection parameters. The Python config library choice is deliberately left open as a learning exercise.
 
 **Context**: Component 2 (Text Extraction, Processing and Embedding) uses Python for OCR and AI/ML work. The rest of the system is TypeScript/Node.js with pnpm workspaces. The developer needs to decide how Python code coexists with TypeScript in the monorepo and how configuration reaches both languages.
 
@@ -316,7 +322,7 @@ The following pre-approval ADRs were evaluated and found to conflict with the ap
 
 **Risk accepted**: Internal HTTP boundary adds latency and failure modes (service unavailable, timeout) compared to in-process calls. Acceptable because document processing is not latency-sensitive and the failure modes are straightforward to handle with retries and health checks.
 
-**Tradeoffs**: Two configuration readers to maintain (one per language); internal API contract required between TypeScript and Python services; two test runners (Vitest and pytest).
+**Tradeoffs**: Two configuration readers to maintain (one per language); two scoped config files to maintain; internal API contract required between TypeScript and Python services; two test runners (Vitest and pytest).
 
 **Monorepo layout** (confirmed):
 
@@ -340,7 +346,7 @@ services/
 
 **Context**: UR-133 requires every external service to be abstracted via an interface with concrete implementations selected at runtime. UR-134 requires operational values to come from a configuration file, not hardcoded or set only via environment variables. ADR-015 establishes that both TypeScript and Python read from a shared runtime config file. This decision defines the concrete runtime selection mechanism.
 
-**Rationale**: Factory functions are simple, explicit, and debuggable. The config file is human-readable and serves as a single source of truth for what provider is active. Each factory is a self-contained mapping from config key to implementation, easy to test by passing a different config value. The ADR-001 configuration hierarchy (CLI args, env vars, Docker runtime config, local runtime, package defaults) remains valid as an override mechanism — env vars can override specific config values, but the config file is the base layer.
+**Rationale**: Factory functions are simple, explicit, and debuggable. Each service's config file is its control plane for provider selection — config files are scoped per service and no service receives configuration it does not need (see ADR-015). Each factory is a self-contained mapping from config key to implementation, easy to test by passing a different config value. The ADR-001 configuration hierarchy (CLI args, env vars, Docker runtime config, local runtime, package defaults) remains valid as an override mechanism — env vars can override specific config values, but the config file is the base layer.
 
 **Options considered**:
 
@@ -392,9 +398,9 @@ This ensures that if the server crashes or the client disappears at any point be
 3. **Run completion**: batch-move all files from the run's staging directory to permanent storage; run status transitions to `moving` during the move, then to `completed` once all files are in permanent storage and the summary report is written
 4. **Run-start sweep** (per UR-019): at the start of every ingestion run, before any new work is accepted, the system checks for any prior run not in `completed` status; if found, it deletes all database records tagged with that run ID, removes any files in the run's staging directory, and removes any partially-moved files in permanent storage that are tagged with that run ID; then begins the new run
 
-This ensures that if the process is killed or the system crashes at any point during a run, the next run's startup sweep removes all artifacts from the incomplete run. Permanent storage only contains files from completed runs.
+This ensures that if the process is killed or the system crashes at any point during a run, the next run's run-start sweep removes all artifacts from the incomplete run. Permanent storage only contains files from completed runs.
 
-**Context**: UR-018 requires bulk ingestion to be atomic — if interrupted, no files from the interrupted run are stored. UR-019 requires cleanup at the start of every run. UR-020 requires no summary report for an interrupted run (the report is only written as part of the `completed` transition). This ADR applies the same staging + status tracking pattern from ADR-017 at the run level rather than the individual upload level.
+**Context**: UR-018 requires bulk ingestion to be atomic — if interrupted, no files from the interrupted run are stored. UR-019 requires cleanup at the start of every run. UR-020 requires no summary report for an interrupted run. The report file is created at run start but remains empty until the run completes — an empty file signals an interrupted run. A config flag (`ingestion.partialAuditReport`) enables per-file streaming output during development; in default mode the file is only written at the `completed` transition. The run-start sweep is the fallback for ungraceful termination (process killed or crashed). When the system halts gracefully on a known error, immediate cleanup occurs before the process exits, consistent with ADR-010. This ADR applies the same staging + status tracking pattern from ADR-017 at the run level rather than the individual upload level.
 
 **Rationale**: The run-specific staging directory provides file-level isolation — files from an in-progress run never exist in permanent storage until the entire run completes. The run ID in the database provides record-level tracking — all artifacts of an incomplete run can be identified and removed in a single sweep. The three-phase status (`in_progress`, `moving`, `completed`) handles the case where the process is killed during the batch move: the `moving` status tells the next sweep that some files may be in permanent storage and must be cleaned up. This is architecturally consistent with ADR-017 (same pattern, different granularity).
 
@@ -417,14 +423,14 @@ This ensures that if the process is killed or the system crashes at any point du
 
 **Context**: UR-025 requires automatic creation of the output directory. UR-026 asks whether directory creation failure causes the run to abort or only affects the file write. UR-024 requires the report to be written to both stdout and a timestamped file. The question is when directory creation and file opening are attempted, and what happens if they fail.
 
-**Rationale**: Creating the directory and opening the report file before any ingestion work begins provides a fail-fast guarantee — the user learns immediately if the report path is misconfigured, before any processing time is spent. Streaming append (writing each file outcome as it is processed rather than batching at the end) means that even if the process is killed mid-run, the partial report file on disk contains all outcomes processed up to that point. This is a stronger audit guarantee than writing the entire report at the end. Note that the partial report from an interrupted run survives even though the ingestion itself is rolled back (ADR-018) — the report documents what was attempted, while the atomicity mechanism ensures nothing from the interrupted run is stored.
+**Rationale**: Creating the directory and opening the report file before any ingestion work begins provides a fail-fast guarantee — the user learns immediately if the report path is misconfigured, before any processing time is spent. In default mode, the file is opened at run start but written only when the run completes, consistent with the atomicity guarantee. The `ingestion.partialAuditReport` config flag enables streaming-append mode for development, where per-file outcomes are written incrementally — useful for diagnosing failures without waiting for a full run.
 
 **Options considered**:
 
 - Abort run on directory creation failure (create at start, batch write at end) — rejected because a batch write at the end loses the entire report if the process is killed after processing many files
 - Proceed with run if directory creation fails, report to stdout only — rejected because it compromises audit integrity and the user may not notice the failure in long stdout output
 
-**Risk accepted**: The report file from an interrupted run may contain per-file outcomes for files that were subsequently rolled back by ADR-018. This is acceptable because the report documents what was attempted, and the rollback is a separate concern. The user can see from the absence of a summary totals section that the run did not complete.
+**Risk accepted**: In default mode, the report file from an interrupted run is empty — it is created at run start but written only at completion. When `ingestion.partialAuditReport` is enabled, the file contains per-file outcomes for files that were subsequently rolled back; this mode is intended for development use only.
 
 **Tradeoffs**: Streaming append means the report file is held open for the duration of the run. This is standard practice for log-style files and carries no meaningful risk for a single-user local system.
 
@@ -483,6 +489,21 @@ The recommended starting implementation is weighted field presence: the score is
 
 **Source**: Resolved in Head of Development phase, 2026-02-21. Addresses UR-057, UR-054, UR-056. Cross-references UR-052 (metadata detection fields), ADR-016 (factory pattern).
 
+**Text quality scoring** (addendum):
+
+Text quality scoring is assessed independently of metadata completeness (UR-054). The
+interface contract mirrors the completeness scoring pattern:
+
+- **Input**: extracted text + per-page OCR confidence scores from the OCR engine
+- **Output**: quality score in the range 0-100
+- **Configuration**: quality threshold is a separate configurable value (per UR-054);
+  scoring method is pluggable behind the same interface pattern (ADR-016)
+
+The recommended starting implementation is a weighted combination of mean OCR confidence
+score and text density (characters per page). All weights and the threshold are configurable.
+Initial values are an implementer decision, expected to be tuned as real documents are
+processed.
+
 ---
 
 ### ADR-022: UUID v7 for Document Identifiers
@@ -512,7 +533,7 @@ The recommended starting implementation is weighted field presence: the score is
 
 **Context**: UR-061 defers the archive reference derivation rule to the architecture phase. UR-059 requires the archive reference to be derived from curated metadata at display time and to be mutable. UR-060 allows two documents to share the same archive reference (it is not a uniqueness constraint). UR-015 requires both intake routes to produce the same archive reference for the same metadata. ADR-022 establishes UUID v7 as the internal identifier; the archive reference is the human-facing complement.
 
-**Rationale**: Date and description are the two metadata fields guaranteed to exist from Phase 1 intake (UR-002). The format mirrors the bulk ingestion naming convention (`YYYY-MM-DD - short description` per UR-014), making the archive reference immediately familiar to the archivist. The simplicity of the derivation rule means it is always producible — there is no case where the archive reference cannot be generated, since description is required (UR-010) and date is either present or falls back to `[undated]`. Placing the function in `packages/shared/` ensures a single implementation used by both the frontend (display) and backend (API responses, citations).
+**Rationale**: Date and description are the two metadata fields guaranteed to exist from Phase 1 intake (UR-002). The format is inspired by the bulk ingestion naming convention (`YYYY-MM-DD - short description` per UR-014), making the archive reference immediately familiar to the archivist. The separator deliberately differs: the naming convention uses a hyphen-minus (suitable for filenames), while the archive reference uses an em dash (a display label, not a filename). The simplicity of the derivation rule means it is always producible — there is no case where the archive reference cannot be generated, since description is required (UR-010) and date is either present or falls back to `[undated]`. Placing the function in `packages/shared/` ensures a single implementation used by both the frontend (display) and backend (API responses, citations).
 
 **Options considered**:
 
@@ -613,6 +634,7 @@ Processing scope: when triggered, the system processes all documents that have c
 **Processing behaviour**:
 
 - When processing is triggered (ADR-026), the system queries for documents with incomplete steps (any step not in `completed` status) and resumes from the first incomplete step per document
+- Before forwarding a document to the Python processing service, Express marks each of that document's pending steps as `running` and records `started_at`. On receiving Python's response, Express updates each step to `completed` or `failed` and writes all processing results within a transaction (ADR-031). At the start of each processing trigger, before new work is accepted, the system checks for steps in `running` status where `started_at` is older than a configurable timeout (`pipeline.runningStepTimeoutMinutes`). Stale `running` steps are reset to `failed` with an incremented attempt count and an error message indicating a presumed Python service crash. The normal retry mechanism (UR-068, UR-069) handles them in the same run.
 - Failed steps remain at `failed` status with an incremented attempt count. The next processing run retries them up to the configurable retry limit (UR-069). When the limit is exceeded, the document is flagged and surfaced in the curation queue
 - A step that ran successfully is marked `completed` even if its output failed a quality threshold (UR-067) — the quality outcome is recorded separately; the step status tracks technical completion only
 - Documents are absent from the search index until the embedding step completes successfully (UR-065) — this is enforced by checking the embedding step's status, not a separate visibility flag
@@ -623,6 +645,7 @@ Processing scope: when triggered, the system processes all documents that have c
 - A "reprocess" command selects documents at the old version and resets specific steps to `pending` (e.g., reset chunking and embedding while keeping extraction)
 - The next processing trigger picks up these documents and re-runs the reset steps
 - This is the same processing path as first-run processing — no separate reprocessing pipeline is needed
+- The reprocess command follows the same interface pattern as the processing trigger (ADR-026): an Express API endpoint callable from both the curation web UI and the CLI. This is the single entry point for reprocessing regardless of caller, consistent with ADR-026's design.
 
 **Context**: UR-075 requires the pipeline to be re-entrant by design to support enrichment reprocessing without a full rewrite. UR-067 requires independent step completion tracking. UR-068 requires retry on technical failure. UR-069 requires a configurable retry limit. UR-065 requires documents to be invisible to search until embedding completes.
 
@@ -749,7 +772,7 @@ Migrations are numbered sequentially and run via `knex migrate:latest` at applic
 | C3 Query and Retrieval | None | Read-only via Express API |
 | C4 Continuous Ingestion | None | Write access via Express API (same pattern as C1) |
 
-**Express-to-Python processing contract**: The boundary between Express and the Python processing service is an RPC-style contract. Express sends a processing request (document ID, file location or file content); Python performs OCR, chunking, embedding, metadata extraction, vocabulary candidate identification, and quality scoring; Python returns the complete set of processing outputs to Express in a single structured response. Express then writes all outputs to the database within a transaction, ensuring that either all processing results for a document are persisted or none are.
+**Express-to-Python processing contract**: The boundary between Express and the Python processing service is an RPC-style contract. Express sends a processing request (document ID, file reference) — where file reference is a storage-provider-specific locator: a filesystem path in Phase 1 (local storage, ADR-008), or a pre-signed URL / storage URI in later phases (e.g. S3). In Phase 1, Python accesses the file via a shared Docker Compose volume mount. Python never receives raw file content over HTTP — it always fetches from the storage layer using the provided reference. Python performs OCR, chunking, embedding, metadata extraction, vocabulary candidate identification, and quality scoring; Python returns the complete set of processing outputs to Express in a single structured response. Express then writes all outputs to the database within a transaction, ensuring that either all processing results for a document are persisted or none are.
 
 **Contract technology**: The specific RPC technology is an implementation decision, not an architectural one. Candidates include tRPC with a generated Python client (tRPC is TypeScript-native; the Python side would use the HTTP adapter or a generated SDK), OpenAPI with code generation for both sides, or plain REST with shared type definitions. The architecture requires only that the contract is typed and that both sides can validate requests and responses against a shared schema. The implementer selects the technology based on developer experience and tooling maturity at implementation time.
 
@@ -771,10 +794,11 @@ No cross-service transactions are needed because only one service writes.
 
 - Both services write to the database (Python writes processing outputs directly) — rejected because it creates two database writers with separate connection pools, requires Python to have schema awareness, and makes cross-service transaction boundaries impossible; schema drift risk increases with every migration
 - Hybrid (Python writes pipeline status only, Express writes everything else) — rejected because even a single shared table between two writers introduces coordination requirements; the marginal benefit (real-time status updates from Python) does not justify the complexity; Python can report step status in its HTTP response and Express can write it
+- Sending raw file content over HTTP — rejected because it produces large HTTP payloads for binary files and is inconsistent with the storage abstraction model; the file reference approach scales from local filesystem to S3 without changing the RPC contract
 
 **Risk accepted**: Processing results for a document with many chunks and high-dimensional embeddings produce a large HTTP response payload. For a document with 100 chunks at 1024 dimensions, the embedding data alone is approximately 400 KB (100 x 1024 x 4 bytes). This is well within HTTP payload limits and acceptable for an internal service call on a local network.
 
-**Tradeoffs**: Pipeline step status updates are not written until Python returns its response to Express. This means the `pipeline_steps` table does not reflect real-time progress during processing — it is updated after each document completes, not after each step within a document. For Phase 1 this is acceptable because the curation queue shows document-level status and the fire-and-forget model (ADR-026) does not require real-time progress visibility.
+**Tradeoffs**: Pipeline step status is written twice per document: steps are marked `running` before the request is sent to Python, then updated to `completed` or `failed` when Python responds. The `pipeline_steps` table reflects which document is currently in-flight, but not progress within a document's individual steps — Python processes all steps for a document before returning.
 
 **Source**: Resolved in Head of Development phase, 2026-02-22. Addresses data ownership and transaction boundaries. Cross-references ADR-015 (Python service boundary), ADR-026 (fire-and-forget semantics), ADR-027 (pipeline step status), ADR-028 (Knex.js), ADR-029 (migration policy).
 
@@ -818,7 +842,7 @@ No cross-service transactions are needed because only one service writes.
 
 **Tradeoffs**: No automated validation of the Express-Python contract boundary. If the RPC schema changes on one side without the other, the mismatch is caught at runtime, not in tests. This is acceptable for a single-developer project where both sides are changed by the same person.
 
-**Source**: Resolved in Head of Development phase, 2026-02-22. Addresses testing strategy for Python components. Cross-references ADR-016 (factory pattern), ADR-031 (no DB connection), ADR-025 (LLM non-determinism), ADR-015 (pytest as test runner).
+**Source**: Resolved in Head of Development phase, 2026-02-22. Addresses testing strategy for Python components. Cross-references ADR-016 (factory pattern), ADR-031 (no DB connection), ADR-025 (LLM non-determinism), ADR-015 (Python service structure, which establishes Vitest and pytest as the two test runners).
 
 ---
 

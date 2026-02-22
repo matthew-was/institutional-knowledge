@@ -2,7 +2,7 @@
 
 This document is a synthesis of all decisions recorded in
 [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (ADR-001 through
-ADR-032). It describes the confirmed system architecture for the Estate Intelligence project.
+ADR-033). It describes the confirmed system architecture for the Estate Intelligence project.
 
 ---
 
@@ -128,7 +128,7 @@ Environment variables can override specific config values, but the config file i
 | OCR engine | `ocr.provider` | Docling + Tesseract fallback (ADR-011) | Alternative engines |
 | LLM (chunking) | `llm.provider` | Local via Ollama (ADR-025) | API providers |
 | Embedding model | `embedding.provider` | Local model (ADR-024) | API providers |
-| Vector storage | pgvector config | pgvector on local PostgreSQL (ADR-004) | Dedicated vector DB |
+| Vector storage | `vectorStore.provider` | pgvector on local PostgreSQL via `VectorStore` interface (ADR-004, ADR-033) | Dedicated vector DB (e.g. OpenSearch) |
 
 The embedding vector dimension is config-driven, not hardcoded in the schema (ADR-024). Changing
 the embedding model requires a config update and a re-embedding pass, not a schema migration.
@@ -281,6 +281,7 @@ vocabulary via Knex.js seed files.
 | Database backup | Docker volume snapshots + recommended pg_dump | ADR-030 |
 | Data ownership | Express sole writer; Python stateless via RPC | ADR-031 |
 | Python testing | Interface-driven mocking + fixture documents + pytest | ADR-032 |
+| Vector store abstraction | `VectorStore` interface in Express; pgvector Phase 1 impl | ADR-033 |
 
 ---
 
