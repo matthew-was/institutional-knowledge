@@ -1,77 +1,151 @@
+%% ============================================================
+%% DIAGRAM 1: System Overview
+%% High-level components and data flow. No internal detail.
+%% ============================================================
+
+graph LR
+    Archivist([Primary Archivist])
+
+    subgraph Frontend["Next.js Frontend"]
+        WebUI[Web UI]
+    end
+
+    subgraph C1["C1: Document Intake"]
+        Intake[Intake\nValidate · Stage · Store]
+    end
+
+    subgraph BackendSvc["Express Backend"]
+        API[API]
+        DB[(PostgreSQL\n+ pgvector)]
+        FileStore[(File Storage)]
+    end
+
+    subgraph C2["C2: Processing\n(Python service)"]
+        Processing[OCR · Chunk · Embed\nMetadata · Vocabulary]
+    end
+
+    subgraph C3["C3: Query"]
+        Query[Embed · Search\nRAG · Respond]
+    end
+
+    C4["C4: Continuous Ingestion\n(Phase 2+)"]
+
+    Archivist -->|"Upload / curate"| WebUI
+    Archivist -->|"Bulk ingest / query"| API
+    WebUI --> API
+    API --> Intake
+    Intake --> DB
+    Intake --> FileStore
+    API -->|"Trigger"| Processing
+    Processing -->|"Results"| API
+    API --> DB
+    FileStore -.->|"File ref"| Processing
+    API --> Query
+    DB -.->|"Embeddings\n+ metadata"| Query
+    FileStore -.->|"Source docs"| Query
+    Query -->|"Response + citations"| API
+    C4 -.->|"Phase 2+"| API
+
+    style C4 fill:#f0f0f0,stroke-dasharray: 5 5
+    style DB fill:#99d6ff
+    style FileStore fill:#99d6ff
+    style Archivist fill:#ffb366
+
+
+%% ============================================================
+%% DIAGRAM 2: C1 — Document Intake Detail
+%% Two intake routes, validation, staging, and file lifecycle.
+%% ============================================================
+
 graph TD
-    %% External Actors
     Archivist([Primary Archivist])
     WebUI[Web UI\nNext.js]
     CLI[CLI]
 
-    %% Component 1: Document Intake
-    subgraph C1["Component 1: Document Intake"]
-        WebUpload["Web UI Upload\nFour-status lifecycle\nADR-007, ADR-017"]
-        BulkIngest["Bulk Ingestion CLI\nRun-level staging + run ID\nADR-018, ADR-020, ADR-035"]
-        Validate["Validation\nFormat, size, hash\nADR-009"]
-        Staging[("Staging Area\n(per-upload or per-run)")]
+    subgraph WebRoute["Web UI Upload — ADR-007, ADR-017"]
+        Initiate["1. Initiate\nCreate DB record\nstatus: initiated"]
+        Upload["2. Upload\nWrite to staging area\nstatus: uploaded"]
+        Store["3. Store\nMove to permanent storage\nHash validated\nstatus: stored"]
+        Finalize["4. Finalize\nAll files confirmed\nstatus: finalized"]
     end
 
-    %% Shared Infrastructure
-    subgraph Infra["Shared Infrastructure"]
-        DB[("PostgreSQL + pgvector\nADR-004")]
-        Storage[("File Storage\nLocal / S3\nADR-008")]
-        ExpressConfig[/"Express Config File\n(DB + storage + backend)\nADR-015, ADR-016"/]
-        PythonConfig[/"Python Config File\n(OCR + LLM + embedding)\nADR-015, ADR-016"/]
+    subgraph BulkRoute["Bulk Ingestion CLI — ADR-018, ADR-020, ADR-035"]
+        RunStart["Run Start\nGenerate run ID\nCreate staging directory\nOpen report file"]
+        FileVal["Per-File Validation\nNaming convention\nFormat · Size · Hash\nADR-009, ADR-035"]
+        BatchMove["Batch Move\nstagingpermanent storage\nPer-file: uploadedstored"]
+        RunComplete["Run Complete\nAll files: stored→finalized\nWrite summary report\nDelete staging directory"]
     end
 
-    %% Express Backend
-    subgraph Backend["Express Backend — Sole DB Writer (ADR-031)"]
-        API["Express API\nIntake + Processing trigger + Query"]
-        Knex["Knex.js Migrations\nADR-028, ADR-029"]
-        TxWriter["Transaction Writer\nAtomic writes"]
-        VectorStore["VectorStore Interface\nADR-033"]
-        PipelineTracker["Pipeline Step Tracker\npipeline_steps table\nStale-running sweep\nADR-027"]
+    subgraph Cleanup["Startup / Run-Start Sweep — ADR-010, ADR-017, ADR-018"]
+        Sweep["Status-aware cleanup\ninitiated / uploaded → delete record + wipe staging\nstored (not finalized) → delete from storage + delete record"]
     end
 
-    %% Component 2: Text Extraction, Processing and Embedding
-    subgraph C2["Component 2: Processing (Python Docker Service — ADR-015)"]
-        OCR["Text Extraction\nDocling / Tesseract\nADR-011"]
-        Quality["Quality Scoring\nPer-page + whole-doc\nADR-021"]
-        MetaDetect["Metadata Extraction\nPattern-based detection\nADR-012"]
-        Completeness["Completeness Scoring\nWeighted field presence\nADR-021"]
-        VocabCandidate["Vocabulary Candidate\nIdentification\nADR-014"]
-        Chunking["Semantic Chunking\nLLM-based\nADR-025"]
+    DB[(PostgreSQL)]
+    Storage[(File Storage)]
+
+    Archivist --> WebUI
+    Archivist --> CLI
+    WebUI --> Initiate
+    Initiate --> Upload
+    Upload --> Store
+    Store --> Finalize
+    Initiate -->|"DB record"| DB
+    Store -->|"File"| Storage
+    Finalize -->|"Update status"| DB
+
+    CLI --> RunStart
+    RunStart --> FileVal
+    FileVal --> BatchMove
+    BatchMove --> RunComplete
+    RunStart -->|"Run record"| DB
+    BatchMove -->|"Files"| Storage
+    RunComplete -->|"Update statuses"| DB
+
+    Sweep -.->|"On startup / run start"| DB
+    Sweep -.->|"Cleanup"| Storage
+
+    style DB fill:#99d6ff
+    style Storage fill:#99d6ff
+    style Archivist fill:#ffb366
+    style Sweep fill:#fff0cc
+
+
+%% ============================================================
+%% DIAGRAM 3: C2 — Processing Pipeline Detail
+%% Express trigger, Python steps, result write-back.
+%% ============================================================
+
+graph TD
+    API["Express API\n(processing trigger)"]
+    FileStore[(File Storage)]
+    DB[(PostgreSQL\n+ pgvector)]
+
+    subgraph PipelineTracker["Pipeline Step Tracker — ADR-027"]
+        MarkRunning["Mark steps running\nRecord started_at"]
+        StaleCheck["Stale-running sweep\n> pipeline.runningStepTimeoutMinutes\n→ reset to failed"]
+        MarkDone["Update steps\ncompleted / failed\nincrement attempt count"]
+    end
+
+    subgraph Python["Python Processing Service — ADR-015"]
+        OCR["Text Extraction\nDocling (primary)\nTesseract (fallback)\nADR-011"]
+        Quality["Quality Scoring\nPer-page OCR confidence\n+ text density\nADR-021"]
+        MetaDetect["Metadata Extraction\nType · Dates · People\nLand refs · Description\nPattern-based — ADR-012"]
+        Completeness["Completeness Scoring\nWeighted field presence\nPluggable interface\nADR-021"]
+        VocabCandidate["Vocabulary Candidates\nProposed terms\nfor review queue\nADR-014"]
+        Chunking["Semantic Chunking\nLLM-based\nOllama / API LLM\nADR-025"]
         Embedding["Embedding Generation\nLocal model\nConfig-driven dimensions\nADR-024"]
     end
 
-    %% Component 3: Query and Retrieval
-    subgraph C3["Component 3: Query and Retrieval"]
-        QueryEmbed["Query Embedding\n(same model as C2)"]
-        VectorSearch["Vector Similarity Search\nvia VectorStore interface\nADR-033"]
-        RAG["RAG Context Assembly\n+ LLM"]
-        Response["Response with Citations\nYYYY-MM-DD — description\nADR-023"]
+    subgraph TxWrite["Express Transaction Write — ADR-031"]
+        TxWriter["Single transaction:\nChunks + embeddings\nPipeline step status\nVocabulary candidates\nQuality scores"]
+        VectorStore["VectorStore Interface\nADR-033"]
     end
 
-    %% Phase 2+ Component 4
-    subgraph C4["Component 4: Continuous Ingestion (Phase 2+)"]
-        AutoTrigger["Automated Triggers\nLISTEN/NOTIFY candidate\nADR-026"]
-    end
+    API -->|"Fire-and-forget\nreturns run ID\nADR-026"| StaleCheck
+    StaleCheck --> MarkRunning
+    MarkRunning -->|"Document ID\n+ file reference\nADR-031"| OCR
+    FileStore -.->|"File path / URI"| OCR
 
-    %% Archivist interactions
-    Archivist --> WebUI
-    Archivist --> CLI
-
-    %% Intake flows
-    WebUI --> API
-    CLI -->|"Bulk ingestion\n(--grouped, ADR-020, ADR-035)"| BulkIngest
-    CLI -->|"Query"| API
-    API --> WebUpload
-    WebUpload --> Validate
-    BulkIngest --> Validate
-    Validate --> Staging
-    Staging -->|"Move to permanent storage\ninitiated → uploaded → stored → finalized\nADR-007, ADR-017, ADR-018"| Storage
-
-    %% Processing trigger
-    API -->|"Fire-and-forget trigger\nreturns run ID\nADR-026"| PipelineTracker
-    PipelineTracker -->|"Mark steps running\nstale-running sweep\nADR-027"| OCR
-
-    %% Processing pipeline (sequential within Python service)
     OCR --> Quality
     Quality --> MetaDetect
     MetaDetect --> Completeness
@@ -79,44 +153,59 @@ graph TD
     VocabCandidate --> Chunking
     Chunking --> Embedding
 
-    %% Python returns results to Express
-    Embedding -->|"Structured response\nvia HTTP/RPC\nADR-031"| TxWriter
-
-    %% Express writes to DB
+    Embedding -->|"Structured response\nHTTP/RPC"| TxWriter
     TxWriter --> DB
     TxWriter --> VectorStore
-    VectorStore -->|"pgvector Phase 1\nswappable via config\nADR-033"| DB
-    Knex -->|"Schema management"| DB
-    API --> TxWriter
+    VectorStore -->|"pgvector Phase 1\nswappable via config"| DB
+    TxWriter --> MarkDone
 
-    %% File references
-    Storage -.->|"File reference\n(path or URI)\nADR-031"| OCR
-    Storage -.->|"Original docs"| RAG
-
-    %% Query flow
-    API --> QueryEmbed
-    QueryEmbed --> VectorSearch
-    VectorSearch -->|"similarity search"| VectorStore
-    VectorSearch --> RAG
-    RAG --> Response
-    Response --> API
-
-    %% Phase 2+ automated trigger
-    AutoTrigger -.->|"Phase 2+"| API
-
-    %% Config drives services (scoped — ADR-015)
-    ExpressConfig -.->|"Provider selection"| API
-    PythonConfig -.->|"Provider selection"| OCR
-
-    %% Pipeline tracking
-    DB -.->|"Step status read"| PipelineTracker
-
-    %% Styling
     style DB fill:#99d6ff
-    style Storage fill:#99d6ff
-    style ExpressConfig fill:#ffffcc
-    style PythonConfig fill:#ffffcc
+    style FileStore fill:#99d6ff
+    style VectorStore fill:#e8d5ff
+    style StaleCheck fill:#fff0cc
+
+
+%% ============================================================
+%% DIAGRAM 4: C3 — Query and Retrieval Detail
+%% Embedding, vector search, RAG, citations.
+%% ============================================================
+
+graph TD
+    Archivist([Primary Archivist])
+    CLI[CLI\n(Phase 1)]
+    WebUI[Web UI\n(Phase 2)]
+    API["Express API"]
+    DB[(PostgreSQL\n+ pgvector)]
+    FileStore[(File Storage)]
+
+    subgraph QueryFlow["Query and Retrieval — C3"]
+        QueryEmbed["Query Embedding\nSame model as C2\nADR-024"]
+        VectorStore["VectorStore Interface\nADR-033"]
+        VectorSearch["Similarity Search\npgvector Phase 1"]
+        Rerank["Chunk + Document\nContext Assembly"]
+        RAG["RAG\nLLM synthesis"]
+        Response["Response\nWith citations\nYYYY-MM-DD — description\nor [undated] — description\nADR-023"]
+    end
+
+    Archivist --> CLI
+    Archivist --> WebUI
+    CLI -->|"Natural language query"| API
+    WebUI -->|"Natural language query\n(Phase 2)"| API
+    API --> QueryEmbed
+    QueryEmbed --> VectorStore
+    VectorStore -->|"similarity search"| VectorSearch
+    DB -->|"Embeddings"| VectorSearch
+    VectorSearch --> Rerank
+    DB -->|"Document metadata\n+ chunk text"| Rerank
+    FileStore -.->|"Source documents\n(Phase 2)"| Rerank
+    Rerank --> RAG
+    RAG --> Response
+    Response -->|"Answer + citations"| API
+    API -->|"Response"| CLI
+    API -->|"Response"| WebUI
+
+    style DB fill:#99d6ff
+    style FileStore fill:#99d6ff
+    style VectorStore fill:#e8d5ff
     style Response fill:#a8d5a8
     style Archivist fill:#ffb366
-    style C4 fill:#f0f0f0,stroke-dasharray: 5 5
-    style AutoTrigger fill:#f0f0f0,stroke-dasharray: 5 5

@@ -312,5 +312,12 @@ vocabulary via Knex.js seed files.
 
 ## Diagram Reference
 
-See [pipeline-diagram.mermaid](pipeline-diagram.mermaid) for a visual representation of the
-component pipeline, data flows, and phase boundaries.
+See [pipeline-diagram.mermaid](pipeline-diagram.mermaid) for visual representations of the
+system. The file contains four diagrams:
+
+| Diagram | Content |
+| --- | --- |
+| 1. System Overview | Components as black boxes; data flow between services; phase boundaries |
+| 2. C1 — Document Intake | Web UI four-status upload lifecycle; bulk ingestion run-level staging; cleanup sweep |
+| 3. C2 — Processing Pipeline | Express trigger; sequential Python steps; transaction write-back to Express |
+| 4. C3 — Query and Retrieval | Query embedding; vector search; RAG assembly; citation format |
