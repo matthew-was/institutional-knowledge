@@ -2,7 +2,7 @@
 
 This document is a synthesis of all decisions recorded in
 [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (ADR-001 through
-ADR-033). It describes the confirmed system architecture for the Estate Intelligence project.
+ADR-035). It describes the confirmed system architecture for the Estate Intelligence project.
 
 ---
 
@@ -24,6 +24,11 @@ The system is built as a 4-component pipeline (ADR-005):
 
 C1 and C3 are implemented in Phase 1. C2 is the core processing pipeline, also Phase 1. C4 is
 a Phase 2+ addition.
+
+These components are functional groupings of related features, not service or structural
+boundaries. In practice, both the Next.js frontend and Express backend are cross-cutting
+systems that serve multiple components. Only the Python processing service maps to a single
+dedicated service (ADR-005).
 
 ---
 
@@ -102,8 +107,12 @@ via configuration.
 
 **Mechanism** (ADR-016):
 
-- A shared runtime configuration file is the single source of truth for provider selection
-- Each service has a config key (e.g., `storage.provider: "local"`, `ocr.provider: "docling"`)
+- Each service has a scoped runtime configuration file containing only the values it requires.
+  Express receives database credentials, storage config, and backend settings; the Python
+  processing service receives only processing-related config (OCR, LLM, embedding providers
+  and thresholds). This follows the principle of least privilege (ADR-015).
+- Each service has a config key per provider (e.g. `storage.provider: "local"`,
+  `ocr.provider: "docling"`)
 - Factory functions in each language read the key and return the concrete implementation
 - TypeScript: interfaces + factory functions
 - Python: abstract base classes + factory functions
@@ -144,16 +153,22 @@ the embedding model requires a config update and a re-embedding pass, not a sche
 The Primary Archivist submits a document via the web UI form or bulk ingestion CLI.
 
 - **Web UI**: Next.js validates input at the boundary (ADR-003), then forwards to Express.
-  The three-step upload flow (Initiate, Upload to staging area, Finalize to permanent storage)
-  ensures atomicity (ADR-007, ADR-017). MD5 hash is checked against a database unique constraint
-  for deduplication (ADR-009). On any failure, aggressive immediate cleanup removes all partial
-  state (ADR-010).
+  The upload flow implements a four-status lifecycle — `initiated`, `uploaded`, `stored`,
+  `finalized` — ensuring atomicity (ADR-007, ADR-017). A staging area holds files in-progress;
+  files only reach permanent storage at the `stored` step. MD5 hash is checked against a
+  database unique constraint for deduplication (ADR-009). On any failure, aggressive immediate
+  cleanup removes all partial state (ADR-010).
 
 - **Bulk ingestion CLI**: Files in the source directory are validated against the naming
   convention. A run ID tracks all files in the batch (ADR-018). Files are staged in a
-  run-specific directory and batch-moved to permanent storage on completion. The summary report
-  is opened at run start with streaming append (ADR-019). Virtual document grouping uses
-  subdirectories with the `--grouped` flag (ADR-020).
+  run-specific directory and moved individually to permanent storage on run completion (each
+  file transitions from `uploaded` to `stored` to `finalized`). The summary report file is
+  created at run start but remains empty until the run completes — an empty file signals an
+  interrupted run. A config flag (`ingestion.partialAuditReport`) enables streaming append
+  for development use (ADR-019). Virtual document grouping uses subdirectories with the
+  `--grouped` flag (ADR-020). Files within a group must follow the naming convention
+  `NNN` or `NNN - optional-annotation` (e.g. `001.tiff`, `002 - back cover.tiff`) where
+  `NNN` is a zero-padded three-digit sequence number determining page order (ADR-035).
 
 Both routes populate the same metadata model. The document receives a UUID v7 identifier
 (ADR-022) and the archive reference is derived from date and description at display time
@@ -169,7 +184,7 @@ Express sends the document to the Python processing service via internal HTTP (A
 ADR-031). Python performs:
 
 1. **Text extraction**: Docling (primary) or Tesseract (fallback) via the OCR interface (ADR-011)
-2. **Quality scoring**: per-page and whole-document confidence scores (0-100)
+2. **Quality scoring**: per-page and whole-document confidence scores (0–100)
 3. **Metadata extraction**: document type via pattern-based detection (ADR-012), dates, people,
    land references, description
 4. **Metadata completeness scoring**: pluggable weighted field presence (ADR-021)
@@ -182,10 +197,13 @@ ADR-031). Python performs:
 Python returns all processing outputs to Express in a single structured response. Express writes
 everything to PostgreSQL in a single transaction (ADR-031).
 
-Pipeline state is tracked via a per-document step status table (`pipeline_steps`) with a pipeline
-version marker for future enrichment reprocessing (ADR-027). Failed steps are retried up to a
-configurable limit. Documents are absent from the search index until embedding completes
-successfully.
+Pipeline state is tracked via a per-document step status table (`pipeline_steps`) with a
+pipeline version marker for future enrichment reprocessing (ADR-027). Before forwarding a
+document to Python, Express marks its pending steps as `running`. On receiving Python's
+response, Express updates each step to `completed` or `failed`. At the start of each
+processing trigger, stale `running` steps (older than `pipeline.runningStepTimeoutMinutes`)
+are reset to `failed` and retried. Failed steps are retried up to a configurable limit.
+Documents are absent from the search index until embedding completes successfully.
 
 Documents failing quality or completeness thresholds are flagged and surfaced in the curation
 queue. The archivist clears flags to resume processing from the next incomplete step.
@@ -195,7 +213,7 @@ queue. The archivist clears flags to resume processing from the next incomplete 
 The Primary Archivist asks a natural language question via the CLI (Phase 1) or web UI (Phase 2).
 
 1. The query text is embedded using the same embedding model as document chunks
-2. pgvector similarity search finds relevant chunks (ADR-004)
+2. pgvector similarity search finds relevant chunks via the `VectorStore` interface (ADR-033)
 3. Retrieved chunks and their parent documents provide context for RAG
 4. An LLM synthesises a response with source citations
 5. Citations include document description, date, and archive reference (ADR-023)
@@ -227,6 +245,7 @@ vocabulary via Knex.js seed files.
 - Local OCR (Docling), local LLM (Ollama), local embedding model
 - Manual processing trigger only
 - Pattern-based category detection
+- Flat storage paths with no tenant namespace (ADR-034)
 
 ### Phase 2 — Expand and Share
 
@@ -237,6 +256,8 @@ vocabulary via Knex.js seed files.
 - Re-embedding on metadata correction
 - Original documents returned alongside query answers
 - Document browsing
+- S3 storage migration — tenant-namespaced paths introduced at this point using a fixed default
+  tenant ID constant (ADR-034)
 - Candidate: PostgreSQL LISTEN/NOTIFY for automated processing triggers (ADR-026)
 - Candidate: try-all validation mode for grouped ingestion (UR-038)
 
@@ -244,6 +265,8 @@ vocabulary via Knex.js seed files.
 
 - AWS hosting (S3, RDS — configuration change only, ADR-001)
 - User account management; Occasional Contributor access
+- Multi-tenancy: `tenant_id` column added via additive migration; tenant routing middleware
+  introduced; pattern (shared DB vs separate DB) resolved at Phase 3 planning (ADR-034)
 - Document deletion and replacement
 - Document visibility scoping
 - Filter and facet search
@@ -265,13 +288,14 @@ vocabulary via Knex.js seed files.
 | --- | --- | --- |
 | Provider abstraction | Config key + factory pattern per service | ADR-001, ADR-016 |
 | Python placement | Separate Docker service at `services/processing/` | ADR-015 |
-| Upload atomicity | Staging area + DB status column + startup sweep | ADR-017 |
+| Upload atomicity | Staging area + four-status lifecycle + startup sweep | ADR-007, ADR-017 |
 | Bulk ingestion atomicity | Run-level staging + run ID + run-start sweep | ADR-018 |
-| Report behaviour | Created at run start, streaming append, fail-fast on directory error | ADR-019 |
+| Report behaviour | Created at run start, empty by default; streaming append via `ingestion.partialAuditReport` flag | ADR-019 |
 | Virtual document grouping | `--grouped` flag + subdirectories | ADR-020 |
+| Group file naming | `NNN` or `NNN - annotation` sequence numbering | ADR-035 |
 | Metadata completeness | Pluggable interface + weighted field presence | ADR-021 |
 | Document identifiers | UUID v7, PostgreSQL native `uuid` type | ADR-022 |
-| Archive reference | `YYYY-MM-DD — [description]`, derived at display time | ADR-023 |
+| Archive reference | `YYYY-MM-DD — [description]` or `[undated] — [description]`, derived at display time | ADR-023 |
 | Embedding interface | Config-driven dimensions, local-first model | ADR-024 |
 | Semantic chunking | LLM-based, no heuristic fallback | ADR-025 |
 | Processing trigger | Backend API, fire-and-forget, manual in Phase 1 | ADR-026 |
@@ -282,6 +306,7 @@ vocabulary via Knex.js seed files.
 | Data ownership | Express sole writer; Python stateless via RPC | ADR-031 |
 | Python testing | Interface-driven mocking + fixture documents + pytest | ADR-032 |
 | Vector store abstraction | `VectorStore` interface in Express; pgvector Phase 1 impl | ADR-033 |
+| Multi-tenancy | No scaffolding in Phase 1; tenant paths at S3 migration; `tenant_id` at Phase 3 | ADR-034 |
 
 ---
 
