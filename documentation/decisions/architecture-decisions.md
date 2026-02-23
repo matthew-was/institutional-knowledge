@@ -115,6 +115,14 @@ Tradeoffs).
 **Rationale**: Text extraction and embedding are tightly coupled. Merging simplifies the
 architecture and makes the pipeline easier to reason about. No capability is lost.
 
+**Clarification**: These components are functional groupings of related features, not service
+or structural boundaries. In practice, both the Next.js frontend and Express backend are
+cross-cutting systems that serve multiple components (intake, curation, query). Only the Python
+processing service (Component 2) maps to a single dedicated service. Curation — the document
+queue, vocabulary queue, flag management, and metadata correction — is a cross-cutting concern
+within the frontend and backend that does not belong to any single component. See ADR-015 for
+the actual service architecture.
+
 **Source**: Carried forward from pre-approval ADR-005.
 
 ---
@@ -132,24 +140,37 @@ from making confident wrong assumptions on novel domain problems.
 
 ---
 
-### ADR-007: Three-Step Upload Flow for Atomicity [Revised]
+### ADR-007: Upload Flow with Four-Status Lifecycle for Atomicity [Revised]
 
-**Decision**: Document upload uses three separate API calls: Initiate (create database record
-with status `initiated`, get upload ID), Upload (binary file transfer to a staging area — not
-the permanent storage location), Finalize (move file from staging to permanent storage, validate
-hash, confirm metadata, update status to `finalized`).
+**Decision**: Document upload uses four statuses tracking a file through three API calls:
+
+1. **Initiate**: create database record with status `initiated`, get upload ID
+2. **Upload**: binary file transfer to a staging area (not the permanent storage location);
+   status updated to `uploaded`
+3. **Finalize**: move file from staging to permanent storage, validate hash, update status to
+   `stored`; once all files in the submission are `stored` and metadata is confirmed, status
+   updated to `finalized`
+
+Statuses: `initiated` (record created, no file), `uploaded` (file in staging), `stored` (file
+in permanent storage), `finalized` (submission complete). For a single-file web UI upload,
+`stored` and `finalized` occur in quick succession but are distinct steps. For bulk ingestion,
+`finalized` applies only once all files in the run reach `stored` (see ADR-018).
 
 **Context**: UR-008 requires web UI upload to be atomic — if interrupted, nothing is stored.
 
-**Rationale**: Enables resume on partial failure. Files in the staging area are isolated from
-permanent storage until the Finalize step succeeds. Explicit hash check at finalize step.
-Separates metadata creation from file storage. Each step can be validated independently at the
-Next.js boundary. See ADR-017 for the full atomicity mechanism including startup sweep.
+**Rationale**: Ensures rollback is available at every stage of the upload. Files in the staging
+area are isolated from permanent storage until the Finalize step succeeds — if any step fails
+or the upload is interrupted, the incomplete upload can be cleaned up without affecting permanent
+storage. Explicit hash check at finalize step. Separates metadata creation from file storage.
+Each step can be validated independently at the Next.js boundary. See ADR-017 for the full
+atomicity mechanism including startup sweep.
 
-**Revision note**: Original pre-approval ADR-C1-001 revised twice. First revision removed tRPC
-reference. Second revision (2026-02-21) made the staging area explicit in the Upload step and
-added the status column lifecycle (`initiated` to `uploaded` to `finalized`). Cross-references
-ADR-017 for the complete atomicity mechanism.
+**Revision note**: Original pre-approval ADR-C1-001 revised three times. First revision removed
+tRPC reference. Second revision (2026-02-21) made the staging area explicit in the Upload step
+and added the status column lifecycle (`initiated` to `uploaded` to `finalized`) (superseded by the four-status model introduced in the third revision). Third revision
+(2026-02-23) introduced a `stored` status between `uploaded` and `finalized` to distinguish
+files that have reached permanent storage from those still in staging, enabling precise cleanup
+after a crash mid-move. Cross-references ADR-017 for the complete atomicity mechanism.
 
 **Risk accepted**: More complex client-side logic. Mitigated by clear API contract and shared
 types.
@@ -191,7 +212,10 @@ detection deferred per UR-034.
 ### ADR-010: Aggressive Immediate Cleanup on Failure [Revised]
 
 **Decision**: On any error during upload or ingestion, immediately delete all partial state:
-staging area files, database records not in `finalized` status, and any associated stored files.
+staging area files, database records not in `finalized` status, and any associated stored files
+(including files that reached permanent storage with status `stored` — these must be deleted
+from permanent storage before their DB records are removed; see ADR-017 for the status-specific
+cleanup mechanism).
 No partial state persists. The staging area (see ADR-017) is part of the cleanup scope.
 
 **Context**: UR-008 (upload atomicity) and UR-018 (bulk ingestion atomicity) require that
@@ -363,16 +387,20 @@ services/
 
 ### ADR-017: Upload Atomicity via Staging Area and Database Status Tracking
 
-**Decision**: Upload atomicity is implemented through a combination of a file staging area and a database status column. The mechanism works as follows:
+**Decision**: Upload atomicity is implemented through a combination of a file staging area and a database status column with four states. The mechanism works as follows:
 
 1. **Initiate**: creates a database record with status `initiated`
 2. **Upload**: file is written to a staging area (a temporary location separate from permanent storage); database status updated to `uploaded`
-3. **Finalize**: file is moved from staging to permanent storage; hash is validated; database status updated to `finalized`
-4. **Startup sweep**: on application startup, the backend queries for any records not in `finalized` status, deletes those records, and wipes the staging area
+3. **Store**: file is moved from staging to permanent storage; hash is validated; database status updated to `stored`
+4. **Finalize**: once all files in the submission are `stored` and metadata is confirmed, status updated to `finalized`
+5. **Startup sweep**: on application startup, the backend performs status-based cleanup:
+   - `initiated` or `uploaded` — delete DB record; remove file from staging if present
+   - `stored` but not `finalized` — delete file from permanent storage and delete DB record (interrupted mid-finalize)
+   - `finalized` — complete, no cleanup needed
 
-This ensures that if the server crashes or the client disappears at any point between Initiate and Finalize, the startup sweep removes all partial state. Only files that have completed the full three-step flow exist in permanent storage.
+The `stored` status distinguishes files that have reached permanent storage from those still in staging. This is critical for cleanup: without it, a crash during the move step leaves files in permanent storage with no way to identify them as incomplete. See ADR-007 for the status definitions.
 
-**Context**: UR-008 requires web UI upload to be atomic — if interrupted, nothing is stored. ADR-007 defines the three-step flow. ADR-010 defines the cleanup policy. This ADR specifies the concrete mechanism that ties them together: where files land during upload, how the database tracks progress, and what happens on recovery.
+**Context**: UR-008 requires web UI upload to be atomic — if interrupted, nothing is stored. ADR-007 defines the upload flow and four-status lifecycle. ADR-010 defines the cleanup policy. This ADR specifies the concrete mechanism that ties them together: where files land during upload, how the database tracks progress, and what happens on recovery.
 
 **Rationale**: The staging area provides file-level isolation — in-progress uploads never exist in the permanent storage location, so permanent storage always reflects only completed uploads. The database status column provides record-level tracking — the system can identify incomplete uploads at any time. The startup sweep handles the case where the server itself crashes between steps. Combined, these mechanisms give both database atomicity and file storage atomicity without requiring long-running database transactions (which would hold locks and cannot roll back file operations anyway).
 
@@ -381,7 +409,7 @@ This ensures that if the server crashes or the client disappears at any point be
 - Database transaction wrapping the entire flow — rejected because file storage is outside the transaction boundary; files written to disk are not rolled back by a database rollback; also holds locks for the duration of the upload
 - Database status column without staging area — rejected because files in permanent storage would need to be identified and removed individually during cleanup; the staging area makes cleanup a simple wipe operation
 
-**Risk accepted**: The file move from staging to permanent storage (Finalize step) could fail (disk full, permissions). This is handled by the same cleanup mechanism — the record remains in `uploaded` status and is swept on next startup. The move operation is a single filesystem call and is unlikely to leave a half-state.
+**Risk accepted**: The file move from staging to permanent storage (Store step) could fail (disk full, permissions). If the move succeeds but the status update to `stored` fails, the file exists in permanent storage but the record still reads `uploaded` — the startup sweep will delete the DB record and wipe staging, but the orphaned file in permanent storage must be identified and removed. This is a narrow edge case (crash between filesystem move and DB write) and is accepted as low-probability. The move operation is a single filesystem call and is unlikely to leave a half-state.
 
 **Tradeoffs**: Slightly more complex storage logic (two locations instead of one). This is offset by the simplicity and reliability of the cleanup mechanism.
 
@@ -394,15 +422,19 @@ This ensures that if the server crashes or the client disappears at any point be
 **Decision**: Bulk ingestion atomicity is implemented through a run-specific staging directory combined with a run ID in the database. The mechanism works as follows:
 
 1. **Run start**: generate a unique run ID; create a run record in the database with status `in_progress`; create a run-specific staging directory
-2. **Per-file processing**: each file accepted during the run is written to the run's staging directory; each database record created during the run is tagged with the run ID
-3. **Run completion**: batch-move all files from the run's staging directory to permanent storage; run status transitions to `moving` during the move, then to `completed` once all files are in permanent storage and the summary report is written
-4. **Run-start sweep** (per UR-019): at the start of every ingestion run, before any new work is accepted, the system checks for any prior run not in `completed` status; if found, it deletes all database records tagged with that run ID, removes any files in the run's staging directory, and removes any partially-moved files in permanent storage that are tagged with that run ID; then begins the new run
+2. **Per-file processing**: each file accepted during the run is written to the run's staging directory; each per-file database record is tagged with the run ID and has status `uploaded` (per ADR-007/ADR-017 status model)
+3. **Run completion**: move files individually from the run's staging directory to permanent storage, updating each file's status to `stored` as it is moved; run status transitions to `moving` during this phase; once all files are `stored` and the summary report is written, each file's status is updated to `finalized` and the run status transitions to `completed`
+4. **Run-start sweep** (per UR-019): at the start of every ingestion run, before any new work is accepted, the system checks for any prior run not in `completed` status; cleanup is status-aware:
+   - Files with status `initiated` or `uploaded` — delete DB record; remove from staging if present
+   - Files with status `stored` (run interrupted before `finalized`) — delete from permanent storage and delete DB record
+   - Run staging directory is removed
+   - Run record is deleted
 
-This ensures that if the process is killed or the system crashes at any point during a run, the next run's run-start sweep removes all artifacts from the incomplete run. Permanent storage only contains files from completed runs.
+The per-file `stored` status is critical for bulk cleanup: it identifies exactly which files reached permanent storage during an interrupted move, avoiding the need to scan permanent storage by convention. This uses the same four-status model defined in ADR-007 and ADR-017.
 
 **Context**: UR-018 requires bulk ingestion to be atomic — if interrupted, no files from the interrupted run are stored. UR-019 requires cleanup at the start of every run. UR-020 requires no summary report for an interrupted run. The report file is created at run start but remains empty until the run completes — an empty file signals an interrupted run. A config flag (`ingestion.partialAuditReport`) enables per-file streaming output during development; in default mode the file is only written at the `completed` transition. The run-start sweep is the fallback for ungraceful termination (process killed or crashed). When the system halts gracefully on a known error, immediate cleanup occurs before the process exits, consistent with ADR-010. This ADR applies the same staging + status tracking pattern from ADR-017 at the run level rather than the individual upload level.
 
-**Rationale**: The run-specific staging directory provides file-level isolation — files from an in-progress run never exist in permanent storage until the entire run completes. The run ID in the database provides record-level tracking — all artifacts of an incomplete run can be identified and removed in a single sweep. The three-phase status (`in_progress`, `moving`, `completed`) handles the case where the process is killed during the batch move: the `moving` status tells the next sweep that some files may be in permanent storage and must be cleaned up. This is architecturally consistent with ADR-017 (same pattern, different granularity).
+**Rationale**: The run-specific staging directory provides file-level isolation — files from an in-progress run never exist in permanent storage until the move phase begins. The run ID in the database provides record-level tracking — all artifacts of an incomplete run can be identified and removed in a single sweep. The per-file status (`uploaded`, `stored`, `finalized`) combined with the run-level status (`in_progress`, `moving`, `completed`) provides precise cleanup: the sweep knows exactly which files are in staging, which reached permanent storage, and which are fully complete. This is architecturally consistent with ADR-017 (same four-status model at both file and run level).
 
 **Options considered**:
 
@@ -460,7 +492,7 @@ This ensures that if the process is killed or the system crashes at any point du
 
 **UR-016 resolution**: UR-016 ("source directory must contain only files; subdirectories are an error") applies unchanged when `--grouped` is absent. When `--grouped` is present, the source directory must contain only subdirectories (each representing a group); root-level files are the error in this mode. The spirit of UR-016 (reject unexpected directory structures) is preserved in both modes.
 
-**Source**: Resolved in Head of Development phase, 2026-02-21. Addresses UR-036, UR-016. Cross-references UR-037 (group rejection on file failure), UR-038 (fail-fast within groups), UR-040 (single-file group valid), UR-041 (zero-file group error), UR-042 (duplicate filenames within group rejected).
+**Source**: Resolved in Head of Development phase, 2026-02-21. Addresses UR-036, UR-016. Cross-references UR-037 (group rejection on file failure), UR-038 (fail-fast within groups), UR-040 (single-file group valid), UR-041 (zero-file group error), UR-042 (duplicate filenames within group rejected). See ADR-035 for the file naming convention within grouped subdirectories.
 
 ---
 
@@ -895,3 +927,116 @@ not now.
 **Source**: Resolved in Head of Development phase, 2026-02-22. Addresses UR-133 (provider-
 agnostic interfaces). Cross-references ADR-001 (Infrastructure as Configuration), ADR-004
 (pgvector selection), ADR-016 (factory pattern), ADR-031 (Express as sole DB writer).
+
+---
+
+### ADR-034: Multi-Tenancy Scaffolding Deferred — Staged Introduction at Natural Migration Points
+
+**Decision**: No multi-tenancy scaffolding is introduced in Phase 1. Storage paths use a flat
+structure with no tenant namespace. No `tenant_id` column is added to any table. Multi-tenancy
+preparation is introduced in two deliberate stages at natural transition points:
+
+1. **S3 migration** (expected Phase 2–3): when storage moves from local Docker volumes to S3,
+   introduce tenant-namespaced storage paths (`{tenant-id}/archives/YYYY/MM/uuid.ext`) using a
+   fixed default tenant ID constant. No multi-tenant logic is introduced at this point — the
+   namespace is structural only.
+2. **Phase 3** (external user access): add `tenant_id` column to relevant tables via additive
+   Knex migration (per ADR-029), introduce tenant routing middleware, and resolve the
+   multi-tenancy pattern (shared DB vs separate DB per tenant) at Phase 3 planning.
+
+**Context**: The pre-approval ADR-FUTURE-001 proposed adding a nullable `tenant_id` column and
+tenant-namespaced storage paths in Phase 1 to avoid a future retrofit. This ADR supersedes
+that decision. UR-137 explicitly requires the Phase 1 schema to be minimal — unused fields are
+not permitted except where a concrete, known reason exists. No such reason applies to
+`tenant_id` in Phase 1 or Phase 2. The storage path question is the harder problem: unlike a
+DB column, migrating storage paths after documents are archived is expensive (files must move,
+all DB path references must update). However, the S3 migration is itself a point where storage
+is restructured — absorbing tenant namespacing into that work costs near zero.
+
+**Rationale**: Phase 1 path namespacing buys nothing if the S3 migration precedes multi-tenancy
+(which it will — S3 is a Phase 2–3 concern, external tenants are Phase 3+). Introducing it at
+the S3 migration point absorbs the cost into work already happening. The `tenant_id` DB column
+is explicitly prohibited by UR-137 until Phase 3 introduces the feature, at which point a
+non-destructive additive migration is the correct mechanism per ADR-029. Staging the
+introduction at two natural seams means neither step is a rewrite — each is incremental work
+within an already-scheduled transition.
+
+**Risk accepted**: If multi-tenancy is required before the S3 migration occurs, storage path
+migration must be done at that point instead. This is accepted as low-probability given the
+project roadmap. The risk is documented here so it is not forgotten.
+
+**Tradeoffs**: Flat Phase 1 storage paths are simpler to reason about and consistent with the
+minimal-schema principle. The cost is that the S3 migration must carry the additional task of
+introducing path namespacing — this must be noted in the S3 migration planning work.
+
+**Source**: 2026-02-23. Supersedes pre-approval ADR-FUTURE-001. Cross-references UR-137
+(minimal Phase 1 schema), ADR-029 (additive-only migrations), ADR-001 (Infrastructure as
+Configuration).
+
+---
+
+### ADR-035: File Naming Convention Within Virtual Document Groups
+
+**Decision**: Individual files within a virtual document group (bulk ingestion, `--grouped` mode
+per ADR-020) must follow the convention `NNN` or `NNN - optional-annotation`, where `NNN` is a
+zero-padded three-digit sequence number (e.g. `001`, `002`, `003`). The file extension is
+unchanged. Examples:
+
+- `001.tiff`
+- `002.tiff`
+- `001 - front cover.tiff`
+- `002 - inside front.tiff`
+
+The sequence number is the first element. The group subdirectory name carries the date and
+description (per UR-014 and ADR-020) — individual files within the group do not repeat this
+information. Page order within the virtual document is determined by lexicographic sort of the
+filename stem, which is equivalent to numeric sort when sequence numbers are zero-padded to
+the same width.
+
+Files not conforming to this convention within a `--grouped` run are rejected at intake; the
+entire group is rejected per UR-037.
+
+**Context**: ADR-020 establishes that `--grouped` mode uses subdirectories to express virtual
+document groups, with the subdirectory name following the `YYYY-MM-DD - description` convention.
+Individual files within a group have no naming constraint in the current decisions, creating an
+ambiguity: filesystem ordering is unreliable across platforms and operating systems, so without
+a naming convention the system cannot determine page order within a multi-file virtual document.
+
+**Rationale**: Page order is semantically meaningful — a multi-page deed scanned as separate
+images must be processed and presented in the correct sequence. Relying on filesystem ordering
+is fragile. The sequence number must come first so that lexicographic and numeric sort produce
+identical results — if the sequence number were a suffix (`description - 001`), a file with
+a description containing digits could sort incorrectly. Three-digit zero-padding supports up to
+999 pages per group, which is sufficient for all foreseeable document types in this archive.
+The optional annotation after the sequence number (`001 - front cover`) allows the archivist
+to label pages without affecting sort order. The group subdirectory already carries date and
+description, so repeating them on every file within the group is redundant and error-prone —
+a mismatch between directory and file metadata would introduce ambiguity.
+
+**Options considered**:
+
+- `YYYY-MM-DD - description - NNN` (full naming convention repeated with page suffix) —
+  rejected because date and description are already on the subdirectory; repeating them
+  on every file is redundant, increases the chance of inconsistency, and makes filenames
+  unnecessarily long
+- `YYYY-MM-DD - description - NNN` with page number first inside the name — rejected for
+  the same reasons as above
+- No convention enforced; rely on filesystem ordering — rejected because filesystem ordering
+  is platform-dependent and not a reliable proxy for page order
+- Manifest file listing page order — rejected for the same reasons as in ADR-020 (requires
+  a separate file, error-prone, introduces a new format)
+
+**Risk accepted**: The archivist must ensure files are named with correct sequence numbers
+before ingestion. A mislabelled sequence (e.g. two files named `001`) is caught by UR-042
+(duplicate filenames within a group are rejected at intake). A file named with the wrong
+sequence number (e.g. pages in the wrong order) is not detectable by the system — the archivist
+is responsible for correct ordering at submission time.
+
+**Tradeoffs**: Adds a naming constraint to files within grouped submissions that does not apply
+to standalone submissions. This is a deliberate asymmetry: standalone files carry full metadata
+in their filename (per UR-014); grouped files delegate metadata to the subdirectory and carry
+only their sequence position.
+
+**Source**: 2026-02-23. Cross-references ADR-020 (grouped CLI mode), UR-014 (naming convention),
+UR-036 (virtual document groups), UR-037 (group rejection on file failure), UR-042 (duplicate
+filenames within group rejected).
