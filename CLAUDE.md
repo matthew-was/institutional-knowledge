@@ -60,20 +60,22 @@ documentation/
 
 ## Agent and Skills Setup
 
-See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup guide (24-step sequence, 6 unresolved questions UQ-001 to UQ-006). Note: unresolved questions are at `documentation/previous documentation to be reviewed/decisions/unresolved-questions.md` and may be outdated relative to the current overview.md; review them against the current scope before proceeding.
+See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup guide. All earlier unresolved questions (UQ-001 to UQ-006) have been resolved via ADRs; see [documentation/decisions/architecture-decisions.md](documentation/decisions/architecture-decisions.md) for ADR-036 to ADR-041 (graph-RAG, entity extraction, query routing).
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `notion-lab-entry.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`
-- Agents: `product-owner.md`
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `notion-lab-entry.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`
+- Agents: `product-owner.md`, `head-of-development.md`
 
-**Remaining to create:** Head of Development, Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents; `configuration-patterns.md` skill and 2 others.
+**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents; `configuration-patterns.md`, `metadata-schema.md`, `pipeline-testing-strategy.md` skills.
 
 **Current next steps:**
 
-1. Head of Development — resolve UQ-001 to UQ-006
-2. Write `.claude/skills/configuration-patterns.md` (informed by UQ-006 answer)
-3. Create remaining agent files
+1. Approve `documentation/decisions/architecture-decisions.md` (ADR-036 to ADR-041)
+2. Head of Development rewrites `architecture.md` and `pipeline-diagrams.md` to reflect new ADRs
+3. Approve revised architecture and pipeline diagrams
+4. Write 3 remaining skills: `configuration-patterns.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`
+5. Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
 
 ### Key Output Locations
 
