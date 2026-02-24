@@ -262,7 +262,8 @@ Both engines are behind an OCR service interface per UR-133.
 ### ADR-012: Pattern-Based Category Detection for Phase 1
 
 **Decision**: Phase 1 detects document category (letter, deed, invoice, operational log, etc.)
-via rule-based pattern matching. LLM-assisted classification deferred to Phase 2.
+via rule-based pattern matching. LLM-assisted classification deferred to Phase 2. See ADR-036
+for the planned merge of pattern-based metadata extraction into the chunking LLM step.
 
 **Context**: UR-052 requires automatic document type detection. The method is not prescribed.
 
@@ -303,6 +304,14 @@ risks confident wrong assumptions. Human-in-the-loop learning ensures accuracy.
 **Revision note**: Revised from pre-approval ADR-C2-003. Original referenced a file-based
 `domain-context.md` document. The approved requirements (UR-085) require vocabulary to be stored
 entirely in the database. Revised to reflect database-stored vocabulary with a human review queue.
+
+**Revision note [Revised by ADR-038, 2026-02-23]**: The separate vocabulary candidate
+identification step has been removed from the C2 pipeline. Vocabulary candidates are now
+extracted by the LLM combined pass (ADR-038) and land directly in the `vocabulary_terms` table
+with `source: llm_extracted`. The human-in-the-loop review queue and rejection workflow are
+unchanged — LLM-extracted entities appear in the same review queue as any other candidate.
+The `vocabulary_candidates` table concept is replaced by the `llm_extracted` source enum value
+on `vocabulary_terms`.
 
 **Source**: Carried forward from pre-approval ADR-C2-003 (revised). Addresses UR-085 through
 UR-095.
@@ -618,7 +627,7 @@ processed.
 
 **Tradeoffs**: Requires an LLM to be available during document processing. In Phase 1 with local-first operation, this means Ollama (or equivalent) must be running alongside the processing service. This adds an infrastructure dependency but is consistent with the project's AI/ML learning goals.
 
-**Source**: Resolved in Head of Development phase, 2026-02-22. Addresses UR-064. Cross-references ADR-016 (factory pattern), ADR-013 (chunk parent references), ADR-024 (embedding interface), ADR-011 (text extraction).
+**Source**: Resolved in Head of Development phase, 2026-02-22. Addresses UR-064. Cross-references ADR-016 (factory pattern), ADR-013 (chunk parent references), ADR-024 (embedding interface), ADR-011 (text extraction), ADR-036 (future metadata extraction merge into this LLM step).
 
 ---
 
@@ -725,6 +734,53 @@ Processing scope: when triggered, the system processes all documents that have c
 
 **Tradeoffs**: Knex.js is an additional dependency. However, raw SQL migrations would require building migration tracking and idempotent seeding from scratch — Knex provides both out of the box. The seed files must be maintained as the vocabulary evolves, but this is inherent to any seeding approach.
 
+**Revision note [Revised by ADR-038, 2026-02-23]**: The `vocabulary_terms` table is extended
+with two nullable columns: `source_document_id` (UUID, FK to documents) and `confidence`
+(float, 0.0-1.0). The `source` enum is extended with a new value: `llm_extracted`. The
+`vocabulary_relationships` table is reused for graph edges — no separate graph relationship
+table is needed. These extensions unify the vocabulary and knowledge graph schemas. See ADR-038
+for the full rationale. No existing columns or constraints are changed; this is an additive
+extension consistent with ADR-029.
+
+**Revision note [Revised 2026-02-24 — entity_document_occurrences table]**: A new join table
+`entity_document_occurrences` is added to the schema:
+
+- `entity_id` (UUID, FK to `vocabulary_terms`)
+- `document_id` (UUID, FK to `documents`)
+- `created_at` (timestamp)
+
+This table records every document in which a given entity appears. It is the universal source
+of truth for all entity-document links, regardless of how the entity entered the system
+(`seed`, `manual`, or `llm_extracted`). Written by Express as part of the processing results
+transaction (ADR-031) — every entity returned by the LLM combined pass generates one or more
+`entity_document_occurrences` rows. Without this table, entity-document provenance is lost
+after normalised deduplication merges multiple extractions into a single `vocabulary_terms`
+row. The join table keeps `vocabulary_terms` clean (one row per entity, no duplication) while
+maintaining full provenance across the corpus. See also the `GraphStore` interface extension
+in ADR-037. This is an additive schema change consistent with ADR-029.
+
+**Revision note [Revised 2026-02-24 — source_document_id removed]**: The `source_document_id`
+column added in the previous revision note is removed. It was introduced to record the first
+document an LLM-extracted entity was seen in, but this information is fully covered by
+`entity_document_occurrences` (the row with the earliest `created_at` for a given `entity_id`
+is the first occurrence). Keeping a separate `source_document_id` column would create a
+redundant second source of truth. `entity_document_occurrences` is the sole and universal
+source of truth for all entity-document links. The `vocabulary_terms` schema extensions from
+the ADR-038 revision are therefore: `confidence` (float, 0.0-1.0, nullable) only; no
+`source_document_id` column.
+
+**Revision note [Revised 2026-02-24 — seeded entity document linking]**: Seeded entities
+start with no document links. No `entity_document_occurrences` rows exist at seed time. Document links for seeded entities
+accumulate naturally as documents are processed — the LLM combined pass extracts the same
+entity name from documents, hits the same deduplicated row in `vocabulary_terms` via
+`normalised_term`, and writes `entity_document_occurrences` rows linking the seeded entity to
+each document. Optionally, the archivist can manually associate a seeded entity with a known
+founding document via the curation UI — this inserts a row into
+`entity_document_occurrences` directly. Keeping the seed file simple and human-readable is
+more important than pre-populating document links. The seed provides the controlled vocabulary
+starting point; document provenance builds up through normal processing. This is consistent
+with the human-in-the-loop curation model (ADR-014).
+
 **Source**: Resolved in Head of Development phase, 2026-02-22. Addresses UR-086, UR-088, UR-093. Cross-references ADR-014 (human-in-the-loop vocabulary), ADR-022 (UUID v7), ADR-004 (PostgreSQL). Also partially addresses UR-138 (migration strategy); see ADR-029 for full treatment.
 
 ---
@@ -798,13 +854,13 @@ Migrations are numbered sequentially and run via `knex migrate:latest` at applic
 
 | Component | DB Access | Writes To |
 | --- | --- | --- |
-| Express backend | Read + Write | `documents`, `ingestion_runs`, `pipeline_steps`, `chunks`, `embeddings`, `vocabulary_candidates`, `vocabulary_terms`, `vocabulary_relationships`, `rejected_terms` |
+| Express backend | Read + Write | `documents`, `ingestion_runs`, `pipeline_steps`, `chunks`, `embeddings`, `vocabulary_terms`, `vocabulary_relationships`, `rejected_terms` |
 | Python processing service | None | Returns results to Express via HTTP/RPC |
 | Next.js frontend | None | Read-only via Express API |
 | C3 Query and Retrieval | None | Read-only via Express API |
 | C4 Continuous Ingestion | None | Write access via Express API (same pattern as C1) |
 
-**Express-to-Python processing contract**: The boundary between Express and the Python processing service is an RPC-style contract. Express sends a processing request (document ID, file reference) — where file reference is a storage-provider-specific locator: a filesystem path in Phase 1 (local storage, ADR-008), or a pre-signed URL / storage URI in later phases (e.g. S3). In Phase 1, Python accesses the file via a shared Docker Compose volume mount. Python never receives raw file content over HTTP — it always fetches from the storage layer using the provided reference. Python performs OCR, chunking, embedding, metadata extraction, vocabulary candidate identification, and quality scoring; Python returns the complete set of processing outputs to Express in a single structured response. Express then writes all outputs to the database within a transaction, ensuring that either all processing results for a document are persisted or none are.
+**Express-to-Python processing contract**: The boundary between Express and the Python processing service is an RPC-style contract. Express sends a processing request (document ID, file reference) — where file reference is a storage-provider-specific locator: a filesystem path in Phase 1 (local storage, ADR-008), or a pre-signed URL / storage URI in later phases (e.g. S3). In Phase 1, Python accesses the file via a shared Docker Compose volume mount. Python never receives raw file content over HTTP — it always fetches from the storage layer using the provided reference. Python performs OCR, chunking, embedding, metadata extraction, entity and relationship extraction, and quality scoring; Python returns the complete set of processing outputs to Express in a single structured response. Express then writes all outputs to the database within a transaction, ensuring that either all processing results for a document are persisted or none are.
 
 **Contract technology**: The specific RPC technology is an implementation decision, not an architectural one. Candidates include tRPC with a generated Python client (tRPC is TypeScript-native; the Python side would use the HTTP adapter or a generated SDK), OpenAPI with code generation for both sides, or plain REST with shared type definitions. The architecture requires only that the contract is typed and that both sides can validate requests and responses against a shared schema. The implementer selects the technology based on developer experience and tooling maturity at implementation time.
 
@@ -813,7 +869,7 @@ Migrations are numbered sequentially and run via `knex migrate:latest` at applic
 **Transaction boundaries**: Because Express is the sole writer, it can wrap related writes in database transactions:
 
 - **Intake transaction**: document record creation + file metadata + hash check (ADR-017 finalize step)
-- **Processing results transaction**: chunks + embeddings + pipeline step status updates + vocabulary candidates + quality scores for a single document — all written atomically
+- **Processing results transaction**: chunks + embeddings + pipeline step status updates + vocabulary terms (source: `llm_extracted`) + vocabulary relationships + `entity_document_occurrences` rows + quality scores for a single document — all written atomically
 - **Vocabulary curation transaction**: term acceptance/rejection + alias updates + rejected list updates
 
 No cross-service transactions are needed because only one service writes.
@@ -832,7 +888,7 @@ No cross-service transactions are needed because only one service writes.
 
 **Tradeoffs**: Pipeline step status is written twice per document: steps are marked `running` before the request is sent to Python, then updated to `completed` or `failed` when Python responds. The `pipeline_steps` table reflects which document is currently in-flight, but not progress within a document's individual steps — Python processes all steps for a document before returning.
 
-**Source**: Resolved in Head of Development phase, 2026-02-22. Addresses data ownership and transaction boundaries. Cross-references ADR-015 (Python service boundary), ADR-026 (fire-and-forget semantics), ADR-027 (pipeline step status), ADR-028 (Knex.js), ADR-029 (migration policy).
+**Source**: Resolved in Head of Development phase, 2026-02-22. Addresses data ownership and transaction boundaries. Cross-references ADR-015 (Python service boundary), ADR-026 (fire-and-forget semantics), ADR-027 (pipeline step status), ADR-028 (Knex.js), ADR-029 (migration policy). Revised 2026-02-23 to reflect ADR-038 changes: `vocabulary_candidates` table removed; vocabulary terms with `source: llm_extracted` replace candidates; entity and relationship extraction added to Python processing contract.
 
 ---
 
@@ -845,7 +901,7 @@ No cross-service transactions are needed because only one service writes.
 - Mock the provider interfaces (OCR, LLM chunking, embedding) using `unittest.mock` or pytest fixtures
 - The factory pattern (ADR-016) makes mock injection straightforward — tests pass a mock config value that selects a mock implementation, or inject the mock directly via the abstract base class interface
 - Unit tests are fast, deterministic, and run without external dependencies (no OCR engine, no LLM, no embedding model)
-- Each pipeline step (extraction, chunking, embedding, metadata detection, vocabulary candidate identification, quality scoring) is tested independently with controlled inputs and expected outputs
+- Each pipeline step (extraction, chunking, embedding, metadata detection, entity and relationship extraction, quality scoring) is tested independently with controlled inputs and expected outputs
 
 **Fixture documents**:
 
@@ -936,7 +992,7 @@ agnostic interfaces). Cross-references ADR-001 (Infrastructure as Configuration)
 structure with no tenant namespace. No `tenant_id` column is added to any table. Multi-tenancy
 preparation is introduced in two deliberate stages at natural transition points:
 
-1. **S3 migration** (expected Phase 2–3): when storage moves from local Docker volumes to S3,
+1. **S3 migration** (expected Phase 2-3): when storage moves from local Docker volumes to S3,
    introduce tenant-namespaced storage paths (`{tenant-id}/archives/YYYY/MM/uuid.ext`) using a
    fixed default tenant ID constant. No multi-tenant logic is introduced at this point — the
    namespace is structural only.
@@ -954,7 +1010,7 @@ all DB path references must update). However, the S3 migration is itself a point
 is restructured — absorbing tenant namespacing into that work costs near zero.
 
 **Rationale**: Phase 1 path namespacing buys nothing if the S3 migration precedes multi-tenancy
-(which it will — S3 is a Phase 2–3 concern, external tenants are Phase 3+). Introducing it at
+(which it will — S3 is a Phase 2-3 concern, external tenants are Phase 3+). Introducing it at
 the S3 migration point absorbs the cost into work already happening. The `tenant_id` DB column
 is explicitly prohibited by UR-137 until Phase 3 introduces the feature, at which point a
 non-destructive additive migration is the correct mechanism per ADR-029. Staging the
@@ -1040,3 +1096,324 @@ only their sequence position.
 **Source**: 2026-02-23. Cross-references ADR-020 (grouped CLI mode), UR-014 (naming convention),
 UR-036 (virtual document groups), UR-037 (group rejection on file failure), UR-042 (duplicate
 filenames within group rejected).
+
+---
+
+### ADR-036: Metadata Extraction Merge Path into Chunking LLM (Phase 2+)
+
+**Decision**: Phase 1 runs pattern-based metadata extraction (ADR-012) and LLM-based semantic
+chunking (ADR-025) as separate pipeline steps. The chunking LLM prompt must be designed from
+the start to return both chunk boundaries and structured metadata fields (document type, dates,
+people, land references, description), even though in Phase 1 the metadata fields returned by
+the LLM are discarded in favour of the pattern-based results. This prompt design constraint
+keeps the merge path open: in a later phase, the pattern-based step can be removed and the LLM
+output used directly, with no changes to the LLM interface or the write-back transaction.
+
+**Context**: In Phase 1, pattern-based extraction is deterministic and testable without an LLM
+dependency, and ADR-012 records the deliberate decision to defer LLM-assisted metadata
+extraction to Phase 2. However, the chunking LLM already reads the full document text. If the
+prompt is designed to return metadata alongside chunks from the beginning, Phase 2 can merge
+the steps at low cost. If the prompt is designed for chunks only, the merge requires prompt
+renegotiation and interface changes in addition to the step removal.
+
+**Rationale**: The cost of including metadata fields in the LLM prompt and output schema is low
+(a few additional output fields, returned but unused in Phase 1 logic). The cost of retrofitting
+the prompt and interface later is higher. This follows the principle of minimal future retrofit
+cost without adding unused complexity to Phase 1 logic — the fields appear in the LLM output
+contract, but the metadata pipeline step still runs independently and the LLM values are ignored
+until the merge is enacted.
+
+**Phase 1 behaviour**: The chunking LLM returns a structured response containing both chunk
+objects and metadata fields. The Python processing service discards the metadata fields from the
+LLM response and uses pattern-based extraction results instead. The `pipeline_steps` table
+continues to track metadata extraction and chunking as separate steps.
+
+**Phase 2 merge path**: Remove the pattern-based metadata extraction step. Update the Python
+processing service to read metadata fields from the LLM response. Remove the corresponding
+`pipeline_steps` entry for pattern-based extraction. No changes to the LLM interface, the
+write-back transaction structure, or the Express-side code are required.
+
+**Risk accepted**: The LLM metadata fields returned in Phase 1 are never validated against
+ground truth — their quality is unknown until the Phase 2 merge. Real documents must be tested
+against the Phase 1 LLM output before the merge is enacted, to confirm the LLM produces
+acceptable metadata quality. This is expected work at the Phase 2 boundary.
+
+**Source**: 2026-02-23. Cross-references ADR-012 (pattern-based extraction, Phase 1),
+ADR-025 (chunking LLM, merge target), ADR-027 (pipeline step tracking).
+
+---
+
+## Graph-RAG ADRs (Resolved in Head of Development Phase — Extension Session)
+
+---
+
+### ADR-037: Knowledge Graph in PostgreSQL Behind a GraphStore Interface
+
+**Decision**: The knowledge graph is stored in PostgreSQL using the unified vocabulary schema (see ADR-038). All graph operations (write entities, write relationships, traverse relationships, query entities) are accessed through a `GraphStore` interface in the Express backend, mirroring the `VectorStore` pattern (ADR-033). The Phase 1 concrete implementation uses PostgreSQL tables with SQL JOINs and recursive CTEs for traversal. The implementation is selected by config key (`graph.provider: "postgresql"`), following the factory pattern (ADR-016). A future phase can swap to a dedicated graph database (e.g. Neo4j) by implementing the `GraphStore` interface and updating the config key — no application code changes required.
+
+**Context**: The pre-approval architecture document described "entity relationship extraction and knowledge graph" and "graph-aware retrieval alongside vector search" as planned capabilities. The approved `overview.md` lists "knowledge graph" in Phase 4+. The developer has identified that graph-RAG (hybrid retrieval using both vector similarity and knowledge graph traversal) was always intended but was not captured in any ADR. This decision establishes where the graph lives and how it is accessed, before the pending architecture documents are approved.
+
+**Rationale**: PostgreSQL is the right choice for this project's scale (thousands of entities, not millions). The estate archive produces a relatively small, dense knowledge graph — entities are people, places, organisations, land parcels, and legal references mentioned across documents. Recursive CTEs handle multi-hop traversals (e.g. "who is connected to the Smith family through property transactions?") adequately for this graph size. Using PostgreSQL avoids introducing a new infrastructure dependency (Neo4j Docker service), a new backup target, and a data synchronisation problem between two databases. The `GraphStore` interface ensures that if graph queries become complex enough to justify a dedicated graph database, the migration is a config change plus a graph regeneration step — not an application rewrite.
+
+**Interface contract** (indicative — exact methods refined at implementation):
+
+- `writeEntity(entity: GraphEntity): Promise<void>`
+- `writeRelationship(relationship: GraphRelationship): Promise<void>`
+- `getEntity(entityId: string): Promise<GraphEntity | null>`
+- `getRelationships(entityId: string, direction?: 'outgoing' | 'incoming' | 'both'): Promise<GraphRelationship[]>`
+- `traverse(startEntityId: string, maxDepth: number, relationshipTypes?: string[]): Promise<TraversalResult>`
+- `findEntitiesByType(entityType: string): Promise<GraphEntity[]>`
+
+The implementation is selected by config key, following the factory pattern (ADR-016).
+
+**Options considered**:
+
+- Dedicated graph database (Neo4j) — rejected for Phase 1 because it introduces polyglot persistence complexity (two databases to back up, synchronise, and maintain), adds a Docker service, and is overkill for the expected graph size; the `GraphStore` interface keeps this option open for a future phase if graph query complexity warrants it
+- Entity embeddings in pgvector alongside the graph — rejected as overkill for Phase 1; entity similarity search is a future enhancement that can be added behind the same interface without changing the graph storage decision
+
+**Migration path to Neo4j** (acknowledged tradeoff): If a future phase adopts Neo4j, all stored entity and relationship data must be exported from PostgreSQL and imported into Neo4j. This is a "regenerate graph" step — the entity extraction data (stored per-document in PostgreSQL) serves as the source of truth, and the graph is rebuilt in the new backing store. The `GraphStore` interface ensures that application code (C3 query routing, C2 entity writes) requires no changes — only the implementation class and config key change. This regeneration cost is accepted as a one-time migration activity, not an ongoing burden.
+
+**Relationship to vocabulary tables [Revised by ADR-038, 2026-02-23; revised 2026-02-24]**: Graph entities and vocabulary terms are unified in the same `vocabulary_terms` table (see ADR-038). LLM-extracted entities are stored with `source: llm_extracted` and `confidence`. Graph relationships use the `vocabulary_relationships` table. No separate graph entity or graph relationship tables exist. The `GraphStore` interface operates on `vocabulary_terms` rows that have at least one corresponding row in `entity_document_occurrences` — entities with evidential grounding in the archive. Seeded and manually added entities without document links are excluded from the graph until they are encountered during document processing. This ensures the graph contains only entities with document evidence behind them. The `GraphStore` PostgreSQL implementation queries the same tables as vocabulary management, but through a different interface with different query patterns (traversal vs. curation). A future Neo4j migration would export from these unified tables.
+
+**Risk accepted**: PostgreSQL recursive CTEs become expensive for deep traversals (beyond 4-5 hops). For the estate archive's graph (primarily 1-3 hop queries like "who is connected to this land parcel?"), this is well within acceptable performance. If traversal depth requirements grow, the `GraphStore` interface enables migration to Neo4j without application changes.
+
+**Tradeoffs**: No native graph query language (Cypher, Gremlin) in Phase 1. Graph queries are expressed as SQL, which is less expressive for complex graph patterns (shortest path, community detection). This is acceptable because Phase 1 graph queries are simple traversals, not graph analytics. The `GraphStore` interface abstracts this — the application code calls `traverse()`, not SQL.
+
+**Revision note [Revised 2026-02-24 — findDocumentsByEntity method]**: A new method
+`findDocumentsByEntity(entityId: string): Promise<Document[]>` is added to the `GraphStore`
+interface contract. This method queries the `entity_document_occurrences` table (see ADR-028
+revision, 2026-02-24) and enables "which documents mention this entity?" as a first-class
+graph query. The PostgreSQL implementation is a simple JOIN between
+`entity_document_occurrences` and `documents`.
+
+**Source**: Resolved in Head of Development phase, 2026-02-23. Addresses graph store placement for knowledge graph / graph-RAG. Cross-references ADR-001 (Infrastructure as Configuration), ADR-004 (PostgreSQL), ADR-016 (factory pattern), ADR-028 (vocabulary schema — unified with graph entities per ADR-038), ADR-031 (Express as sole DB writer), ADR-033 (VectorStore interface — parallel pattern), ADR-038 (unified vocabulary/graph schema).
+
+---
+
+### ADR-038: Entity Extraction in C2 via Unified Vocabulary/Graph Schema
+
+**Decision**: Entity and relationship extraction is performed by the LLM combined pass in the C2 pipeline. Graph entities are stored in the existing `vocabulary_terms` table (ADR-028) with one new nullable column (`confidence`) and a new `source` enum value (`llm_extracted`). Graph relationships are stored in the existing `vocabulary_relationships` table. Entity-document provenance is tracked in a new `entity_document_occurrences` join table. No separate graph entity or relationship tables are created. The separate vocabulary candidate identification step is removed from the C2 pipeline.
+
+**Entity types** (starting set — refined at implementation against real documents):
+
+- People (individuals named in documents)
+- Organisation (solicitors, companies, councils, estate agents)
+- Land Parcel / Field (named fields, plots, parcels with boundaries)
+- Date / Event (significant dated events: transfers, deaths, boundary changes)
+- Legal Reference (deed numbers, conveyance references, planning references)
+
+**Relationship types** (indicative — refined at implementation):
+
+- `owned_by` (land parcel to person/organisation)
+- `transferred_to` (land parcel from person to person, with date)
+- `witnessed_by` (document to person)
+- `adjacent_to` (land parcel to land parcel)
+- `employed_by` (person to organisation)
+- `referenced_in` (entity to document)
+
+**Extraction method**: LLM-based extraction via the existing chunking LLM (ADR-025). The LLM combined pass prompt returns a single structured response containing:
+
+1. Chunk boundaries and labels
+2. Metadata fields (document type, dates, people, land references, description) — discarded in Phase 1 per ADR-036
+3. Graph entities (type, name, confidence)
+4. Graph relationships (source entity, target entity, relationship type, confidence)
+
+This extends the combined prompt pattern from ADR-036. No separate NER model is used. One LLM call returns all extraction outputs.
+
+**Unified vocabulary/graph schema**: The `vocabulary_terms` table (ADR-028) is extended with:
+
+- `confidence` (float, 0.0-1.0, nullable) — LLM's confidence in the extraction; `NULL` for seed/manual terms
+
+A new `entity_document_occurrences` join table records every document in which an entity appears (see ADR-028 revision, 2026-02-24). This is the universal source of truth for entity-document provenance.
+
+The `source` enum on `vocabulary_terms` is extended with `llm_extracted` (joining existing values: `seed`, `manual`, `candidate_accepted`).
+
+The `vocabulary_relationships` table is reused for graph edges without schema changes — its existing columns (`source_term_id`, `target_term_id`, `relationship_type`) serve graph relationships directly.
+
+The `rejected_terms` table is unchanged and continues to prevent re-proposal of rejected entities.
+
+**How LLM-extracted entities enter the system**: Python returns entities and relationships in its processing response. Express writes them to `vocabulary_terms` with `source: llm_extracted` and to `vocabulary_relationships`, within the same processing results transaction (ADR-031). LLM-extracted entities appear in the existing vocabulary review queue alongside any other candidates. The curator can accept (changing `source` to `candidate_accepted`), reject (moving to `rejected_terms`), or leave them as `llm_extracted`. Normalised deduplication (ADR-028, UR-093) prevents duplicate entities from accumulating across documents.
+
+**Updated C2 pipeline steps** (6 steps, tracked in `pipeline_steps` per ADR-027):
+
+1. Text extraction (OCR via ADR-011)
+2. Text quality scoring (ADR-021)
+3. Pattern-based metadata extraction (ADR-012)
+4. Metadata completeness scoring (ADR-021)
+5. LLM combined pass — returns: chunks + metadata fields (discarded Phase 1) + graph entities + graph relationships
+6. Embedding generation (ADR-024)
+
+The previous separate "vocabulary candidate identification" step is removed. Vocabulary candidates are now a subset of the LLM combined pass output (entities with category mappings to vocabulary terms).
+
+**Context**: The graph-RAG architecture (ADR-037) requires entities and relationships to be extracted from documents and stored in PostgreSQL. The existing vocabulary schema (ADR-028) already provides a normalised term/relationship structure with referential integrity, human-in-the-loop review (ADR-014), and rejection tracking. Creating separate graph tables would duplicate this infrastructure. The developer identified that vocabulary terms and graph entities serve overlapping purposes — a person mentioned in a deed is both a graph entity (for traversal) and a vocabulary candidate (for controlled vocabulary).
+
+**Rationale**: Unifying vocabulary and graph storage eliminates table duplication, reuses the existing review queue and rejection workflow, and ensures that entity names are normalised and deduplicated from the start. The `GraphStore` interface (ADR-037) operates on the same tables but through different query patterns — traversal queries filter on entities with `entity_document_occurrences` rows (document-evidenced entities) and follow relationships, while vocabulary curation queries filter on `source` values and present terms for review. The LLM combined pass avoids multiple LLM calls per document — one call extracts chunks, metadata, and entities together, which is both more efficient and produces more contextually coherent results.
+
+**Revision note [Revised 2026-02-24 — source_document_id removed from schema]**: The
+`source_document_id` column originally described in this ADR has been removed (see ADR-028
+revision, 2026-02-24). It was redundant given `entity_document_occurrences`. All
+references to `source_document_id` as a graph-entity discriminator in this ADR are
+superseded by the `entity_document_occurrences` join table.
+
+**Options considered**:
+
+- Separate `graph_entities` and `graph_relationships` tables — rejected because it duplicates the normalised term structure, requires a separate deduplication mechanism, and creates two sources of truth for entity names (a "John Smith" in the vocabulary and a "John Smith" in the graph would diverge over time)
+- NER model (spaCy/Hugging Face) for entity extraction — rejected because the LLM already reads the full document text for chunking; a separate NER model adds an infrastructure dependency and cannot leverage document-level context the way the LLM prompt can; the LLM can be prompted with estate-specific entity types that a general NER model would miss
+- Separate vocabulary candidate identification step retained alongside entity extraction — rejected because it creates two paths for the same output; the LLM combined pass produces both vocabulary candidates and graph entities in a single call
+
+**Risk accepted**: The `vocabulary_terms` table now serves dual purposes (controlled vocabulary and graph entities), which increases its row count. For the expected scale (thousands of entities across thousands of documents), this is well within PostgreSQL's comfort zone. If the table grows to a point where vocabulary curation queries are slowed by graph entity volume, a filtered index on `source` can be added without schema changes.
+
+**Tradeoffs**: The unified schema means vocabulary curation UI must filter appropriately — curators reviewing vocabulary terms should not be overwhelmed by thousands of `llm_extracted` entities from every processed document. The curation UI should default to showing terms awaiting review, not the full entity set. This is a UI concern, not a schema concern, and is noted for the frontend implementer. The `confidence` column provides a natural filtering mechanism — low-confidence entities can be deprioritised or hidden by default.
+
+**Revision note [Revised 2026-02-24 — Organisation Role entity type]**: A new entity type
+`Organisation Role` is added to the entity types list. This represents a higher-level concept
+for a function or role that organisations perform for the estate (e.g. Estate Management,
+Legal Services, Land Agency). Individual organisations are attached to an Organisation Role
+via the `performed_by` relationship. Rationale: estate management companies change over
+decades (e.g. Cluttons to Smiths-Gore to Savills via acquisition). Rather than encoding
+temporal succession with date fields on relationships (which would be fragile given the fuzzy
+dates in historical documents), a stable Organisation Role entity acts as the anchor. A query
+for "who managed the estate?" traverses to the Estate Management role and finds all
+organisations connected to it. Temporal context comes from the source documents attached to
+each relationship, not from the graph schema.
+
+**Revision note [Revised 2026-02-24 — performed_by and succeeded_by relationship types]**:
+Two relationship types are added to the indicative list:
+
+- `performed_by` (Organisation Role to Organisation) — records which organisations have held
+  a given role
+- `succeeded_by` (Organisation to Organisation) — records corporate lineage (e.g. Cluttons
+  `succeeded_by` Smiths-Gore `succeeded_by` Savills)
+
+`succeeded_by` captures corporate succession for queries that specifically ask about it,
+without the graph needing to encode dates. Date fields on `vocabulary_relationships` were
+considered and rejected — historical estate documents have fuzzy dates that make date-bounded
+relationships unreliable.
+
+**Revision note [Revised 2026-02-24 — entity_document_occurrences and source_document_id
+clarification]**: Entity-document provenance is now tracked via the
+`entity_document_occurrences` join table (see ADR-028 revision, 2026-02-24), which is the
+universal source of truth for all entity-document links regardless of how the entity entered
+the system. The `source_document_id` column on `vocabulary_terms` is clarified as purely an
+LLM extraction marker — it records the first document an entity was extracted from and is
+populated only for entities with `source: llm_extracted`. It is `NULL` for `seed`, `manual`,
+and `candidate_accepted` entities. This supersedes the earlier description of
+`source_document_id` as a general provenance field. Express writes
+`entity_document_occurrences` rows as part of the processing results transaction (ADR-031)
+for every entity returned by the LLM combined pass. Seeded entities start with no document
+links; links accumulate naturally as documents are processed and the LLM extracts matching
+entity names that hit existing deduplicated rows via `normalised_term`. The archivist can also
+manually associate a seeded entity with a document via the curation UI. See ADR-028 revision
+notes (2026-02-24) for full schema and seeding details.
+
+**Source**: Resolved in Head of Development phase, 2026-02-23. Addresses entity extraction in C2 for graph-RAG. Cross-references ADR-014 (human-in-the-loop vocabulary — revised), ADR-025 (LLM chunking — extended to combined pass), ADR-027 (pipeline step tracking — step list updated), ADR-028 (vocabulary schema — extended with source_document_id, confidence, llm_extracted), ADR-031 (Express as sole DB writer — processing contract updated), ADR-036 (metadata merge path — extended to include entities), ADR-037 (GraphStore interface — operates on unified tables).
+
+---
+
+### ADR-039: Graph Construction via Post-Curation Rebuild Trigger
+
+**Decision**: The knowledge graph is constructed as a batch rebuild step triggered after vocabulary curation, not incrementally per document during C2 processing. The rebuild reads all accepted vocabulary terms and relationships and writes the graph structure via the `GraphStore` interface (ADR-037). The rebuild trigger is a new Express API endpoint, consistent with the fire-and-forget pattern (ADR-026). It is available from both the curation web UI (button) and the CLI.
+
+**How it works**:
+
+1. The curator reviews LLM-extracted entities in the vocabulary review queue (ADR-014). Entities are accepted (source changes from `llm_extracted` to `candidate_accepted`), rejected (moved to `rejected_terms`), or left as `llm_extracted` for later review.
+2. When the curator is satisfied with the current review session, they trigger a graph rebuild via the curation UI button or CLI command.
+3. The rebuild reads all `vocabulary_terms` with `source IN ('seed', 'manual', 'candidate_accepted')` and all corresponding `vocabulary_relationships`, and writes the graph structure via the `GraphStore` interface.
+4. The rebuild is idempotent — running it multiple times produces the same result. It replaces the current graph state with the state derived from the accepted vocabulary.
+
+**Relationship to the Neo4j migration path**: The same rebuild trigger serves the Neo4j migration use case described in ADR-037. When a future phase introduces Neo4j, the rebuild trigger populates Neo4j from the vocabulary tables via the `GraphStore` interface — the config key changes from `graph.provider: "postgresql"` to `graph.provider: "neo4j"`, and the same trigger writes to the new backing store. No new trigger mechanism is needed.
+
+**Phase placement [Revised by ADR-041, 2026-02-24]**: The rebuild trigger endpoint and its `GraphStore` integration are implemented in Phase 2 alongside graph-aware query routing (ADR-040). The `GraphStore` interface is defined in Phase 1 (ADR-037), but the rebuild trigger that populates the graph is deferred to Phase 2 because there is no consumer of the graph data until graph-aware retrieval is introduced. See ADR-041 for the canonical phase placement of all graph-RAG capabilities.
+
+**Context**: ADR-038 establishes that entities extracted by the LLM combined pass land in `vocabulary_terms` with `source: llm_extracted`. These entities sit in the vocabulary review queue until the curator accepts or rejects them. The question is when the accepted entities are assembled into a queryable knowledge graph. Three timing options were evaluated.
+
+**Rationale**: The batch rebuild after curation ensures the graph contains only human-reviewed, accepted entities. This is consistent with the human-in-the-loop principle (ADR-014) — the curator is the gatekeeper for what enters the controlled vocabulary, and by extension, the knowledge graph. Incremental construction (Option A) would put unreviewed entities into the graph immediately, undermining the curation workflow. Query-time construction (Option C) would be too slow for a growing corpus with complex traversals. The batch rebuild is simple, predictable, and idempotent — there is no risk of graph state diverging from vocabulary state because the graph is always derived from the current vocabulary snapshot.
+
+**Options considered**:
+
+- Incremental per document (Option A) — rejected because LLM-extracted entities would enter the graph before human review; the graph would contain unreviewed, potentially incorrect entities; inconsistent with the human-in-the-loop curation principle (ADR-014)
+- At query time (Option C) — rejected because constructing traversal paths on the fly from entity tables is too slow for complex multi-hop queries as the corpus grows; graph queries should operate on a pre-built structure
+
+**Risk accepted**: The graph is stale between rebuild triggers — newly accepted entities do not appear in graph traversals until the next rebuild. This is acceptable because the curation workflow is session-based (the curator reviews a batch of entities, then triggers a rebuild) and graph-aware querying is not a real-time requirement. The curator controls when the graph is refreshed.
+
+**Tradeoffs**: An additional manual step (triggering the rebuild) is required after curation. This is a deliberate design choice — the curator explicitly decides when the graph should reflect their latest curation decisions, rather than the graph silently updating with each individual accept/reject action. The rebuild cost grows linearly with the vocabulary size, but for the expected scale (thousands of accepted terms) this is a sub-second operation on PostgreSQL.
+
+**Source**: Resolved in Head of Development phase, 2026-02-24. Addresses graph construction timing for graph-RAG. Cross-references ADR-014 (human-in-the-loop vocabulary), ADR-026 (fire-and-forget trigger pattern), ADR-037 (GraphStore interface), ADR-038 (entity extraction and unified schema). Phase placement revised by ADR-041.
+
+---
+
+### ADR-040: Query Routing via LLM Classifier Behind QueryRouter Interface
+
+**Decision**: Query routing in C3 uses an LLM classifier to determine the retrieval strategy for each query. The classifier analyses the user's natural language query and returns a routing decision: vector search only, graph traversal only, or both (hybrid). All query routing is accessed through a `QueryRouter` interface in the Express backend, mirroring the `VectorStore` (ADR-033) and `GraphStore` (ADR-037) interface patterns. The implementation is selected by config key (`query.router: "llm_classifier"`), following the factory pattern (ADR-016).
+
+**How it works**:
+
+1. The user submits a natural language query via the web UI or CLI.
+2. Express passes the query text to the `QueryRouter` interface.
+3. The LLM classifier analyses the query and returns a routing decision:
+   - `vector` — the query is about content similarity (e.g. "find documents about boundary disputes"); use vector similarity search via `VectorStore`
+   - `graph` — the query is about entity relationships (e.g. "who owned the land adjacent to Field 42?"); use graph traversal via `GraphStore`
+   - `both` — the query has both content and relationship aspects (e.g. "what did John Smith say about the boundary change in 1967?"); run both retrievers and merge results
+4. Express executes the retrieval strategy indicated by the routing decision, using `VectorStore` and/or `GraphStore` as appropriate.
+5. Results are merged (for `both` routes) and passed to the response generation step.
+
+**QueryRouter interface contract** (indicative — exact methods refined at implementation):
+
+- `route(queryText: string): Promise<RouteDecision>` where `RouteDecision` includes `strategy: 'vector' | 'graph' | 'both'` and optional context (e.g. extracted entity names for graph queries)
+
+**Phase 1 behaviour**: The `QueryRouter` interface is defined in Phase 1 code, but the LLM classifier implementation is Phase 2 (see ADR-041). In Phase 1, a simple default implementation returns `vector` for all queries — this is the pass-through behaviour that makes C3 function with vector-only retrieval. The interface exists so that Phase 2 can introduce the LLM classifier without changing any call sites.
+
+**Context**: The graph-RAG architecture introduces two retrieval paths: vector similarity search (existing, ADR-033) and knowledge graph traversal (ADR-037). The question is how the system decides which retrieval path to use for a given query. Three routing strategies were evaluated.
+
+**Rationale**: The LLM classifier produces the highest quality routing decisions because it can understand query intent semantically. "Who owned Field 42?" is clearly a graph query; "find documents similar to this deed" is clearly a vector query; "what did the solicitor write about the boundary change?" benefits from both. The LLM can make these distinctions; a threshold-based heuristic cannot. The quality advantage outweighs the latency cost (one additional LLM call per query) because query quality is the system's primary value (ADR-026's "optimise for read, not write" principle applies to the read path too — better to take slightly longer and return the right results).
+
+**Options considered**:
+
+- Always parallel (Option B) — rejected because running both retrievers on every query wastes resources when the query clearly suits only one path; more importantly, merging irrelevant graph results with relevant vector results (or vice versa) can degrade response quality by introducing noise into the context window
+- Vector RAG primary with graph fallback (Option C) — rejected because threshold tuning for the fallback trigger is intractable without extensive real-world testing; a low threshold means graph is never used, a high threshold means graph is used on poor vector results that may not benefit from graph retrieval either; the LLM classifier avoids the threshold problem entirely
+
+**Risk accepted**: The LLM classifier adds one LLM call per query, increasing query latency. This is acceptable because query quality is prioritised over query speed, and the routing call is a short-context classification task (not a full document read) — expected latency is sub-second for both local and API LLMs. If latency proves problematic, the `QueryRouter` interface allows swapping to a simpler implementation (e.g. always-vector or keyword-based heuristic) via config change.
+
+**Tradeoffs**: The LLM classifier requires an LLM to be available during query time, not just during document processing. In Phase 2 with local-first operation, this means Ollama must be running for both processing and querying. This is the same infrastructure dependency as ADR-025 (LLM chunking) and does not introduce a new requirement.
+
+**Source**: Resolved in Head of Development phase, 2026-02-24. Addresses query routing for graph-RAG hybrid retrieval. Cross-references ADR-001 (Infrastructure as Configuration), ADR-016 (factory pattern), ADR-033 (VectorStore interface), ADR-037 (GraphStore interface), ADR-041 (phase placement — QueryRouter interface Phase 1, LLM classifier implementation Phase 2).
+
+---
+
+### ADR-041: Phase Placement for Graph-RAG Capabilities
+
+**Decision**: Graph-RAG capabilities are introduced across three phases. This ADR is the canonical reference for what is built when. Individual ADRs (ADR-037 through ADR-040) describe the mechanisms; this ADR assigns them to phases.
+
+**Phase 1 — Entity extraction and interface scaffolding**:
+
+| Capability | ADR | What is built |
+| --- | --- | --- |
+| Entity extraction in C2 | ADR-038 | LLM combined pass extracts entities and relationships; results written to `vocabulary_terms` and `vocabulary_relationships` |
+| Extended vocabulary schema | ADR-028 (revised), ADR-038 | `source_document_id`, `confidence` columns; `llm_extracted` source enum value |
+| Entity review queue | ADR-014 (revised) | LLM-extracted entities appear in the existing vocabulary review queue; curator accepts/rejects |
+| `GraphStore` interface definition | ADR-037 | Interface defined in Express; PostgreSQL implementation written but not called by any production code path in Phase 1 |
+| `QueryRouter` interface definition | ADR-040 | Interface defined in Express; default implementation returns `vector` for all queries (pass-through) |
+
+**Phase 2 — Graph construction and graph-aware querying**:
+
+| Capability | ADR | What is built |
+| --- | --- | --- |
+| Graph rebuild trigger | ADR-039 | Express API endpoint; reads accepted vocabulary, writes graph via `GraphStore`; available from curation UI and CLI |
+| LLM query classifier | ADR-040 | `QueryRouter` implementation that classifies queries as vector/graph/both; replaces the Phase 1 pass-through |
+| Graph-aware retrieval in C3 | ADR-037, ADR-040 | C3 uses `QueryRouter` to select retrieval strategy; `GraphStore.traverse()` called for graph and hybrid queries |
+
+**Phase 3+ — Dedicated graph database**:
+
+| Capability | ADR | What is built |
+| --- | --- | --- |
+| Neo4j migration | ADR-037 | New `GraphStore` implementation backed by Neo4j; config key change; graph regeneration from vocabulary tables via rebuild trigger (ADR-039) |
+
+**Context**: The graph-RAG architecture spans multiple ADRs (ADR-037 through ADR-040) and the developer has confirmed that not all capabilities are needed in Phase 1. Entity extraction produces value immediately (entities populate the vocabulary review queue and support curation), but graph construction and graph-aware querying require each other — there is no point building the graph if it cannot be queried, and no point building the query router if there is no graph to traverse. This natural dependency determines the phase boundaries.
+
+**Rationale**: Phase 1 extracts entities because the LLM combined pass already runs for chunking (ADR-025/ADR-038) — adding entity extraction is incremental cost for immediate curation value. The `GraphStore` and `QueryRouter` interfaces are defined in Phase 1 so that Phase 2 can introduce their implementations without changing call sites. The rebuild trigger is deferred to Phase 2 because it has no consumer until graph-aware retrieval exists. Neo4j is Phase 3+ because PostgreSQL handles the expected graph size adequately (ADR-037) and the `GraphStore` interface ensures the migration is a config change plus graph regeneration, not an application rewrite.
+
+**Risk accepted**: The `GraphStore` and `QueryRouter` interfaces defined in Phase 1 may need revision when their Phase 2 implementations reveal requirements not anticipated at interface design time. This is acceptable because the interfaces are internal (not a public API) and both sides of each interface are maintained by the same developer. Interface evolution is lower-cost than deferring interface definition to Phase 2 and retrofitting call sites.
+
+**Tradeoffs**: Phase 1 includes interface code and a PostgreSQL `GraphStore` implementation that are not called by any production code path. This is interface scaffolding — it adds a small amount of code to Phase 1 in exchange for a clean Phase 2 integration path. The `QueryRouter` pass-through implementation is trivially simple (return `vector` for all queries) and adds no meaningful complexity.
+
+**Source**: Resolved in Head of Development phase, 2026-02-24. Addresses phase placement for all graph-RAG capabilities. Cross-references ADR-037 (GraphStore), ADR-038 (entity extraction), ADR-039 (rebuild trigger), ADR-040 (query routing).
