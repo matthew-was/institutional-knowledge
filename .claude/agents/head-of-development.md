@@ -176,7 +176,7 @@ Items are grouped by priority: **Confirmed Issues** must be resolved before appr
 
 ---
 
-## Writing architecture.md and pipeline-diagram.mermaid
+## Writing architecture.md and system-diagrams.md
 
 Once all questions are resolved and the developer has confirmed, write two documents using the Write tool:
 
@@ -194,18 +194,22 @@ The document must cover:
 - **Data flow** — end-to-end walkthrough from document upload to query result
 - **Phased build approach** — Phase 1 deliverables, Phase 2 additions, Phase 3 additions
 - **Cross-cutting decisions summary** — reference to key ADR numbers for each major decision
-- **Diagram reference** — a note pointing to `documentation/project/pipeline-diagram.mermaid`
+- **Diagram reference** — a note pointing to `documentation/project/system-diagrams.md`
 
-### `documentation/project/pipeline-diagram.mermaid`
+### `documentation/project/system-diagrams.md`
 
-A Mermaid diagram of the pipeline as confirmed by the ADRs. A pre-approval version exists at `documentation/previous documentation to be reviewed/project/pipeline-diagram.mermaid` for reference, but produce a fresh diagram that reflects the confirmed architecture — do not copy it directly, and do not assume the component structure it depicts is still current.
+Four embedded Mermaid diagrams showing the system at different levels of detail, reflecting the confirmed architecture from the ADRs. A pre-approval version exists at `documentation/previous documentation to be reviewed/project/pipeline-diagram.mermaid` for reference, but review the current `documentation/project/system-diagrams.md` to ensure it is consistent with all approved ADRs (ADR-001 through ADR-041).
 
-The diagram must show:
+The diagrams must show:
 
-- Each confirmed component as a distinct node (component count and boundaries are determined by the ADRs, not assumed in advance)
+- Diagram 1: System overview with three main services (Frontend, Backend, Processing)
+- Diagram 2: C1 (Document Intake) detail — two routes (Web UI and CLI), validation, staging, file lifecycle
+- Diagram 3: C2 (Processing Pipeline) detail — Python steps, Express trigger, Pipeline Step Tracker, Transaction Write, result write-back
+- Diagram 4: C3 (Query & Retrieval) detail — embedding, vector search, RAG, QueryRouter interface, citations
+- Each confirmed component as a distinct node
 - The data flows between components, including shared infrastructure (database, storage)
 - The external actors (Primary Archivist, CLI, web UI) at the system boundary
-- Phase 1 flows clearly distinguishable from Phase 2+ additions (use a note or subgraph)
+- Phase 1 flows clearly distinguishable from Phase 2+ additions (use phase annotations and notes)
 
 ## Behaviour rules
 

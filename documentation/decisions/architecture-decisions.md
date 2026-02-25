@@ -1389,7 +1389,7 @@ notes (2026-02-24) for full schema and seeding details.
 | Capability | ADR | What is built |
 | --- | --- | --- |
 | Entity extraction in C2 | ADR-038 | LLM combined pass extracts entities and relationships; results written to `vocabulary_terms` and `vocabulary_relationships` |
-| Extended vocabulary schema | ADR-028 (revised), ADR-038 | `source_document_id`, `confidence` columns; `llm_extracted` source enum value |
+| Extended vocabulary schema | ADR-028 (revised), ADR-038 | `confidence` column; `llm_extracted` source enum value (entity provenance tracked via `entity_document_occurrences`, not `source_document_id`) |
 | Entity review queue | ADR-014 (revised) | LLM-extracted entities appear in the existing vocabulary review queue; curator accepts/rejects |
 | `GraphStore` interface definition | ADR-037 | Interface defined in Express; PostgreSQL implementation written but not called by any production code path in Phase 1 |
 | `QueryRouter` interface definition | ADR-040 | Interface defined in Express; default implementation returns `vector` for all queries (pass-through) |

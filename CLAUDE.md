@@ -72,7 +72,7 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 **Current next steps:**
 
 1. Approve `documentation/decisions/architecture-decisions.md` (ADR-036 to ADR-041)
-2. Head of Development rewrites `architecture.md` and `pipeline-diagrams.md` to reflect new ADRs
+2. Head of Development rewrites `architecture.md` and `system-diagrams.md` to reflect new ADRs
 3. Approve revised architecture and pipeline diagrams
 4. Write 3 remaining skills: `configuration-patterns.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`
 5. Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager

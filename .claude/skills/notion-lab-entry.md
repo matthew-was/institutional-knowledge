@@ -49,11 +49,12 @@ Each block has a `note` (string or null) and a `commits` array (may be empty).
      `started_at`). Ask whether to discard it or finish and publish it first. Do not
      overwrite unless they confirm discard.
    - If it does not exist: proceed.
-2. Record the current date and time as the start of the session.
-3. Write `~/.claude/lab-entry-draft.json` with `started_at` set to the current
-   ISO-8601 datetime, `date` set to today's date (YYYY-MM-DD), and `blocks` as an
-   empty array.
-4. Confirm to the developer: "Lab entry started at [time]."
+2. Get the current date and time using `date -u +"%Y-%m-%dT%H:%M:%S"` (UTC).
+3. Write `~/.claude/lab-entry-draft.json` with:
+   - `started_at`: set to the output of the `date` command
+   - `date`: set to today's date (YYYY-MM-DD format)
+   - `blocks`: empty array
+4. Confirm to the developer: "Lab entry started at [time from date command]."
 
 ---
 
@@ -62,42 +63,45 @@ Each block has a `note` (string or null) and a `commits` array (may be empty).
 Read `~/.claude/lab-entry-draft.json`. If it does not exist, tell the developer there is
 no open draft and suggest starting one.
 
+**Important**: Only create blocks when the developer explicitly asks. Do not infer or
+assume blocks should be created. Each block requires an explicit request to append.
+
 This command has two sub-cases:
 
 ### Append a note
 
 The developer says something like "Append to lab entry: [text]".
 
-Append a block to the `blocks` array:
+1. Get the current timestamp using `date -u +"%Y-%m-%dT%H:%M:%S"` (UTC).
+2. Append a block to the `blocks` array:
 
 ```json
 {
-  "timestamp": "<current ISO-8601 datetime>",
+  "timestamp": "<output from date command>",
   "note": "<the text provided>",
   "commits": []
 }
 ```
 
-Confirm: "Appended note."
+1. Confirm: "Appended note."
 
 ### Append commits
 
 The developer says something like "Append commits abc1234 def5678".
 
-For each SHA provided:
-
-1. Run `git show --no-patch --format="%H %s" <sha>` to get the full hash and subject line.
-   Use the short form of the full hash (first 7 characters) as the display SHA.
-2. Run `git remote get-url origin` to get the remote URL.
-   - If it is a GitHub URL (`github.com`), construct the commit link:
-     `https://github.com/<owner>/<repo>/commit/<full-hash>`
-   - If it is not GitHub, set `url` to null and include only hash and message.
-
-Append a block to the `blocks` array:
+1. Get the current timestamp using `date -u +"%Y-%m-%dT%H:%M:%S"` (UTC).
+2. For each SHA provided:
+   - Run `git show --no-patch --format="%H %s" <sha>` to get the full hash and subject line.
+     Use the short form of the full hash (first 7 characters) as the display SHA.
+   - Run `git remote get-url origin` to get the remote URL.
+     - If it is a GitHub URL (`github.com`), construct the commit link:
+       `https://github.com/<owner>/<repo>/commit/<full-hash>`
+     - If it is not GitHub, set `url` to null and include only hash and message.
+3. Append a block to the `blocks` array:
 
 ```json
 {
-  "timestamp": "<current ISO-8601 datetime>",
+  "timestamp": "<output from date command>",
   "note": null,
   "commits": [
     { "sha": "abc1234", "message": "commit subject", "url": "https://github.com/..." }
@@ -105,7 +109,7 @@ Append a block to the `blocks` array:
 }
 ```
 
-Confirm: "Appended [N] commit(s)."
+1. Confirm: "Appended [N] commit(s)."
 
 ---
 

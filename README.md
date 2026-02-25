@@ -74,7 +74,7 @@ See [documentation/](documentation/) for detailed specifications, architecture d
 
 - **[Overview](documentation/project/overview.md)** — Full feature and scope details
 - **[Architecture](documentation/project/architecture.md)** — System design and technology choices
-- **[Pipeline Diagram](documentation/project/pipeline-diagrams.md)** — Visual system flow
+- **[System Diagrams](documentation/project/system-diagrams.md)** — Visual system architecture and component flows
 - **[Components](documentation/components/)** — Per-component specifications
 - **[Architecture Decisions](documentation/decisions/architecture-decisions.md)** — Design rationale and decisions
 - **[Setup & Development](documentation/SUMMARY.md)** — How to set up the project
