@@ -20,7 +20,7 @@ Agents have no memory between sessions. Each conversation starts fresh. To re-es
 **Starting any agent session**:
 
 1. Open a new conversation with the relevant agent (via `/agents` in Claude Code, or by referencing the agent file)
-2. Say what phase you are in, for example: *"We are in the Product Owner phase. The user requirements document already exists at `.claude/docs/requirements/user-requirements.md`. I want to work on Phase 1 user stories."*
+2. Say what phase you are in, for example: *"We are in the Product Owner phase. The user requirements document already exists at `requirements/user-requirements.md`. I want to work on Phase 1 user stories."*
 3. The agent will read its key context files as defined in its role. Point it at any additional output documents from prior phases that are relevant.
 
 **Context documents to pass at each phase**:
@@ -54,6 +54,12 @@ The project grew from informal design conversations scattered across multiple ch
 
 ## Agent Roster
 
+**⚠️ Important**: Some context files referenced in agent role definitions below (particularly component specifications) are created during earlier phases and may not exist yet when you start a new agent. This is expected. When starting an agent session:
+
+- If context files don't exist, the agent will note that they are not yet created
+- Agents will identify and flag missing context as blocking dependencies
+- Follow the agent's guidance on whether to continue or wait for prior phases to complete
+
 ### 1. Product Owner Agent
 
 **File**: `.claude/agents/product-owner.md`
@@ -66,7 +72,7 @@ The project grew from informal design conversations scattered across multiple ch
 
 **Output format**:
 
-- User requirements document: `.claude/docs/requirements/user-requirements.md` — structured list of all requirements with priority (must/should/could), user type, and rationale
+- User requirements document: `requirements/user-requirements.md` — structured list of all requirements with priority (must/should/could), user type, and rationale
 - User stories: *As a [role], I want [action] so that [benefit]* — with acceptance criteria, definition of done, and phase assignment
 - Flags for the Head of Development where a requirement has architectural implications
 
@@ -74,8 +80,8 @@ The project grew from informal design conversations scattered across multiple ch
 
 **Definition of done — Product Owner phase**: The Product Owner phase is complete when:
 
-1. A user requirements document exists at `.claude/docs/requirements/user-requirements.md` covering all user types and use cases
-2. Phase 1 user stories exist at `.claude/docs/requirements/phase-1-user-stories.md` with testable acceptance criteria
+1. A user requirements document exists at `requirements/user-requirements.md` covering all user types and use cases
+2. Phase 1 user stories exist at `requirements/phase-1-user-stories.md` with testable acceptance criteria
 3. Any requirements with architectural implications are flagged for the Head of Development
 4. The developer has reviewed and approved the requirements document
 
@@ -258,11 +264,11 @@ Pre-approval component specs are archived at `archive/previous-documentation/com
 
 **Scope constraints**: Does not make design decisions. If a task description is ambiguous, flags it for the Senior Developer rather than guessing.
 
-**Definition of done — Project Manager phase**: Complete when a task list exists at `.claude/docs/tasks/component-N-tasks.md` with every task having a clear acceptance condition, and the developer has reviewed the list for completeness.
+**Definition of done — Project Manager phase**: Complete when a task list exists at `tasks/component-N-tasks.md` with every task having a clear acceptance condition, and the developer has reviewed the list for completeness.
 
 **Handoff to Implementer / Developer**: Pass the task list. Each task is self-contained — the implementer should be able to pick up any task without reading the full implementation plan.
 
-**Output location**: `.claude/docs/tasks/component-N-tasks.md`
+**Output location**: `tasks/component-N-tasks.md`
 
 ---
 

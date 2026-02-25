@@ -4,7 +4,7 @@ This skill defines the process for reviewing `documentation/project/overview.md`
 developer, resolving all review points, updating the document, and archiving the review.
 
 Use this skill when the Product Owner agent has produced an `overview-review.md` file at
-`.claude/docs/requirements/overview-review.md` and the developer wants to work through it.
+`documentation/requirements/overview-review.md` and the developer wants to work through it.
 
 ---
 
@@ -24,7 +24,7 @@ The developer starts the workflow with a prompt of this form:
 Read these files before starting:
 
 1. `documentation/project/overview.md` — current scope document
-2. `.claude/docs/requirements/overview-review.md` — Product Owner review findings
+2. `documentation/requirements/overview-review.md` — Product Owner review findings
 
 ### Step 2 — Confirm approach
 

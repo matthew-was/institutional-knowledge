@@ -33,14 +33,11 @@ During this reorganisation, the decision was made to merge the original Componen
 | Source File | Destination | Treatment |
 | --- | --- | --- |
 | `family-estate-ducment-archive-system-project-context.md` | `project/overview.md` + `project/architecture.md` | Split: goals/principles → overview; components/phases/stack → architecture |
-| `estate-archive-document-intake-system-component-1-specification.md` | `components/component-1-document-intake/specification.md` | Moved; H1 title added |
-| `high-level-project-document-component-2-update.md` | `components/component-2-processing-and-embedding/overview.md` | Moved; component numbers updated |
-| `component-2-text-extraction-and-document-processing-design-spec.md` | `components/component-2-processing-and-embedding/specification.md` | Moved; "Handoff Notes to Component 3" → "Internal Stage: Embedding & Storage" |
-| `component-2-design-conversation-summary.md` | `components/component-2-processing-and-embedding/design-rationale.md` | Moved, renamed |
-| `component-2-design-readiness-and-handoff-checklist.md` | `components/component-2-processing-and-embedding/readiness-checklist.md` | Moved, renamed |
-| `component-2-quick-reference.md` | `components/component-2-processing-and-embedding/quick-reference.md` | Moved; embedding stage added |
+| `estate-archive-document-intake-system-component-1-specification.md` | `archive/previous-documentation/components/component-1/specification.md` | Archived; pre-dates current ADRs |
+| `high-level-project-document-component-2-update.md` | `archive/previous-documentation/components/component-2/overview.md` | Archived; pre-dates current ADRs |
+| `component-2-text-extraction-and-document-processing-design-spec.md` | `archive/previous-documentation/components/component-2/specification.md` | Archived; pre-dates current ADRs |
 | `working-with-claude.md` | `process/agent-workflow.md` + `process/skills-catalogue.md` | Split by concern |
-| `document_pipeline.mermaid` | `project/pipeline-diagram.mermaid` | Updated for 4-component structure |
+| `document_pipeline.mermaid` | `project/system-diagrams.md` | Expanded to 4 diagrams reflecting current architecture |
 | `INITIAL_PURPOSE.md` | Incorporated into `project/overview.md` | Merged |
 
 New files synthesised:
@@ -176,8 +173,8 @@ For each agent, the file should contain: role definition, inputs, output format,
 
 Component-specific instances:
 
-- `senior-developer-component-1.md` — context: [components/component-1-document-intake/specification.md](components/component-1-document-intake/specification.md), `.claude/docs/requirements/user-requirements.md`, `.claude/docs/requirements/phase-1-user-stories.md`, [decisions/architecture-decisions.md](decisions/architecture-decisions.md)
-- `senior-developer-component-2.md` — context: all files in [components/component-2-processing-and-embedding/](components/component-2-processing-and-embedding/), `.claude/docs/requirements/user-requirements.md`, [decisions/architecture-decisions.md](decisions/architecture-decisions.md)
+- `senior-developer-component-1.md` — context: [components/component-1-document-intake/specification.md](components/component-1-document-intake/specification.md), `requirements/user-requirements.md`, `requirements/phase-1-user-stories.md`, [decisions/architecture-decisions.md](decisions/architecture-decisions.md)
+- `senior-developer-component-2.md` — context: all files in [components/component-2-processing-and-embedding/](components/component-2-processing-and-embedding/), `requirements/user-requirements.md`, [decisions/architecture-decisions.md](decisions/architecture-decisions.md)
 
 ---
 
@@ -234,7 +231,7 @@ Component-specific instances:
 
 **Scope**: Does not make design decisions. If a task is ambiguous, flags it for the Senior Developer.
 
-**Output location**: `.claude/docs/tasks/component-N-tasks.md`
+**Output location**: `tasks/component-N-tasks.md`
 
 ---
 
@@ -368,7 +365,7 @@ This sequence minimises rework by resolving dependencies before they block work.
 
 **Step 10**: Integration Lead validates Component 1 data access patterns
 
-**Step 11**: Project Manager — create task breakdown → `.claude/docs/tasks/component-1-tasks.md`
+**Step 11**: Project Manager — create task breakdown → `tasks/component-1-tasks.md`
 
 **Step 12**: Implementer agent — writes Component 1 code + tests
 
@@ -386,7 +383,7 @@ This sequence minimises rework by resolving dependencies before they block work.
 
 **Step 18**: Integration Lead validates Component 2 data access patterns
 
-**Step 19**: Project Manager — create task breakdown → `.claude/docs/tasks/component-2-tasks.md`
+**Step 19**: Project Manager — create task breakdown → `tasks/component-2-tasks.md`
 
 **Step 20**: Developer implements Component 2 (learning component — pair-programmer agent assists)
 

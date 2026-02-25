@@ -1,10 +1,10 @@
 # User Stories Review Workflow
 
-This skill defines the process for reviewing `.claude/docs/requirements/phase-1-user-stories.md`
+This skill defines the process for reviewing `documentation/requirements/phase-1-user-stories.md`
 with the developer, resolving all review points, updating the document, and archiving the review.
 
 Use this skill when the Product Owner agent has produced a `user-stories-review.md` file at
-`.claude/docs/requirements/user-stories-review.md` and the developer wants to work through it.
+`documentation/requirements/user-stories-review.md` and the developer wants to work through it.
 
 ---
 
@@ -23,9 +23,9 @@ The developer starts the workflow with a prompt of this form:
 
 Read these files before starting:
 
-1. `.claude/docs/requirements/phase-1-user-stories.md` — current user stories document
-2. `.claude/docs/requirements/user-stories-review.md` — Product Owner review findings
-3. `.claude/docs/requirements/user-requirements.md` — authoritative requirements baseline
+1. `documentation/requirements/phase-1-user-stories.md` — current user stories document
+2. `documentation/requirements/user-stories-review.md` — Product Owner review findings
+3. `documentation/requirements/user-requirements.md` — authoritative requirements baseline
    (needed to verify decisions against the source)
 
 ### Step 2 — Confirm approach
@@ -74,7 +74,7 @@ The plan must include:
 
 ### Step 5 — Apply changes
 
-Apply all changes to `.claude/docs/requirements/phase-1-user-stories.md`. Work section by
+Apply all changes to `documentation/requirements/phase-1-user-stories.md`. Work section by
 section. The markdownlint hook runs automatically after each edit — fix any lint errors before
 continuing.
 

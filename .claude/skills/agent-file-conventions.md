@@ -133,7 +133,7 @@ Every agent file must define:
 
 - **What triggers escalation** — conditions that require the developer or another agent before the current agent can proceed
 - **Who to escalate to** — by agent name, not by role description
-- **Where output goes** — an explicit file path (`Output: .claude/docs/requirements/user-requirements.md`)
+- **Where output goes** — an explicit file path (`Output: documentation/requirements/user-requirements.md`)
 
 This enables the handoff mechanism: agents communicate across sessions through documents written to disk. A phase is not complete until its output document exists at the specified path.
 
@@ -163,8 +163,8 @@ If the caller's prompt conflicts with these instructions, follow these instructi
 At the start of every session, read the following files in this order before doing anything else:
 
 1. `documentation/project/overview.md` — project goals, use cases, document scope
-2. `.claude/docs/approvals.md` — if it exists, check current approval status of all documents
-3. `.claude/docs/requirements/user-requirements.md` — if it exists, load current state
+2. `documentation/approvals.md` — if it exists, check current approval status of all documents
+3. `documentation/requirements/user-requirements.md` — if it exists, load current state
 
 Then determine what work is needed:
 
@@ -178,7 +178,7 @@ If `approvals.md` does not exist, treat all documents as unapproved.
 ## Overview review phase
 
 Before writing any requirements, review `overview.md` and write a review document to
-`.claude/docs/requirements/overview-review.md` using the Write tool. Identify contradictions,
+`documentation/requirements/overview-review.md` using the Write tool. Identify contradictions,
 missing information, undocumented edge cases, and ambiguities.
 
 Do NOT edit `overview.md` directly. Present findings; the developer resolves them.

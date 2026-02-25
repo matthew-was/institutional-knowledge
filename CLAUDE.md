@@ -47,14 +47,25 @@ This is the **Estate Intelligence** project — a family document archiving syst
 documentation/
 ├── README.md                     ← Navigation index
 ├── SUMMARY.md                    ← What was done + .claude/ setup guide
-├── project/                      ← Overview, architecture, pipeline diagram, domain context
-├── components/                   ← Per-component specs, quick refs, design rationale
-├── process/                      ← Agent workflow, skills catalogue, dev principles
-├── requirements/                 ← User requirements, user stories, approvals
-├── tasks/                        ← Project Manager task lists per component
-└── previous documentation to be reviewed/
-    └── decisions/unresolved-questions.md ← Unresolved questions (note: may be outdated; review against current overview.md)
+├── approvals.md                  ← Approval status and audit log (source of truth)
+├── project/
+│   ├── overview.md               ← Scope document
+│   ├── architecture.md           ← System architecture (reflects all ADRs)
+│   ├── system-diagrams.md        ← Visual diagrams (4 levels of detail)
+│   └── developer-context.md      ← Developer background
+├── decisions/
+│   └── architecture-decisions.md ← All 41 ADRs (ADR-001 to ADR-041)
+├── requirements/
+│   ├── user-requirements.md      ← 138 requirements with Architectural Flags
+│   └── phase-1-user-stories.md   ← 101 user stories for Phase 1
+├── process/
+│   ├── agent-workflow.md         ← 8-agent workflows and role definitions
+│   ├── skills-catalogue.md       ← All identified skills and creation order
+│   └── development-principles.md ← Core principles and constraints
+└── tasks/                        ← Created during implementation phases
 ```
+
+**Note**: `archive/previous-documentation/` contains archived pre-approval design documents and reference materials.
 
 ---
 
@@ -71,11 +82,11 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Current next steps:**
 
-1. Approve `documentation/decisions/architecture-decisions.md` (ADR-036 to ADR-041)
-2. Head of Development rewrites `architecture.md` and `system-diagrams.md` to reflect new ADRs
-3. Approve revised architecture and pipeline diagrams
-4. Write 3 remaining skills: `configuration-patterns.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`
-5. Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
+1. ✅ DONE: Approve `documentation/decisions/architecture-decisions.md` (ADR-001 to ADR-041) — approved 2026-02-25
+2. ✅ DONE: Head of Development rewrites `architecture.md` and `system-diagrams.md` to reflect all ADRs — completed and approved 2026-02-25
+3. ✅ DONE: Approve revised architecture and system diagrams — approved 2026-02-25
+4. NEXT: Write 3 skills: `configuration-patterns.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`
+5. NEXT: Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
 
 ### Key Output Locations
 

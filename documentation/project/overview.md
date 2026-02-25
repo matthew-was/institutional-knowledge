@@ -164,8 +164,6 @@ The practical quality of answers is directly proportional to the breadth and qua
 | --- | --- |
 | Understand the system architecture and technology choices | [project/architecture.md](architecture.md) |
 | Understand the developer background and environment setup | [project/developer-context.md](developer-context.md) |
-| See the pipeline visually | [project/pipeline-diagram.mermaid](pipeline-diagram.mermaid) |
-| Understand a specific component | [components/](../components/) |
+| See the system architecture visually | [project/system-diagrams.md](system-diagrams.md) |
 | Understand why decisions were made | [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) |
-| See what questions are still open | [decisions/unresolved-questions.md](../decisions/unresolved-questions.md) |
 | Set up agents and skills | [SUMMARY.md](../SUMMARY.md) |

@@ -14,15 +14,11 @@ All design and process documentation for the Estate Intelligence project. Start 
 
 → [project/architecture.md](project/architecture.md) — All 4 components, phases, tech stack, data flow
 
-→ [project/pipeline-diagram.mermaid](project/pipeline-diagram.mermaid) — Visual pipeline diagram
+→ [project/system-diagrams.md](project/system-diagrams.md) — Visual system architecture and all component flows (4 diagrams)
 
 ### If you want to understand why a decision was made
 
 → [decisions/architecture-decisions.md](decisions/architecture-decisions.md) — All ADRs across the project (populated by Head of Development agent)
-
-### If you want to know what questions are still open
-
-→ [decisions/unresolved-questions.md](decisions/unresolved-questions.md) — Blocking and non-blocking open questions
 
 ### If you want to read the requirements and user stories
 
@@ -52,11 +48,12 @@ All design and process documentation for the Estate Intelligence project. Start 
 | --- | --- | --- |
 | project/overview.md | Current | Rewritten as scope document; approved 2026-02-17 |
 | project/developer-context.md | Current | Developer background and environment |
-| project/architecture.md | Pending | Written by Head of Development agent |
-| project/pipeline-diagram.mermaid | Current | Updated for 4 components |
-| project/domain-context.md | Living document | Populate as documents are processed |
-| decisions/architecture-decisions.md | Pending | Populated by Head of Development agent |
-| decisions/unresolved-questions.md | Reference copy | Historical context; primary input is user-requirements.md Architectural Flags |
+| project/architecture.md | Approved | Approved 2026-02-25; reflects all ADR-001 to ADR-041 |
+| project/system-diagrams.md | Approved | Approved 2026-02-25; four diagrams reflecting confirmed architecture |
+| project/pipeline-diagram.mermaid | Deleted | Deleted 2026-02-25; superseded by system-diagrams.md |
+| project/domain-context.md | Not created | Future living document for estate terminology |
+| decisions/architecture-decisions.md | Approved | Approved 2026-02-25; all 41 ADRs (ADR-001 to ADR-041) |
+| decisions/unresolved-questions.md | Archived | Historical UQ-001 to UQ-006 resolved via ADRs; archived to archive/previous-documentation/previous documentation to be reviewed/decisions/ |
 | requirements/user-requirements.md | Current | 138 requirements (UR-001 to UR-138); approved 2026-02-17 |
 | requirements/phase-1-user-stories.md | Current | 101 stories covering all requirements; approved 2026-02-17 |
 | approvals.md | Current | Approval tracking for all scope documents |

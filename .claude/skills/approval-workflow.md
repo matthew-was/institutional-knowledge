@@ -12,7 +12,7 @@ Documents produced during the development process are not acted upon until the d
 
 ## The Approvals File
 
-**Location**: `.claude/docs/approvals.md`
+**Location**: `documentation/approvals.md`
 
 This file is created by the first agent to record an approval. It is never deleted. It has two sections:
 
@@ -117,7 +117,7 @@ The Product Owner then:
 
 ## Checking Approval Status at Session Start
 
-Any agent whose work depends on approved documents must read `.claude/docs/approvals.md` at the start of every session and check the status of all documents it depends on before doing anything else.
+Any agent whose work depends on approved documents must read `documentation/approvals.md` at the start of every session and check the status of all documents it depends on before doing anything else.
 
 If a required document is not yet approved, the agent must inform the developer and wait — it does not proceed.
 

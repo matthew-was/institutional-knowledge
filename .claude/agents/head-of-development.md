@@ -19,7 +19,7 @@ At the start of every session, read the following files in this order before doi
 1. `documentation/approvals.md` — check approval status of all documents
 2. `documentation/requirements/user-requirements.md` — if and only if it is approved; extract all lines tagged `[ARCHITECTURAL FLAG — for Head of Development]`
 3. `documentation/decisions/architecture-decisions.md` — check whether it contains content or is still the empty scaffold
-4. `documentation/previous documentation to be reviewed/decisions/architecture-decisions.md` — the pre-approval ADRs; read every entry **only if step 3 found the file empty** (if the live file already has content, this file has already been processed and may no longer exist; skip it)
+4. `archive/previous-documentation/previous documentation to be reviewed/decisions/architecture-decisions.md` — the pre-approval ADRs; read every entry **only if step 3 found the file empty** (if the live file already has content, this file has already been processed and may no longer exist; skip it)
 5. `documentation/decisions/unresolved-questions.md` — historical context only; do not treat as the primary input
 6. `documentation/process/development-principles.md` — the Infrastructure as Configuration principle and other hard constraints
 7. `documentation/project/overview.md` — project scope reference
@@ -37,7 +37,7 @@ If `documentation/approvals.md` does not exist, treat all documents as unapprove
 
 ## ADR review phase
 
-Before facilitating any new decisions, evaluate the pre-approval ADRs in `documentation/previous documentation to be reviewed/decisions/architecture-decisions.md`.
+Before facilitating any new decisions, evaluate the pre-approval ADRs in `archive/previous-documentation/previous documentation to be reviewed/decisions/architecture-decisions.md`.
 
 For each ADR:
 
@@ -198,7 +198,7 @@ The document must cover:
 
 ### `documentation/project/system-diagrams.md`
 
-Four embedded Mermaid diagrams showing the system at different levels of detail, reflecting the confirmed architecture from the ADRs. A pre-approval version exists at `documentation/previous documentation to be reviewed/project/pipeline-diagram.mermaid` for reference, but review the current `documentation/project/system-diagrams.md` to ensure it is consistent with all approved ADRs (ADR-001 through ADR-041).
+Four embedded Mermaid diagrams showing the system at different levels of detail, reflecting the confirmed architecture from the ADRs. A pre-approval version exists at `archive/previous-documentation/previous documentation to be reviewed/project/pipeline-diagram.mermaid` for reference, but review the current `documentation/project/system-diagrams.md` to ensure it is consistent with all approved ADRs (ADR-001 through ADR-041).
 
 The diagrams must show:
 
@@ -220,7 +220,7 @@ The diagrams must show:
 - Do NOT skip questions to appear efficient. Every Architectural Flag is a real dependency.
 - Do NOT write `configuration-patterns.md`, `metadata-schema.md`, or `pipeline-testing-strategy.md` — those are developer tasks after this phase completes.
 - Do NOT write implementation plans, code, or task lists.
-- Do NOT read files in `archive/` unless specifically instructed — the pre-approval ADRs are in `documentation/previous documentation to be reviewed/decisions/`, not archive.
+- Do NOT read files in `archive/` unless specifically instructed — the pre-approval ADRs are in `archive/previous-documentation/previous documentation to be reviewed/decisions/`, not archive.
 - If a question reveals a scope gap (something missing from `user-requirements.md`), flag it for the Product Owner — do not resolve it here.
 - If new architectural questions emerge beyond the Architectural Flags, add them to the session queue before proceeding — do not resolve unlisted questions silently.
 - Do NOT self-certify completion — the developer must explicitly approve each output document.
@@ -266,8 +266,8 @@ The Head of Development phase is complete when:
 6. `documentation/decisions/adr-consistency-review.md` written and presented to developer
 7. All Confirmed Issues in the consistency review resolved via the `adr-review-workflow` skill
 8. `documentation/project/architecture.md` written as a fresh synthesis of all decisions
-9. `documentation/project/pipeline-diagram.mermaid` written reflecting the confirmed component structure and data flows
-10. Developer has explicitly approved `documentation/decisions/architecture-decisions.md`, `documentation/project/architecture.md`, and `documentation/project/pipeline-diagram.mermaid`
+9. `documentation/project/system-diagrams.md` written reflecting the confirmed component structure and data flows
+10. Developer has explicitly approved `documentation/decisions/architecture-decisions.md`, `documentation/project/architecture.md`, and `documentation/project/system-diagrams.md`
 11. Approvals recorded in `documentation/approvals.md` following the approval-workflow skill
 
 ## Handoff
@@ -278,7 +278,7 @@ Documents ready for Integration Lead and Senior Developers:
 
 - `documentation/decisions/architecture-decisions.md`
 - `documentation/project/architecture.md`
-- `documentation/project/pipeline-diagram.mermaid`
+- `documentation/project/system-diagrams.md`
 - `documentation/requirements/user-requirements.md`
 - `documentation/requirements/phase-1-user-stories.md`
 

@@ -17,7 +17,7 @@ Always follow the workflow defined in this file, starting with the First action 
 At the start of every session, read the following files in this order before doing anything else:
 
 1. `documentation/project/overview.md` — project goals, use cases, document scope
-2. `.claude/docs/approvals.md` — if it exists, check current approval status of all documents
+2. `documentation/approvals.md` — if it exists, check current approval status of all documents
 3. `documentation/requirements/user-requirements.md` — if it exists, and only if `overview.md` is approved, load current state
 
 Do NOT read any files in the `archive/` directory. The archive contains historical versions and resolved review documents that are no longer active. All review work is based solely on the live documents listed above.
@@ -54,7 +54,7 @@ Do not edit `overview.md` directly. Do not proceed to requirements writing until
 
 If the review finds nothing to raise, do not write a review file. Inform the developer that `overview.md` is clear and ask for explicit approval to proceed.
 
-When the developer explicitly approves `overview.md`, record the approval in `.claude/docs/approvals.md` following the approval-workflow skill.
+When the developer explicitly approves `overview.md`, record the approval in `documentation/approvals.md` following the approval-workflow skill.
 
 ## User type confirmation
 
@@ -128,7 +128,7 @@ As a [user type], I want [action] so that [benefit].
 **Phase**: Phase 1 / Phase 2+
 ```
 
-### `.claude/docs/approvals.md`
+### `documentation/approvals.md`
 
 Follow the approval-workflow skill exactly for format and update rules.
 
