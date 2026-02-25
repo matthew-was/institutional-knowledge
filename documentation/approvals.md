@@ -7,7 +7,7 @@
 | `documentation/project/overview.md` | Approved | 2026/02/17 |
 | `documentation/requirements/user-requirements.md` | Approved | 2026/02/17 |
 | `documentation/requirements/phase-1-user-stories.md` | Approved | 2026/02/17 |
-| `documentation/decisions/architecture-decisions.md` | Unapproved | — |
+| `documentation/decisions/architecture-decisions.md` | Approved | 2026/02/25 |
 | `documentation/project/architecture.md` | Unapproved | — |
 | `documentation/project/pipeline-diagram.mermaid` | Unapproved | — |
 
@@ -40,4 +40,5 @@
 2026/02/18 - pipeline-diagram.mermaid added - Developer - Head of Development output document; pending HoD session
 2026/02/23 - architecture-decisions.md approved - Developer - ADR-001 to ADR-035; full review session completed; all cross-references verified; four consistency fixes applied; ADR-034 and ADR-035 added during session
 2026/02/23 - architecture-decisions.md unapproved - Developer - ADR-036 added post-approval (LLM metadata merge path); requires re-review before proceeding
+2026/02/25 - architecture-decisions.md approved - Developer - manual review of ADR-037 to ADR-041 (graph-RAG decisions); consistency review complete; all revisions applied; ready for implementation phase
 ```
