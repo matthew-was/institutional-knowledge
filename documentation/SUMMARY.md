@@ -80,7 +80,9 @@ The `process/agent-workflow.md` document defines a complete 7-agent workflow. No
 │   └── project-manager.md
 └── skills/
     ├── agent-file-conventions.md
+    ├── approval-workflow.md
     ├── configuration-patterns.md
+    ├── dependency-composition-pattern.md
     ├── metadata-schema.md
     ├── pipeline-testing-strategy.md
     ├── ocr-extraction-workflow.md
@@ -279,16 +281,25 @@ Full descriptions in [process/skills-catalogue.md](process/skills-catalogue.md).
 - The "Infrastructure as Configuration" principle in implementation terms
 - TypeScript interfaces + factory/DI patterns
 - Python abstract base classes + factory functions
-- All abstraction points enumerated with runtime selection mechanism
+- Config singleton pattern with fail-fast validation
+- Docker runtime configuration (base + overrides)
 - Component 1's `StorageService` as first concrete reference
 
-**2. `metadata-schema.md`** — Write second (Integration Lead needs this)
+**1b. `dependency-composition-pattern.md`** — Write second (Implementer needs this before wiring routes)
+
+- Structured dependency injection across TypeScript and Python
+- Services instantiated at startup, injected into route handlers
+- Testing via mock injection
+- MCP server wrapping (same services, multiple deployment contexts)
+- Key principles: single responsibility, explicit dependencies, composability
+
+**2. `metadata-schema.md`** — Write fourth (Integration Lead needs this)
 
 - Canonical field list for document, chunk, and processing metadata
 - Required vs optional per document type
 - Schema evolution strategy
 
-**3. `pipeline-testing-strategy.md`** — Write third (must exist before code)
+**3. `pipeline-testing-strategy.md`** — Write fifth (must exist before code)
 
 - Vitest (TypeScript) and pytest (Python) setup patterns
 - Pipeline stage isolation testing
@@ -352,6 +363,8 @@ This sequence minimises rework by resolving dependencies before they block work.
 **Step 4**: Head of Development agent — resolve Architectural Flags from `user-requirements.md`; produce `documentation/decisions/architecture-decisions.md` and `documentation/project/architecture.md`
 
 **Step 5**: Write `configuration-patterns.md` skill (informed by Python placement ADR and UR-133 decision from Step 4)
+
+**Step 5b**: Write `dependency-composition-pattern.md` skill (closely aligned with configuration patterns, needed before Implementer wires routes)
 
 **Step 6**: Write `metadata-schema.md` skill (informed by UR-057/061/086/138 decisions from Step 4)
 

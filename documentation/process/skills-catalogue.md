@@ -90,7 +90,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 **File**: `.claude/skills/configuration-patterns.md`
 
-**Status**: Not yet written — write first (highest priority; blocks everything else)
+**Status**: ✓ Written
 
 **Purpose**: Encodes the "Infrastructure as Configuration" principle in implementation terms. This is the highest-leverage skill because every component must follow it and every Senior Developer agent needs it.
 
@@ -103,9 +103,36 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 - How to use factory pattern or dependency injection to select implementation at runtime
 - How configuration is loaded and how it maps to implementation selection
 - Each specific abstraction point: storage, DB connections, OCR engines, LLM providers, embedding services, vector DB
-- Code examples from Component 1's `StorageService` as the first concrete reference
+- Config singleton pattern (validation at startup, fail-fast)
+- Docker runtime configuration (base config + volume-mounted overrides)
+- Code examples for both TypeScript (nconf + Zod) and Python (Dynaconf + Pydantic)
 
 **Used by**: Every Senior Developer agent, Implementer agent, Code Reviewer agent
+
+---
+
+### 1b. Dependency Composition Pattern
+
+**File**: `.claude/skills/dependency-composition-pattern.md`
+
+**Status**: ✓ Written
+
+**Purpose**: Structured approach to dependency injection where services are instantiated at startup and passed to route handlers as parameters. Enables straightforward testing, MCP wrapping, and composition across multiple deployment contexts.
+
+**Covers**:
+
+- Why this pattern matters (three deployment targets: HTTP, MCP, CLI tools)
+- TypeScript pattern: Services created in main.ts, route handlers receive services as parameters, routes composed at top level
+- Python pattern: Same structure using FastAPI async lifecycle management
+- Testing with mocks: Injecting mock services for straightforward unit testing
+- MCP server wrapping: Same services in both HTTP and MCP contexts without code duplication
+- Key principles: Single responsibility, explicit dependencies, testability, composability, configuration-driven
+- Common patterns: Nested compositions, partial dependency injection, lazy loading
+- Troubleshooting: Multiple service instances, untestable handlers, tight coupling
+
+**Used by**: Implementer agent (wiring routes), Senior Developer agents (service architecture), Code Reviewer agent (validating dependency injection)
+
+**Related to**: [configuration-patterns.md](configuration-patterns.md) — services are configured at runtime, composed at application startup
 
 ---
 
@@ -240,9 +267,10 @@ Write skills in this order — each is a dependency for work that comes after it
 
 1. **agent-file-conventions.md** — ✓ written; prerequisite for all agent files
 2. **approval-workflow.md** — ✓ written; used by Product Owner and any agent that gates on approvals
-3. **configuration-patterns.md** — blocks all Senior Developer agents
-4. **metadata-schema.md** — blocks Integration Lead validation of any component
-5. **pipeline-testing-strategy.md** — must exist before code is written
-6. **ocr-extraction-workflow.md** — needed before Component 2 implementation
-7. **embedding-chunking-strategy.md** — needed before Component 2 embedding stage + Component 3
-8. **rag-implementation.md** — needed before Component 3 design
+3. **configuration-patterns.md** — ✓ written; blocks all Senior Developer agents
+4. **dependency-composition-pattern.md** — ✓ written; needed before Implementer begins wiring routes
+5. **metadata-schema.md** — blocks Integration Lead validation of any component
+6. **pipeline-testing-strategy.md** — must exist before code is written
+7. **ocr-extraction-workflow.md** — needed before Component 2 implementation
+8. **embedding-chunking-strategy.md** — needed before Component 2 embedding stage + Component 3
+9. **rag-implementation.md** — needed before Component 3 design

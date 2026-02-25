@@ -75,18 +75,20 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `notion-lab-entry.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `notion-lab-entry.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`
 - Agents: `product-owner.md`, `head-of-development.md`
 
-**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents; `configuration-patterns.md`, `metadata-schema.md`, `pipeline-testing-strategy.md` skills.
+**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents; `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `rag-implementation.md` skills.
 
 **Current next steps:**
 
 1. ✅ DONE: Approve `documentation/decisions/architecture-decisions.md` (ADR-001 to ADR-041) — approved 2026-02-25
 2. ✅ DONE: Head of Development rewrites `architecture.md` and `system-diagrams.md` to reflect all ADRs — completed and approved 2026-02-25
 3. ✅ DONE: Approve revised architecture and system diagrams — approved 2026-02-25
-4. NEXT: Write 3 skills: `configuration-patterns.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`
-5. NEXT: Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
+4. ✅ DONE: Write `configuration-patterns.md` skill
+5. ✅ DONE: Write `dependency-composition-pattern.md` skill
+6. NEXT: Write remaining skills: `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `rag-implementation.md`
+7. NEXT: Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
 
 ### Key Output Locations
 
