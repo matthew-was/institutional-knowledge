@@ -9,7 +9,7 @@
 | `documentation/requirements/phase-1-user-stories.md` | Approved | 2026/02/17 |
 | `documentation/decisions/architecture-decisions.md` | Approved | 2026/02/25 |
 | `documentation/project/architecture.md` | Unapproved | — |
-| `documentation/project/pipeline-diagram.mermaid` | Unapproved | — |
+| `documentation/project/system-diagrams.md` | Unapproved | — |
 
 ## Audit Log
 
@@ -37,8 +37,8 @@
 2026/02/17 - phase-1-user-stories.md approved - Developer - US-007 derived-from corrected (UR-010→UR-011); header date updated to 2026-02-17; full review clean; re-approved
 2026/02/18 - architecture-decisions.md added - Developer - Head of Development output document; pending HoD session
 2026/02/18 - architecture.md added - Developer - Head of Development output document; pending HoD session
-2026/02/18 - pipeline-diagram.mermaid added - Developer - Head of Development output document; pending HoD session
 2026/02/23 - architecture-decisions.md approved - Developer - ADR-001 to ADR-035; full review session completed; all cross-references verified; four consistency fixes applied; ADR-034 and ADR-035 added during session
 2026/02/23 - architecture-decisions.md unapproved - Developer - ADR-036 added post-approval (LLM metadata merge path); requires re-review before proceeding
 2026/02/25 - architecture-decisions.md approved - Developer - manual review of ADR-037 to ADR-041 (graph-RAG decisions); consistency review complete; all revisions applied; ready for implementation phase
+2026/02/25 - pipeline-diagram.mermaid deleted - Developer - stale file; superseded by system-diagrams.md which reflects all current ADRs; deletion committed
 ```
