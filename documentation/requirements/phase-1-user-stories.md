@@ -747,11 +747,11 @@ As a Primary Archivist, I want the flag reason for a text quality failure to lis
 
 Derived from: UR-052, UR-053
 
-As a Primary Archivist, I want the system to detect document type, dates, people, land references, and description automatically so that I do not have to enter these fields manually for every document.
+As a Primary Archivist, I want the system to detect document type, dates, people, organisations, and description automatically so that I do not have to enter these fields manually for every document.
 
 **Acceptance criteria**
 
-- [ ] The system detects document type, dates, people, land references, and description from document content
+- [ ] The system detects document type, dates, people, organisations, and description from document content
 - [ ] If the system detects a description, it overwrites the description provided at intake
 - [ ] If the system does not detect a description, the intake description is preserved
 - [ ] When the system detects no value for a non-description metadata field, that field is not populated; the intake description is preserved per UR-053
@@ -805,7 +805,7 @@ As a Primary Archivist, I want a single flag with multiple reasons when both tex
 
 Derived from: UR-057
 
-As a Primary Archivist, I want the specific metadata fields assessed for completeness and the scoring method determined during implementation so that the assessment reflects the actual estate corpus and the capabilities of the chosen extraction tooling.
+As a Primary Archivist, I want the specific metadata fields assessed for completeness and the scoring method determined during implementation so that the assessment reflects the actual document collection and the capabilities of the chosen extraction tooling.
 
 **Acceptance criteria**
 
@@ -927,7 +927,7 @@ As a Primary Archivist, I want chunk boundaries to be determined by an AI agent 
 - [ ] Fixed-size splitting is not used
 - [ ] The AI agent used for chunking and its operating model are architectural decisions `[ARCHITECTURAL FLAG — for Head of Development]`
 
-**Definition of done**: Chunk boundaries are reviewed against at least two Phase 1 document types (e.g. a typewritten document and a digital PDF) from the estate corpus. The Primary Archivist confirms no boundary splits a logically indivisible unit (e.g. a clause, a named transaction, or a named party's entry) and records the review outcome before the story is closed. Human review is the appropriate verification method for AI-determined chunk boundaries; no automated test is expected.
+**Definition of done**: Chunk boundaries are reviewed against at least two Phase 1 document types (e.g. a typewritten document and a digital PDF) from the archive. The Primary Archivist confirms no boundary splits a logically indivisible unit (e.g. a clause, a named transaction, or a named party's entry) and records the review outcome before the story is closed. Human review is the appropriate verification method for AI-determined chunk boundaries; no automated test is expected.
 
 > **Note — hard blocking dependency**: The AI agent used for chunking and its operating model are defined by UR-064 and must be resolved by the Head of Development before this story can be implemented. Without selecting the agent and its operating model (prompting strategy, token limits, retry logic), semantic chunking cannot be implemented or verified.
 
@@ -1176,7 +1176,7 @@ As a Primary Archivist or Family Member, I want to attach human-provided text to
 
 Derived from: UR-085, UR-087
 
-As a Primary Archivist, I want a domain vocabulary of estate-specific terms stored in the database so that the system has a single authoritative source for specialised language used in extraction and query.
+As a Primary Archivist, I want a domain vocabulary of institution-specific terms stored in the database so that the system has a single authoritative source for specialised language used in extraction and query.
 
 **Acceptance criteria**
 
@@ -1194,7 +1194,7 @@ As a Primary Archivist, I want a domain vocabulary of estate-specific terms stor
 
 Derived from: UR-086
 
-As a Primary Archivist, I want the database to be initialised from a seed script that provides a non-empty vocabulary so that the system starts with useful estate-specific terms rather than an empty vocabulary.
+As a Primary Archivist, I want the database to be initialised from a seed script that provides a non-empty vocabulary so that the system starts with useful institution-specific terms rather than an empty vocabulary.
 
 **Acceptance criteria**
 
@@ -1507,7 +1507,7 @@ As a Primary Archivist, Family Member, or Occasional Contributor, I want to filt
 
 Derived from: UR-109
 
-As an Occasional Contributor, I want to query the archive so that I can find information about the estate.
+As an Occasional Contributor, I want to query the archive so that I can find information stored in it.
 
 **Acceptance criteria**
 

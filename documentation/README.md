@@ -36,9 +36,9 @@ All design and process documentation for the Institutional Knowledge project. St
 
 → [process/skills-catalogue.md](process/skills-catalogue.md) — All identified skills with creation order
 
-### If you are working with estate terminology
+### If you are working with institution-specific terminology
 
-→ [project/domain-context.md](project/domain-context.md) — Living document: approved terms, field names, people, candidates
+→ [project/domain-context.md](project/domain-context.md) — Living document: approved terms, entities, and relationships (future)
 
 ---
 
@@ -51,7 +51,7 @@ All design and process documentation for the Institutional Knowledge project. St
 | project/architecture.md | Approved | Approved 2026-02-25; reflects all ADR-001 to ADR-041 |
 | project/system-diagrams.md | Approved | Approved 2026-02-25; four diagrams reflecting confirmed architecture |
 | project/pipeline-diagram.mermaid | Deleted | Deleted 2026-02-25; superseded by system-diagrams.md |
-| project/domain-context.md | Not created | Future living document for estate terminology |
+| project/domain-context.md | Not created | Future living document for institution-specific terminology |
 | decisions/architecture-decisions.md | Approved | Approved 2026-02-25; all 41 ADRs (ADR-001 to ADR-041) |
 | decisions/unresolved-questions.md | Archived | Historical UQ-001 to UQ-006 resolved via ADRs; archived to archive/previous-documentation/previous documentation to be reviewed/decisions/ |
 | requirements/user-requirements.md | Current | 138 requirements (UR-001 to UR-138); approved 2026-02-17 |
