@@ -22,6 +22,23 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ---
 
+## Git Commits
+
+**CRITICAL: Never commit to git without explicit user instruction.** This is a hard rule, not a preference.
+
+- Do not run `git commit` or `git push` under any circumstances unless the user explicitly says "commit" or "push"
+- If you have staged changes and complete a task, stop and ask the user for permission before committing
+- Committing without permission breaks the user's workflow and will require manual git history management
+- User controls all commits to maintain clean, intentional git history with proper batch grouping
+
+**When work is complete:**
+
+1. Present the changes to the user
+2. Wait for explicit instruction: "commit these changes" or "push to GitHub"
+3. Only then proceed with git commands
+
+---
+
 ## Project Overview
 
 This is the **Institutional Knowledge** project — a family document archiving system (1950s–present) with an AI/ML learning component. See [documentation/README.md](documentation/README.md) for full navigation.
