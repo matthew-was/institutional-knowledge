@@ -72,7 +72,8 @@ This command has two sub-cases:
 
 The developer says something like "Append to lab entry: [text]".
 
-1. Get the current timestamp using `date -u +"%Y-%m-%dT%H:%M:%S"` (UTC).
+1. **Get the current timestamp using the `date` command**: `date -u +"%Y-%m-%dT%H:%M:%S"` (UTC).
+   Do not guess or fabricate timestamps.
 2. Append a block to the `blocks` array:
 
 ```json
