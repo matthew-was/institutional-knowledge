@@ -1,6 +1,6 @@
 # Developer Context
 
-This document records the developer background and environment setup for the Estate Intelligence project. It is intended as context for anyone working on the system, not as a scope or requirements document.
+This document records the developer background and environment setup for the Institutional Knowledge project. It is intended as context for anyone working on the system, not as a scope or requirements document.
 
 ---
 

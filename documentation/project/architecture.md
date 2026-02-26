@@ -2,13 +2,13 @@
 
 This document is a synthesis of all decisions recorded in
 [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (ADR-001 through
-ADR-041). It describes the confirmed system architecture for the Estate Intelligence project.
+ADR-041). It describes the confirmed system architecture for the Institutional Knowledge project.
 
 ---
 
 ## System Overview
 
-Estate Intelligence is a document archiving and retrieval system for a family farming estate
+Institutional Knowledge is a document archiving and retrieval system for a family farming estate
 (1950s to present). Documents enter the system through two intake routes (web UI form and bulk
 ingestion CLI), pass through an extraction and embedding pipeline, and become searchable via
 natural language queries with source citations. A knowledge graph of entities (people,
@@ -60,7 +60,7 @@ dedicated service (ADR-005).
 Confirmed in ADR-002 and ADR-015:
 
 ```text
-estate-intelligence/
+institutional-knowledge/
   apps/
     frontend/              # Next.js — structural boundary (ADR-003)
     backend/               # Express — sole database writer (ADR-031)

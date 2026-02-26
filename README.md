@@ -1,12 +1,12 @@
-# Estate Intelligence
+# Institutional Knowledge
 
 _Preserve the Past. Inform the Future_
 
 <img src="./branding/logo.png" width="250" height="250" alt="A tree with data nodes and leaves growing out of a scroll" />
 
-## What Is Estate Intelligence?
+## What Is Institutional Knowledge?
 
-Estate Intelligence is a **searchable archive system** for family and estate documents spanning decades. It transforms scattered physical and digital documents into a queryable knowledge base, powered by AI and document processing.
+Institutional Knowledge is a **searchable archive system** for family and estate documents spanning decades. It transforms scattered physical and digital documents into a queryable knowledge base, powered by AI and document processing.
 
 ### The Problem It Solves
 

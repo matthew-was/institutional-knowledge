@@ -19,7 +19,7 @@ This pattern avoids:
 
 ## Why This Matters
 
-Estate Intelligence has three deployment targets:
+Institutional Knowledge has three deployment targets:
 
 1. **Express HTTP service** (backend API)
 2. **FastAPI HTTP service** (processing pipeline admin)
@@ -273,7 +273,7 @@ import { handleSearch, handleUploadDocument } from '../handlers/query';
 async function main() {
   const services = await createServices();
   const server = new Server({
-    name: "estate-intelligence",
+    name: "institutional-knowledge",
     version: "1.0.0",
   });
 
@@ -818,7 +818,7 @@ async function main() {
 
   // Create MCP server
   const server = new Server({
-    name: "estate-intelligence",
+    name: "institutional-knowledge",
     version: "1.0.0",
   });
 

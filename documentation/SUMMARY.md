@@ -1,4 +1,4 @@
-# Estate Intelligence: Documentation Summary & Next Steps
+# Institutional Knowledge: Documentation Summary & Next Steps
 
 ## What Was Done
 

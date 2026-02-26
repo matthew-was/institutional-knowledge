@@ -1,6 +1,6 @@
 # System Diagrams
 
-Four diagrams describing the Estate Intelligence system architecture. Each diagram is
+Four diagrams describing the Institutional Knowledge system architecture. Each diagram is
 self-contained and can be read independently. Reflects ADR-001 through ADR-041.
 
 ---

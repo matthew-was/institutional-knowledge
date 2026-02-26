@@ -24,7 +24,7 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ## Project Overview
 
-This is the **Estate Intelligence** project — a family document archiving system (1950s–present) with an AI/ML learning component. See [documentation/README.md](documentation/README.md) for full navigation.
+This is the **Institutional Knowledge** project — a family document archiving system (1950s–present) with an AI/ML learning component. See [documentation/README.md](documentation/README.md) for full navigation.
 
 ### Component Architecture (4 components)
 

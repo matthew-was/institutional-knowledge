@@ -1,6 +1,6 @@
 # Documentation
 
-All design and process documentation for the Estate Intelligence project. Start here to find anything.
+All design and process documentation for the Institutional Knowledge project. Start here to find anything.
 
 ---
 

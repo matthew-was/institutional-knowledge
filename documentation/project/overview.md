@@ -2,7 +2,7 @@
 
 ## Why This Project Exists
 
-The Estate Intelligence system exists to preserve and make accessible the recorded history of a family farming estate spanning from the 1950s to the present. Decades of land transactions, infrastructure works, tenancy agreements, legal correspondence, and family history exist only as physical and digital documents — scattered, unsearchable, and at risk of being lost as knowledge passes between generations.
+The Institutional Knowledge system exists to preserve and make accessible the recorded history of a family farming estate spanning from the 1950s to the present. Decades of land transactions, infrastructure works, tenancy agreements, legal correspondence, and family history exist only as physical and digital documents — scattered, unsearchable, and at risk of being lost as knowledge passes between generations.
 
 The system creates a searchable archive of these documents. A user asks a question in plain language — "what is known about the drainage works in the east meadow?" or "who owned the mill pasture before the family acquired it?" — and the system reads the relevant documents and answers directly, citing its sources.
 
