@@ -92,10 +92,10 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `notion-lab-entry.md` (updated 2026-02-26 with explicit `date` command requirement), `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `notion-lab-entry.md` (updated 2026-02-26 with explicit `date` command requirement), `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`
 - Agents: `product-owner.md`, `head-of-development.md`
 
-**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents; `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `rag-implementation.md` skills.
+**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents; `rag-implementation.md` skill.
 
 **Current next steps:**
 
@@ -107,8 +107,9 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 6. ✅ DONE: Write `metadata-schema.md` skill
 7. ✅ DONE: Write `pipeline-testing-strategy.md` skill
 8. ✅ DONE: Write `ocr-extraction-workflow.md` skill
-9. NEXT: Write remaining skills: `embedding-chunking-strategy.md`, `rag-implementation.md`
-10. NEXT: Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
+9. ✅ DONE: Write `embedding-chunking-strategy.md` skill
+10. NEXT: Write final skill: `rag-implementation.md`
+11. NEXT: Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
 
 ### Key Output Locations
 
