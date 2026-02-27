@@ -179,23 +179,6 @@ The goal is a relationship type set that **enables the curator's most important 
 
 ---
 
-## Phase 1 Relationship Types (Family Estate Archive)
-
-**These relationship types are specific to the current family estate project. Other institutions will define different relationship types based on their domain and curator questions.**
-
-| Type | Direction | Description |
-| --- | --- | --- |
-| `owned_by` | Land Parcel → Person / Organisation | Records ownership of land by an individual or organisation |
-| `transferred_to` | Land Parcel (from Person) → Land Parcel (to Person) | Records a transfer of land ownership between two parties |
-| `witnessed_by` | Document → Person | Person witnessed or signed a document |
-| `adjacent_to` | Land Parcel → Land Parcel | Records spatial adjacency of parcels (useful for boundary queries) |
-| `employed_by` | Person → Organisation | Person employed by or associated with an organisation |
-| `referenced_in` | Entity → Document | Entity is mentioned in a document (generic reference, not ownership/employment) |
-| `performed_by` | Organisation Role → Organisation | An organisation holds or has held a specific role (e.g. Estate Management) |
-| `succeeded_by` | Organisation → Organisation | Corporate succession: one organisation replaced another (e.g. Cluttons → Smiths-Gore → Savills) |
-
----
-
 ## Database Schema
 
 ### `vocabulary_terms` Table
@@ -437,10 +420,10 @@ After curation, the curator triggers a batch graph rebuild (via UI button or CLI
 
 1. Reads all `vocabulary_terms` with `source IN ('seed', 'manual', 'candidate_accepted')`
 2. Reads all corresponding `vocabulary_relationships`
-3. Writes the graph structure via the `GraphStore` interface (ADR-037)
+3. Writes the graph structure via the `GraphStore` interface (ADR-037, ADR-039)
 4. Is idempotent — running multiple times produces the same result
 
-**Note**: The graph is only built from **accepted** entities. LLM-extracted entities that remain in the review queue do not appear in graph traversals until they are accepted.
+**Note**: The graph is only built from accepted entities. LLM-extracted entities (`source: llm_extracted`) that remain in the review queue are explicitly excluded — they do not appear in graph traversals until the curator accepts them. This is the human-in-the-loop gate (ADR-014, ADR-039).
 
 ---
 

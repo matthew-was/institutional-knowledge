@@ -1,5 +1,18 @@
 # Embedding and Chunking Strategy
 
+## When to use
+
+Use this skill when implementing steps 5 and 6 of the C2 pipeline (semantic chunking and embedding generation). Specifically:
+
+- Implementing the LLM combined pass that produces chunk boundaries, entities, and relationships
+- Implementing the `EmbeddingService` interface and configuring the embedding provider
+- Writing chunks and embeddings to the `VectorStore` interface
+- Understanding the transactional atomicity requirement for embedding storage
+
+Read `configuration-patterns.md` and `ocr-extraction-workflow.md` first — this skill continues directly from step 4 of the C2 pipeline.
+
+---
+
 ## Overview
 
 Steps 5–6 of the C2 pipeline — **Semantic Chunking (part of LLM Combined Pass)** and **Embedding Generation** — form the final phase that prepares documents for retrieval. Chunking and entity extraction happen together in step 5 (via a single LLM call); embedding generation happens in step 6. Results are stored in Express backend's PostgreSQL with pgvector.
@@ -64,6 +77,8 @@ For estate archive documents (deeds, letters, operational logs), chunks align to
 4. **Maximum chunk size** (Phase 1): 1000 tokens maximum. Chunks larger than this are split on paragraph boundaries first; if a single paragraph exceeds the limit, fall back to splitting on sentence boundaries.
 
 ### LLM Prompt Pattern
+
+The prompt below is the Phase 1 example for a family estate archive. When implementing for a different institution, replace the entity types, relationship types, and document type examples with those identified during your entity/relationship type discovery process (see `metadata-schema.md`).
 
 The LLM receives a prompt like:
 
@@ -169,7 +184,7 @@ For each chunk returned by the LLM combined pass:
 4. **Store in PostgreSQL pgvector column** via the VectorStore interface (see below)
 5. **Record metadata** — chunk_index, document_id, parent document reference, token count
 
-**Chunk Reference Pattern** (ADR-013):
+**Chunk Reference Pattern** (see architecture.md, C2 Data Flow section):
 
 Every chunk stores a reference to its parent document:
 
@@ -379,7 +394,7 @@ async def test_chunk_and_embed_document():
     # Step 6: Embedding generation
     for chunk in chunking_result.chunks:
         embedding_result = await embedding_service.embed(chunk["text"])
-        assert len(embedding_result.embedding) == 1536  # nomic-embed-text dimension
+        assert len(embedding_result.embedding) > 0  # Dimension determined by configured provider
 
         # Step 7: Store in VectorStore (via HTTP to Express)
         await vector_store_client.write(
@@ -474,5 +489,5 @@ The factory function in Express and Python automatically selects the correct Emb
 - [metadata-schema.md](metadata-schema.md) — Entity and relationship types, vocabulary curation
 - [configuration-patterns.md](configuration-patterns.md) — EmbeddingService and VectorStore factory patterns
 - [pipeline-testing-strategy.md](pipeline-testing-strategy.md) — Testing the full pipeline end-to-end
-- ADR-011 (text extraction choice), ADR-013 (chunk parent references), ADR-024 (embedding provider), ADR-033 (VectorStore interface), ADR-036 (LLM combined pass)
+- ADR-011 (text extraction choice), ADR-024 (embedding provider), ADR-033 (VectorStore interface), ADR-036 (LLM combined pass); chunk parent reference pattern — see architecture.md C2 Data Flow section
 - UR-063 (embeddings required), UR-064 (semantic chunking), UR-065 (atomic embedding), UR-066 (mixed documents held pending)

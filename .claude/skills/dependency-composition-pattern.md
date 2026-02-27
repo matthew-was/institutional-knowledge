@@ -1,5 +1,18 @@
 # Dependency Composition Pattern
 
+## When to use
+
+Use this skill when:
+
+- Wiring up HTTP route handlers in the Express backend or FastAPI processing service
+- Creating an MCP server that exposes the same services as the HTTP API
+- Structuring handler functions so they are testable without HTTP/MCP concerns
+- Understanding how services are composed and passed through the application
+
+Read `configuration-patterns.md` first — this skill assumes services are already defined and configured via that pattern.
+
+---
+
 ## What Is This Pattern?
 
 The dependency composition pattern is a structured approach to dependency injection where:
@@ -22,7 +35,7 @@ This pattern avoids:
 Institutional Knowledge has three deployment targets:
 
 1. **Express HTTP service** (backend API)
-2. **FastAPI HTTP service** (processing pipeline admin)
+2. **FastAPI HTTP service** (C2 processing pipeline; C3 Query & Retrieval is also Python-based — the Python handler function pattern in this skill applies directly to both)
 3. **MCP server** (Claude Code integration for query/analysis)
 
 All three targets need the same underlying services (database, storage, embeddings, vector store, graph store). The composition pattern allows us to:
@@ -798,58 +811,6 @@ async def test_upload_document():
     assert response.status_code == 200
     mock_storage.upload_file.assert_called_once()
     mock_database.insert_document.assert_called_once()
-```
-
-## MCP Server Wrapping
-
-The same services can be wrapped in an MCP (Model Context Protocol) server without duplicating business logic:
-
-### TypeScript MCP Server Example
-
-```typescript
-// File: mcp/server.ts
-
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { Services, createServices } from '../services';
-
-async function main() {
-  // Create services once
-  const services = await createServices();
-
-  // Create MCP server
-  const server = new Server({
-    name: "institutional-knowledge",
-    version: "1.0.0",
-  });
-
-  // Add tools that use the injected services
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-
-    if (name === "search_documents") {
-      const results = await services.vectorStore.search(args.embedding, {
-        topK: args.topK,
-      });
-      return { content: [{ type: "text", text: JSON.stringify(results) }] };
-    }
-
-    if (name === "get_document") {
-      const doc = await services.database.getDocument(args.docId);
-      return { content: [{ type: "text", text: JSON.stringify(doc) }] };
-    }
-
-    throw new Error(`Unknown tool: ${name}`);
-  });
-
-  // Connect stdio
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-}
-
-main().catch((err) => {
-  console.error("MCP server error:", err);
-  process.exit(1);
-});
 ```
 
 ## Key Principles

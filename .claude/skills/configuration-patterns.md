@@ -1,5 +1,18 @@
 # Configuration Patterns
 
+## When to use
+
+Use this skill when:
+
+- Defining a new external service abstraction (storage, OCR, LLM, embedding, vector store, graph store)
+- Setting up configuration loading and validation at application startup
+- Wiring a factory function to select a concrete provider from config
+- Configuring Docker runtime overrides
+
+Read this skill before writing any service interface or factory. All other C2 and C3 skills assume you have read it.
+
+---
+
 ## Overview
 
 This skill encodes the **Infrastructure as Configuration** principle in implementation terms. Every external service — storage, database, OCR engine, LLM provider, embedding service, vector database — is abstracted behind an interface. The concrete implementation is selected at runtime via configuration, not hardcoded.
@@ -244,7 +257,7 @@ Base configuration file (built into Docker image):
   "database": {
     "host": "localhost",
     "port": 5432,
-    "name": "estate_archive"
+    "name": "institutional_knowledge"
   }
 }
 ```
@@ -256,13 +269,13 @@ For production or environment-specific overrides, use a volume-mounted config fi
 {
   "storage": {
     "provider": "s3",
-    "bucket": "estate-archive-prod",
+    "bucket": "institutional-knowledge-prod",
     "region": "us-east-1"
   },
   "database": {
     "host": "db.internal",
     "port": 5432,
-    "name": "estate_archive_prod"
+    "name": "institutional_knowledge_prod"
   }
 }
 ```
@@ -456,49 +469,79 @@ class TesseractAdapter(OCRService):
         return file_extension.lower() in ['.png', '.jpg', '.jpeg', '.tiff', '.bmp']
 ```
 
-**Docling Adapter (API-based OCR):**
+**Mistral OCR Adapter (commercial API — illustrates the HTTP adapter pattern):**
+
+This example shows what an adapter for a commercial OCR API looks like. In the real
+implementation (ADR-011), Docling is used as a Python library (installed via pip), not as a
+network service — so the real `DoclingAdapter` calls the Docling library directly rather than
+making HTTP requests. This `MistralOCRAdapter` is a realistic illustration of the HTTP adapter
+pattern for when you need a remote API provider.
 
 ```python
-# services/ocr/adapters/docling_adapter.py
+# services/ocr/adapters/mistral_ocr_adapter.py
+import base64
 import requests
 from services.ocr.types import OCRService, OCRResult
 
-class DoclingAdapter(OCRService):
-    """OCR using Docling API (supports PDFs and images)"""
+class MistralOCRAdapter(OCRService):
+    """OCR using the Mistral OCR API (https://docs.mistral.ai/api/endpoint/ocr).
+    Illustrates the HTTP adapter pattern for commercial OCR providers."""
 
-    def __init__(self, api_url: str, timeout: int = 30):
+    API_URL = "https://api.mistral.ai/v1/ocr"
+    MODEL = "mistral-ocr-latest"
+
+    def __init__(self, api_key: str, timeout: int = 60):
         """
         Args:
-            api_url: Base URL of Docling API (e.g., 'http://localhost:8000')
+            api_key: Mistral API key (loaded from config, never hardcoded)
             timeout: Request timeout in seconds
         """
-        self.api_url = api_url
+        self.api_key = api_key
         self.timeout = timeout
 
     def extract_text(self, file_path: str) -> OCRResult:
-        # Send file to Docling API
+        # Encode file as base64 for the API
         with open(file_path, 'rb') as f:
-            files = {'file': f}
-            response = requests.post(
-                f"{self.api_url}/extract",
-                files=files,
-                timeout=self.timeout
-            )
+            file_b64 = base64.b64encode(f.read()).decode('utf-8')
+
+        # Determine document type from extension
+        ext = file_path.rsplit('.', 1)[-1].lower()
+        media_type = 'application/pdf' if ext == 'pdf' else f'image/{ext}'
+
+        response = requests.post(
+            self.API_URL,
+            headers={
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'model': self.MODEL,
+                'document': {
+                    'type': 'document_url',
+                    'document_url': f'data:{media_type};base64,{file_b64}',
+                },
+            },
+            timeout=self.timeout,
+        )
 
         if response.status_code != 200:
-            raise ValueError(f"Docling API error: {response.text}")
+            raise ValueError(f"Mistral OCR API error {response.status_code}: {response.text}")
 
-        # Parse Docling response (structure depends on Docling API version)
         result = response.json()
 
+        # Concatenate text from all pages
+        pages = result.get('pages', [])
+        full_text = '\n\n'.join(page.get('markdown', '') for page in pages)
+
+        # Mistral OCR does not return a confidence score; use 1.0 as a convention
+        # for a successful API response (production code may derive this differently)
         return OCRResult(
-            text=result.get('text', ''),
-            confidence=result.get('confidence', 0.0),
-            extraction_method='docling'
+            text=full_text,
+            confidence=1.0,
+            extraction_method='mistral-ocr',
         )
 
     def supports_file_type(self, file_extension: str) -> bool:
-        # Docling handles both PDFs and images
         return file_extension.lower() in ['.pdf', '.png', '.jpg', '.jpeg', '.tiff']
 ```
 
@@ -508,8 +551,12 @@ class DoclingAdapter(OCRService):
 - Type hints are used throughout (e.g., `file_path: str`, `-> OCRResult`)
 - Docstrings explain what each method does, what arguments it takes, what it returns
 - TesseractAdapter uses the `pytesseract` library (Python wrapper for Tesseract)
-- DoclingAdapter makes HTTP requests to an external API
-- Error handling is simplified for clarity; production code would be more robust
+- MistralOCRAdapter makes HTTP requests to the Mistral OCR REST API — this is the pattern
+  to follow for any commercial OCR provider
+- The real `DoclingAdapter` (ADR-011) follows the same interface but calls the Docling
+  Python library directly instead of making HTTP requests
+- Error handling is simplified for clarity; production code should wrap API errors with
+  more context and implement retries for transient failures
 
 #### 3. Configuration Schema (Pydantic)
 
@@ -523,13 +570,13 @@ class TesseractConfig(BaseModel):
     provider: Literal['tesseract']
     languages: str = Field(default='eng', description='Comma-separated language codes')
 
-class DoclingConfig(BaseModel):
-    """Configuration for Docling API OCR"""
-    provider: Literal['docling']
-    api_url: str = Field(description='Base URL of Docling API')
-    timeout: int = Field(default=30, description='Request timeout in seconds')
+class MistralOCRConfig(BaseModel):
+    """Configuration for Mistral OCR API"""
+    provider: Literal['mistral_ocr']
+    api_key: str = Field(description='Mistral API key — load via environment variable, never hardcode')
+    timeout: int = Field(default=60, description='Request timeout in seconds')
 
-OCRConfig = Union[TesseractConfig, DoclingConfig]
+OCRConfig = Union[TesseractConfig, MistralOCRConfig]
 ```
 
 **Notes on Pydantic:**
@@ -561,7 +608,7 @@ Base configuration file (built into Docker image):
     "languages": "eng"
   },
   "database": {
-    "url": "postgresql://localhost/estate_archive"
+    "url": "postgresql://localhost/institutional_knowledge"
   }
 }
 ```
@@ -572,12 +619,11 @@ For production or environment-specific overrides, use a volume-mounted config fi
 // docker/settings.override.json (volume-mounted at runtime)
 {
   "ocr": {
-    "provider": "docling",
-    "api_url": "http://docling-service:8000",
+    "provider": "mistral_ocr",
     "timeout": 60
   },
   "database": {
-    "url": "postgresql://db.internal/estate_archive_prod"
+    "url": "postgresql://db.internal/institutional_knowledge_prod"
   }
 }
 ```
@@ -587,7 +633,8 @@ For production or environment-specific overrides, use a volume-mounted config fi
 - Base `settings.json` is in the project root and built into the Docker image
 - Override `settings.override.json` is volume-mounted at runtime (same naming convention as TypeScript)
 - Dynaconf automatically merges both: base config is the foundation, override file provides environment-specific values
-- Environment variables can override anything (e.g., `OCR_PROVIDER=docling`)
+- The `api_key` for Mistral OCR is sensitive — pass it via environment variable (`OCR__API_KEY=...`) rather than storing it in the config file
+- Environment variables can override anything (e.g., `OCR__PROVIDER=mistral_ocr`)
 - See **Docker & Runtime Configuration** section for the complete setup pattern
 
 #### 5. Factory & Runtime Selection
@@ -598,7 +645,7 @@ The factory uses the validated config singleton (created at app startup):
 # services/ocr/factory.py
 from services.ocr.types import OCRService
 from services.ocr.adapters.tesseract_adapter import TesseractAdapter
-from services.ocr.adapters.docling_adapter import DoclingAdapter
+from services.ocr.adapters.mistral_ocr_adapter import MistralOCRAdapter
 from config import config  # validated singleton
 
 def create_ocr_service() -> OCRService:
@@ -606,7 +653,7 @@ def create_ocr_service() -> OCRService:
     Create and return the configured OCR service.
 
     Returns:
-        An OCRService instance (TesseractAdapter or DoclingAdapter)
+        An OCRService instance (TesseractAdapter or MistralOCRAdapter)
 
     Raises:
         ValueError: If provider is unknown
@@ -617,8 +664,8 @@ def create_ocr_service() -> OCRService:
     # Instantiate the right implementation based on config
     if ocr_config.provider == 'tesseract':
         return TesseractAdapter(languages=ocr_config.languages)
-    elif ocr_config.provider == 'docling':
-        return DoclingAdapter(api_url=ocr_config.api_url, timeout=ocr_config.timeout)
+    elif ocr_config.provider == 'mistral_ocr':
+        return MistralOCRAdapter(api_key=ocr_config.api_key, timeout=ocr_config.timeout)
     else:
         raise ValueError(f"Unknown OCR provider: {ocr_config.provider}")
 ```
@@ -927,7 +974,7 @@ services:
   "database": {
     "host": "localhost",
     "port": 5432,
-    "name": "estate_archive"
+    "name": "institutional_knowledge"
   }
 }
 ```
@@ -939,13 +986,13 @@ services:
 {
   "storage": {
     "provider": "s3",
-    "bucket": "estate-archive-prod",
+    "bucket": "institutional-knowledge-prod",
     "region": "us-east-1"
   },
   "database": {
     "host": "db.internal",
     "port": 5432,
-    "name": "estate_archive_prod"
+    "name": "institutional_knowledge_prod"
   }
 }
 ```
@@ -1075,7 +1122,7 @@ services:
     "languages": "eng"
   },
   "database": {
-    "url": "postgresql://localhost/estate_archive"
+    "url": "postgresql://localhost/institutional_knowledge"
   }
 }
 ```
@@ -1086,12 +1133,11 @@ services:
 // docker/settings.override.json (volume-mounted at runtime)
 {
   "ocr": {
-    "provider": "docling",
-    "api_url": "http://docling-service:8000",
+    "provider": "mistral_ocr",
     "timeout": 60
   },
   "database": {
-    "url": "postgresql://db.internal/estate_archive_prod"
+    "url": "postgresql://db.internal/institutional_knowledge_prod"
   }
 }
 ```

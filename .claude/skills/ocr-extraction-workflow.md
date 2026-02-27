@@ -1,5 +1,18 @@
 # OCR Extraction Workflow
 
+## When to use
+
+Use this skill when implementing steps 1 and 2 of the C2 pipeline (text extraction and text quality scoring). Specifically:
+
+- Implementing the `OCRService` interface and its Docling/Tesseract adapters
+- Writing the extraction loop and handling the three catastrophic failure modes
+- Implementing the `TextQualityScorer` interface and configuring quality thresholds
+- Understanding how step status is recorded and how flags gate subsequent pipeline steps
+
+Read `configuration-patterns.md` first — this skill assumes the `OCRService` interface and factory pattern are already understood.
+
+---
+
 ## Overview
 
 Steps 1 and 2 of the C2 pipeline — **Text Extraction** and **Text Quality Scoring** — form
@@ -346,7 +359,7 @@ if not quality_result.passed_threshold:
     failing_page_str = ", ".join(map(str, quality_result.failing_pages))
     flag = DocumentFlag(
         type="quality_threshold_failure",
-        reason=f"Text quality below threshold on pages: {failing_page_str}",
+        reason=f"Text quality below threshold on pages: {failing_page_str}",  # UR-051: full failing page list required
         severity="manual_review",
         metric_value=quality_result.document_score
     )

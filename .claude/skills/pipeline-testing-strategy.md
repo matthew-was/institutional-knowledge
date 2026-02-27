@@ -1,5 +1,16 @@
 # Pipeline Testing Strategy
 
+## When to use
+
+Use this skill when:
+
+- Setting up tests for any component (C1, C2, C3)
+- Deciding whether a given scenario warrants a unit test, integration test, or end-to-end test
+- Writing fixture documents or expected-output specifications
+- Configuring CI/CD pipelines to run the right tests at the right stages
+
+---
+
 This skill defines testing approaches for the 4-component document processing pipeline. Testing ensures
 that documents flow through the system correctly, transformations are correct, and external service
 failures are handled gracefully.
@@ -140,7 +151,9 @@ services/processing/
 └── src/
 ```
 
-Each fixture document has expected outputs per step in `expected-outputs.json`:
+Each fixture document has expected outputs per step in `expected-outputs.json`. The `dimensions`
+value in the embedding section is illustrative only — the real value depends on the configured
+embedding model (ADR-024) and must be updated when a model is selected at implementation time:
 
 ```json
 {
@@ -217,8 +230,7 @@ def test_embedding_produces_correct_shape():
 
     result = pipeline.embed_text(chunk)
 
-    expected = EXPECTED_OUTPUTS["scanned-typewritten.pdf"]["embedding"]
-    assert len(result["embedding"]) == expected["dimensions"]
+    assert len(result["embedding"]) > 0  # Dimension determined by configured provider (ADR-024)
     assert all(isinstance(v, float) for v in result["embedding"])
 ```
 
