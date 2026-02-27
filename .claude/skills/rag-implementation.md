@@ -6,7 +6,7 @@ This skill guides the design and implementation of Retrieval-Augmented Generatio
 
 ## When to use
 
-Use this skill when implementing C3 (Query & Retrieval). The skill provides:
+Use this skill when implementing C3 (Query & Retrieval) — a Python-based learning component. The skill provides:
 
 - Architectural principles for each RAG stage
 - Design decisions and their tradeoffs
@@ -14,6 +14,8 @@ Use this skill when implementing C3 (Query & Retrieval). The skill provides:
 - Questions to guide your implementation choices
 
 **Important**: This skill is intentionally *not* a copy-paste template. You'll implement each component yourself, with guidance on what to think through at each step.
+
+**Language choice**: C3 is implemented in Python (aligning with C2) to leverage Python's superior ecosystem for graph-aware RAG extensions in Phase 2+ (libraries like networkx, gremlin-python, py2neo).
 
 ---
 
@@ -222,10 +224,10 @@ No refactoring needed — the architecture is already ready for this evolution.
 
 ## Key References
 
-- `embedding-chunking-strategy.md` — EmbeddingService interface
-- `configuration-patterns.md` — Infrastructure as Configuration
-- `pipeline-testing-strategy.md` — Testing patterns
+- `embedding-chunking-strategy.md` — EmbeddingService interface and vector storage patterns
+- `configuration-patterns.md` — Infrastructure as Configuration for LLM provider selection
+- `pipeline-testing-strategy.md` — Testing patterns for RAG components
+- ADR-016 (Provider-agnostic interface pattern for all external services)
 - ADR-033 (VectorStore interface)
-- ADR-034 (LLMService interface)
 - ADR-040 (QueryRouter, Phase 2)
 - ADR-041 (Graph-RAG phases)

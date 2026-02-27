@@ -3,7 +3,8 @@
   "permissions": {
     "ask": [
       "Bash(chmod:*)",
-      "Edit(.claude/settings.json)"
+      "Edit(.claude/settings.json)",
+      "Bash(git:*)",
     ],
     "allow": [
       "Bash(mkdir:*)",
@@ -11,7 +12,6 @@
       "Bash(mv:*)",
       "Bash(ls:*)",
       "Bash(tail:*)",
-      "Bash(git:*)",
       "Bash(markdownlint:*)",
       "Bash(python3:*)",
       "Edit(./*)",
