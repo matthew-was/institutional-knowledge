@@ -90,9 +90,10 @@ Sources:
 
 **Phase 1** (current) — Local single-user pipeline with document intake, processing, curation, and CLI query.
 
-- ✅ Architecture and requirements approved
-- ✅ Component specifications complete
-- ⏳ Implementation in progress
+- ✅ Architecture and requirements approved (all 41 ADRs, 138 requirements, 101 user stories)
+- ✅ All foundational skills written (13 skill files)
+- ⏳ Agent creation in progress (2 of 8 agents created)
+- Implementation not yet started
 
 See [documentation/](documentation/) for detailed specifications, architecture decisions, and project roadmap.
 

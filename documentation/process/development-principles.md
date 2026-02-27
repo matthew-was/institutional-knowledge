@@ -34,8 +34,8 @@ The application code never changes between environments. Only the configuration 
 | Document storage | `StorageService` interface | `LocalFilesystemAdapter` | `S3Adapter` |
 | Database | Connection string config | Docker PostgreSQL | AWS RDS |
 | OCR engine | OCR service interface | Docling + Tesseract fallback | Alternative OCR engines |
-| LLM provider | LLM client interface | Claude API | GPT, local models |
-| Embedding service | Embedding interface | OpenAI/Anthropic | Local embedding models |
+| LLM provider | LLM client interface | Local via Ollama | API providers (Claude, GPT) |
+| Embedding service | Embedding interface | Local model | API-based embedding models |
 | Vector DB | pgvector config | pgvector on local PostgreSQL | Dedicated vector DB |
 | Compute | Docker configuration | Docker Compose local | AWS ECS |
 

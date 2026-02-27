@@ -15,7 +15,7 @@ Use this skill when implementing C3 (Query & Retrieval) — a Python-based learn
 
 **Important**: This skill is intentionally *not* a copy-paste template. You'll implement each component yourself, with guidance on what to think through at each step.
 
-**Language choice**: C3 is implemented in Python (aligning with C2) to leverage Python's superior ecosystem for graph-aware RAG extensions in Phase 2+ (libraries like networkx, gremlin-python, py2neo).
+**Language choice**: C3 query logic is likely to be Python, for two reasons: (1) it is a learning component like C2, and (2) Python has superior ecosystem support for complex querying workflows (vector search, graph traversal, RAG orchestration libraries). However, the routing architecture — whether Next.js calls Express which calls Python (consistent with C2's 2-hop pattern), or Next.js calls Python directly (lower latency for user-facing queries) — is an open architectural question that requires an ADR before implementation begins. See [decisions/architecture-decisions.md](../../documentation/decisions/architecture-decisions.md).
 
 ---
 

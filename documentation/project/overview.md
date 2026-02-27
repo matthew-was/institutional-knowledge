@@ -15,7 +15,7 @@ This project also serves as a deliberate learning vehicle. The developer is usin
 | User | Phase | Description |
 | --- | --- | --- |
 | Primary Archivist | 1 | Builds and maintains the archive; has all capabilities available in each phase |
-| Authorized User | 2 | Full archival and curation access; no document deletion |
+| Family Member | 2 | Full archival and curation access; no document deletion |
 | Occasional Contributor | 3 | Queries the archive; may submit documents; no curation access |
 | System Administrator | 3 | Manages infrastructure and user accounts; separated from the Archivist role |
 

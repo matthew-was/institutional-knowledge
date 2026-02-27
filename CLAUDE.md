@@ -43,13 +43,20 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 This is the **Institutional Knowledge** project — a family document archiving system (1950s–present) with an AI/ML learning component. See [documentation/README.md](documentation/README.md) for full navigation.
 
+### Quick Orientation
+
+- **Current phase**: Skills and agents creation. No implementation code exists yet.
+- **Design status**: All design documents approved. See [documentation/approvals.md](documentation/approvals.md).
+- **Next actionable step**: Create remaining agents (Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager). See Current Next Steps below.
+- **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
+
 ### Component Architecture (4 components)
 
 | Component | Name | Status |
 | --- | --- | --- |
-| C1 | Document Intake | Spec complete, not started |
-| C2 | Text Extraction, Processing & Embedding | Spec complete, not started |
-| C3 | Query & Retrieval | Design brief only |
+| C1 | Document Intake | Skills written, spec not started |
+| C2 | Text Extraction, Processing & Embedding | Skills written, spec not started |
+| C3 | Query & Retrieval | Skill written, spec not started |
 | C4 | Continuous Ingestion | Placeholder (Phase 2+) |
 
 ### Core Principle
@@ -63,7 +70,7 @@ This is the **Institutional Knowledge** project — a family document archiving 
 ```text
 documentation/
 ├── README.md                     ← Navigation index
-├── SUMMARY.md                    ← What was done + .claude/ setup guide
+├── SUMMARY.md                    ← Project status, milestone timeline, .claude/ setup guide
 ├── approvals.md                  ← Approval status and audit log (source of truth)
 ├── project/
 │   ├── overview.md               ← Scope document

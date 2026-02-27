@@ -1,5 +1,18 @@
 # Approvals
 
+## Document Precedence
+
+The table below lists approved documents in precedence order. In case of contradiction between documents, the higher-ranked document is authoritative. The lower-ranked document must be updated to resolve the contradiction, which triggers cascade unapproval per the approval workflow.
+
+| Rank | Document |
+| --- | --- |
+| 1 | `documentation/project/overview.md` |
+| 2 | `documentation/requirements/user-requirements.md` |
+| 3 | `documentation/requirements/phase-1-user-stories.md` |
+| 4 | `documentation/decisions/architecture-decisions.md` |
+| 5= | `documentation/project/architecture.md` |
+| 5= | `documentation/project/system-diagrams.md` |
+
 ## Status
 
 | Document | Status | Last Updated |
@@ -43,4 +56,6 @@
 2026/02/25 - pipeline-diagram.mermaid deleted - Developer - stale file; superseded by system-diagrams.md which reflects all current ADRs; deletion committed
 2026/02/25 - architecture.md approved - Developer - manual review of HoD-identified issues complete; all 10 issues resolved (3 critical, 4 high-priority, 3 low-priority); files now consistent with ADR-001 through ADR-041
 2026/02/25 - system-diagrams.md approved - Developer - manual review of HoD-identified issues complete; all 10 issues resolved; color scheme updated for accessibility; all four diagrams now consistent with all approved ADRs
+2026/02/27 - overview.md unapproved - Developer - C-6 consistency fix: user type table used "Authorized User" while all downstream documents use "Family Member"; correcting to match
+2026/02/27 - overview.md approved - Developer - user type table corrected from "Authorized User" to "Family Member"; no cascade required; change has no downstream impact (downstream docs already use "Family Member")
 ```

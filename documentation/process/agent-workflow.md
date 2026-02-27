@@ -28,7 +28,7 @@ Agents have no memory between sessions. Each conversation starts fresh. To re-es
 | Agent | Pass these documents |
 | --- | --- |
 | Product Owner | [project/overview.md](../project/overview.md) |
-| Head of Development | `documentation/requirements/user-requirements.md`, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md), [decisions/unresolved-questions.md](../decisions/unresolved-questions.md), [process/development-principles.md](development-principles.md) |
+| Head of Development | `documentation/requirements/user-requirements.md`, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md), [process/development-principles.md](development-principles.md) |
 | Integration Lead | `documentation/requirements/user-requirements.md`, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md), [project/architecture.md](../project/architecture.md), component specifications (written by Senior Developers) |
 | Senior Developer | Component specification (written by this agent), `documentation/requirements/phase-1-user-stories.md`, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md), Integration Lead contracts |
 | Project Manager | Senior Developer implementation plan |
@@ -99,14 +99,14 @@ The project grew from informal design conversations scattered across multiple ch
 
 **Responsibility**: Evolve system architecture based on requirements; make cross-cutting architectural decisions; ensure the Infrastructure as Configuration principle is upheld in all decisions. Engaged after the Product Owner has produced a requirements baseline.
 
-**Inputs**: User requirements document from Product Owner, component proposals from Senior Developers, questions about cross-cutting concerns, unresolved questions from [decisions/unresolved-questions.md](../decisions/unresolved-questions.md)
+**Inputs**: User requirements document from Product Owner, component proposals from Senior Developers, questions about cross-cutting concerns
 
 **Output format**:
 
 - Architecture decisions recorded in [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (ADR format: decision, context, rationale, risk, tradeoffs)
 - Updated architecture documentation
 - Validation or rejection of component specification choices with reasoning
-- Answers to unresolved questions (updates [decisions/unresolved-questions.md](../decisions/unresolved-questions.md))
+- All architectural questions resolved as ADRs in [decisions/architecture-decisions.md](../decisions/architecture-decisions.md)
 
 **Scope constraints**: Cross-cutting decisions ONLY. Does not write implementation plans. Acts as a discussion partner, not an autonomous decision-maker — presents options with tradeoffs for the developer to choose from.
 
@@ -158,7 +158,7 @@ The project grew from informal design conversations scattered across multiple ch
 - No direct SQL queries outside defined data access patterns
 - Schema changes require migration files; no direct `ALTER TABLE` in ad-hoc SQL
 
-**Key context files**: [project/architecture.md](../project/architecture.md), all component specifications, [decisions/unresolved-questions.md](../decisions/unresolved-questions.md) (UQ-001, UQ-003, UQ-005)
+**Key context files**: [project/architecture.md](../project/architecture.md), all component specifications, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (UQ-001, UQ-003, UQ-005 resolved as ADRs)
 
 ---
 
@@ -214,7 +214,7 @@ Pre-approval component specs are archived at `archive/previous-documentation/com
 
 **Code standards**: TypeScript strict mode, Pino logging, Zod validation, nconf configuration, pnpm workspace patterns.
 
-**Key context files**: [components/component-1-document-intake/specification.md](../components/component-1-document-intake/specification.md), `configuration-patterns.md` skill, `pipeline-testing-strategy.md` skill
+**Key context files**: Component 1 specification (produced by Senior Developer agent — not yet created), `configuration-patterns.md` skill, `pipeline-testing-strategy.md` skill
 
 ---
 
@@ -362,7 +362,7 @@ A phase is not complete until the developer has explicitly reviewed and approved
 
 - Outputs are written to their designated locations (not just described in chat)
 - Any blocking issues are resolved before the next phase begins — they are not carried forward as known debt
-- If a phase raises new questions or scope changes, they are recorded before proceeding (in [decisions/unresolved-questions.md](../decisions/unresolved-questions.md) or as a new requirement)
+- If a phase raises new questions or scope changes, they are recorded before proceeding (as new ADRs in [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) or as a new requirement)
 
 ---
 

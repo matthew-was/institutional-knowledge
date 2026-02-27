@@ -14,7 +14,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 0. Agent File Conventions
 
-**File**: `.claude/skills/agent-file-conventions.md`
+**File**: [`.claude/skills/agent-file-conventions.md`](../../.claude/skills/agent-file-conventions.md)
 
 **Status**: Written
 
@@ -40,7 +40,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 0b. Overview Review Workflow
 
-**File**: `.claude/skills/overview-review-workflow.md`
+**File**: [`.claude/skills/overview-review-workflow.md`](../../.claude/skills/overview-review-workflow.md)
 
 **Status**: Written
 
@@ -63,7 +63,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 0a. Approval Workflow
 
-**File**: `.claude/skills/approval-workflow.md`
+**File**: [`.claude/skills/approval-workflow.md`](../../.claude/skills/approval-workflow.md)
 
 **Status**: Written
 
@@ -88,7 +88,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 1. Configuration Patterns
 
-**File**: `.claude/skills/configuration-patterns.md`
+**File**: [`.claude/skills/configuration-patterns.md`](../../.claude/skills/configuration-patterns.md)
 
 **Status**: ✓ Written
 
@@ -113,7 +113,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 1b. Dependency Composition Pattern
 
-**File**: `.claude/skills/dependency-composition-pattern.md`
+**File**: [`.claude/skills/dependency-composition-pattern.md`](../../.claude/skills/dependency-composition-pattern.md)
 
 **Status**: ✓ Written
 
@@ -138,9 +138,9 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 2. Metadata Schema
 
-**File**: `.claude/skills/metadata-schema.md`
+**File**: [`.claude/skills/metadata-schema.md`](../../.claude/skills/metadata-schema.md)
 
-**Status**: Not yet written — write second (Integration Lead needs this before validating any component)
+**Status**: ✓ Written
 
 **Purpose**: Canonical metadata field definitions used across all components. Prevents components from independently inventing field names and types that conflict.
 
@@ -160,9 +160,9 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 3. Pipeline Testing Strategy
 
-**File**: `.claude/skills/pipeline-testing-strategy.md`
+**File**: [`.claude/skills/pipeline-testing-strategy.md`](../../.claude/skills/pipeline-testing-strategy.md)
 
-**Status**: Not yet written — write third (must exist before any code is written)
+**Status**: ✓ Written
 
 **Purpose**: Testing patterns specific to document processing pipelines. Pipeline components test differently than query components or web applications.
 
@@ -184,9 +184,9 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 4. OCR & Text Extraction Workflow
 
-**File**: `.claude/skills/ocr-extraction-workflow.md`
+**File**: [`.claude/skills/ocr-extraction-workflow.md`](../../.claude/skills/ocr-extraction-workflow.md)
 
-**Status**: Not yet written — write before Component 2 implementation
+**Status**: ✓ Written
 
 **Purpose**: Standard workflow for extracting text from different document types. Encodes the Docling/Tesseract decision tree and quality assessment approach.
 
@@ -207,9 +207,9 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 5. Embedding & Chunking Strategy
 
-**File**: `.claude/skills/embedding-chunking-strategy.md`
+**File**: [`.claude/skills/embedding-chunking-strategy.md`](../../.claude/skills/embedding-chunking-strategy.md)
 
-**Status**: Not yet written — write after Component 2 Phase 1 (informed by real implementation)
+**Status**: ✓ Written
 
 **Purpose**: Reference patterns for semantic chunking and vector embedding generation + storage. Shared between Component 2 (embedding stage) and Component 3 (query embedding uses same abstraction).
 
@@ -230,9 +230,9 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ### 6. RAG Implementation
 
-**File**: `.claude/skills/rag-implementation.md`
+**File**: [`.claude/skills/rag-implementation.md`](../../.claude/skills/rag-implementation.md)
 
-**Status**: Not yet written — write before Component 3 design
+**Status**: ✓ Written
 
 **Purpose**: Standard patterns for retrieval-augmented generation — the core of Component 3's value.
 
@@ -251,6 +251,55 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 ---
 
+### 7. Notion Lab Entry
+
+**File**: [`.claude/skills/notion-lab-entry.md`](../../.claude/skills/notion-lab-entry.md)
+
+**Status**: ✓ Written
+
+**Purpose**: Defines the workflow for recording session progress in the Notion lab journal. Ensures consistent entry format and prompts the developer to record decisions and milestones at natural stopping points during a session.
+
+**Covers**:
+
+- When to prompt for a lab entry (after significant decisions, completed documents, commits)
+- Entry format and required fields
+- Explicit `date` command requirement for accurate timestamps
+- How to append blocks to an existing entry rather than waiting until session end
+
+**Used by**: Developer-facing workflow; invoked directly in Claude Code sessions
+
+**Why this is a skill and not an agent**: It is a human-in-the-loop recording habit, not a role. The developer controls when entries are written.
+
+---
+
+### 8. User Stories Review Workflow
+
+**File**: [`.claude/skills/user-stories-review-workflow.md`](../../.claude/skills/user-stories-review-workflow.md)
+
+**Status**: ✓ Written
+
+**Purpose**: Defines the repeatable process for working through a Product Owner user stories review with the developer — discussing each finding, resolving decisions, applying changes, archiving the review file, and updating project memory.
+
+**Used by**: Developer-facing workflow; invoked when a `user-stories-review-*.md` file exists
+
+**Why this is a skill and not an agent**: It is a human-in-the-loop interactive process. The developer makes every decision; the skill defines the structure of the conversation and the steps that follow.
+
+---
+
+### 9. ADR Review Workflow
+
+**File**: [`.claude/skills/adr-review-workflow.md`](../../.claude/skills/adr-review-workflow.md)
+
+**Status**: ✓ Written
+
+**Purpose**: Defines the repeatable process for working through a Head of Development ADR consistency review with the developer — discussing each finding, resolving decisions, applying changes, archiving the review file, and updating project memory.
+
+**Used by**: Developer-facing workflow; invoked when an `adr-consistency-review-*.md` file exists
+
+**Why this is a skill and not an agent**: It is a human-in-the-loop interactive process. The developer makes every decision; the skill defines the structure of the conversation and the steps that follow.
+
+---
+
 ## Skills Not Yet Identified
 
 If during implementation a pattern is identified that will be needed by multiple agents or components, document it here before writing the skill file.
@@ -263,14 +312,18 @@ If during implementation a pattern is identified that will be needed by multiple
 
 ## Creation Order
 
-Write skills in this order — each is a dependency for work that comes after it:
+Skills were written in this order — each is a dependency for work that comes after it:
 
-1. **agent-file-conventions.md** — ✓ written; prerequisite for all agent files
-2. **approval-workflow.md** — ✓ written; used by Product Owner and any agent that gates on approvals
-3. **configuration-patterns.md** — ✓ written; blocks all Senior Developer agents
-4. **dependency-composition-pattern.md** — ✓ written; needed before Implementer begins wiring routes
-5. **metadata-schema.md** — blocks Integration Lead validation of any component
-6. **pipeline-testing-strategy.md** — must exist before code is written
-7. **ocr-extraction-workflow.md** — needed before Component 2 implementation
-8. **embedding-chunking-strategy.md** — needed before Component 2 embedding stage + Component 3
-9. **rag-implementation.md** — needed before Component 3 design
+1. **agent-file-conventions.md** — ✓ Written; prerequisite for all agent files
+2. **approval-workflow.md** — ✓ Written; used by Product Owner and any agent that gates on approvals
+3. **overview-review-workflow.md** — ✓ Written; used during Product Owner review cycles
+4. **user-stories-review-workflow.md** — ✓ Written; used during Product Owner review cycles
+5. **configuration-patterns.md** — ✓ Written; blocks all Senior Developer agents
+6. **dependency-composition-pattern.md** — ✓ Written; needed before Implementer begins wiring routes
+7. **metadata-schema.md** — ✓ Written; needed by Integration Lead before validating any component
+8. **pipeline-testing-strategy.md** — ✓ Written; must exist before code is written
+9. **notion-lab-entry.md** — ✓ Written; session recording habit
+10. **ocr-extraction-workflow.md** — ✓ Written; needed before Component 2 implementation
+11. **embedding-chunking-strategy.md** — ✓ Written; needed before Component 2 embedding stage + Component 3
+12. **rag-implementation.md** — ✓ Written; needed before Component 3 design
+13. **adr-review-workflow.md** — ✓ Written; used during Head of Development review cycles
