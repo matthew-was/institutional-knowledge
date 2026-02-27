@@ -95,7 +95,7 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 - Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `notion-lab-entry.md` (updated 2026-02-26 with explicit `date` command requirement), `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`
 - Agents: `product-owner.md`, `head-of-development.md`
 
-**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents; `rag-implementation.md` skill.
+**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents.
 
 **Current next steps:**
 
@@ -108,7 +108,7 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 7. ✅ DONE: Write `pipeline-testing-strategy.md` skill
 8. ✅ DONE: Write `ocr-extraction-workflow.md` skill
 9. ✅ DONE: Write `embedding-chunking-strategy.md` skill
-10. NEXT: Write final skill: `rag-implementation.md`
+10. ✅ DONE: Write `rag-implementation.md` skill
 11. NEXT: Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
 
 ### Key Output Locations
