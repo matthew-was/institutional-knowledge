@@ -20,9 +20,9 @@ The table below lists approved documents in precedence order. In case of contrad
 | `documentation/project/overview.md` | Approved | 2026/02/17 |
 | `documentation/requirements/user-requirements.md` | Approved | 2026/02/17 |
 | `documentation/requirements/phase-1-user-stories.md` | Approved | 2026/02/17 |
-| `documentation/decisions/architecture-decisions.md` | Approved | 2026/02/25 |
-| `documentation/project/architecture.md` | Approved | 2026/02/25 |
-| `documentation/project/system-diagrams.md` | Approved | 2026/02/25 |
+| `documentation/decisions/architecture-decisions.md` | Approved | 2026/02/28 |
+| `documentation/project/architecture.md` | Approved | 2026/02/28 |
+| `documentation/project/system-diagrams.md` | Approved | 2026/02/28 |
 
 ## Audit Log
 
@@ -58,4 +58,10 @@ The table below lists approved documents in precedence order. In case of contrad
 2026/02/25 - system-diagrams.md approved - Developer - manual review of HoD-identified issues complete; all 10 issues resolved; color scheme updated for accessibility; all four diagrams now consistent with all approved ADRs
 2026/02/27 - overview.md unapproved - Developer - C-6 consistency fix: user type table used "Authorized User" while all downstream documents use "Family Member"; correcting to match
 2026/02/27 - overview.md approved - Developer - user type table corrected from "Authorized User" to "Family Member"; no cascade required; change has no downstream impact (downstream docs already use "Family Member")
+2026/02/28 - architecture-decisions.md unapproved - Developer - ADR-042 added outside Head of Development agent (C3/Python service placement decision); requires HoD review and re-approval before implementation proceeds
+2026/02/28 - architecture.md unapproved - Developer - upstream cascade from architecture-decisions.md unapproval; architecture.md does not yet reflect ADR-042
+2026/02/28 - system-diagrams.md unapproved - Developer - upstream cascade from architecture-decisions.md unapproval
+2026/02/28 - architecture-decisions.md approved - Developer - HoD consistency review complete; ADR-042 through ADR-045 integrated; 16 issues resolved (6 confirmed, 4 high-priority, 6 observations); ADR-001 through ADR-045 consistent
+2026/02/28 - architecture.md approved - Developer - HoD consistency review complete; reflects ADR-001 through ADR-045; QueryRouter moved to Python; CLI trust model documented
+2026/02/28 - system-diagrams.md approved - Developer - HoD consistency review complete; all four diagrams reflect ADR-001 through ADR-045; CLI node added to Diagram 1; Diagram 4 data flow corrected
 ```

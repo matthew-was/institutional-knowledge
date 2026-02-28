@@ -2,7 +2,7 @@
 
 This document is a synthesis of all decisions recorded in
 [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (ADR-001 through
-ADR-041). It describes the confirmed system architecture for the Institutional Knowledge project.
+ADR-045). It describes the confirmed system architecture for the Institutional Knowledge project.
 
 ---
 
@@ -29,8 +29,9 @@ a Phase 2 addition.
 
 These components are functional groupings of related features, not service or structural
 boundaries. In practice, both the Next.js frontend and Express backend are cross-cutting
-systems that serve multiple components. Only the Python processing service maps to a single
-dedicated service (ADR-005).
+systems that serve multiple components. The Python processing service hosts both C2 (pipeline)
+and C3 (query) code as separate internal modules within a single Docker container (ADR-005,
+ADR-042).
 
 ---
 
@@ -38,7 +39,7 @@ dedicated service (ADR-005).
 
 | Layer | Technology | ADR |
 | --- | --- | --- |
-| Frontend | Next.js | ADR-003 |
+| Frontend | Next.js (custom server) | ADR-003, ADR-044 |
 | Backend API | Express (Node.js) | ADR-003, ADR-031 |
 | Processing service | Python (Docker container) | ADR-015 |
 | Database | PostgreSQL 16 + pgvector | ADR-004 |
@@ -46,7 +47,7 @@ dedicated service (ADR-005).
 | Semantic chunking + entity extraction | LLM-based combined pass (local via Ollama or API) | ADR-025, ADR-038 |
 | Embeddings | Local model (interface-driven, model chosen at implementation) | ADR-024 |
 | Graph storage | PostgreSQL (behind `GraphStore` interface) | ADR-037 |
-| Query routing | `QueryRouter` interface; pass-through Phase 1, LLM classifier Phase 2 | ADR-040 |
+| Query routing | `QueryRouter` abstract base class in Python service; pass-through Phase 1, LLM classifier Phase 2 | ADR-040 |
 | Migration and seeding | Knex.js | ADR-028, ADR-029 |
 | TypeScript test runner | Vitest | ADR-015 |
 | Python test runner | pytest | ADR-032 |
@@ -57,7 +58,7 @@ dedicated service (ADR-005).
 
 ## Monorepo Structure
 
-Confirmed in ADR-002 and ADR-015:
+Confirmed in ADR-002, ADR-015, and ADR-042:
 
 ```text
 institutional-knowledge/
@@ -68,6 +69,9 @@ institutional-knowledge/
     shared/                # Shared TypeScript types, Zod schemas, utility functions
   services/
     processing/            # Python processing service (own virtualenv, Dockerfile)
+      pipeline/            # C2 — text extraction, processing, embedding (ADR-042)
+      query/               # C3 — query and retrieval (ADR-042)
+      shared/              # Shared utilities: config, EmbeddingService, HTTP client for Express callbacks (ADR-042)
       fixtures/            # Representative estate documents for testing (ADR-032)
   documentation/           # All design docs, decisions, requirements
   .claude/                 # Agent and skill definitions
@@ -75,7 +79,9 @@ institutional-knowledge/
 
 The Python service at `services/processing/` runs as a separate Docker container and communicates
 with the Express backend via internal HTTP (ADR-015). It has no direct database connection
-(ADR-031).
+(ADR-031). C2 pipeline code and C3 query code are kept in separate internal modules
+(`pipeline/` and `query/`) with shared utilities in `shared/`, so the service can be split
+into two separate deployments in a future phase without requiring code restructuring (ADR-042).
 
 ---
 
@@ -87,9 +93,8 @@ exclusively through the Express API.
 | Component | DB Access | Role |
 | --- | --- | --- |
 | Express backend (`apps/backend/`) | Read + Write | Sole writer; owns all schema knowledge via Knex.js |
-| Python processing service (`services/processing/`) | None | Stateless processor; returns results via HTTP/RPC |
-| Next.js frontend (`apps/frontend/`) | None | Read-only via Express API |
-| C3 Query and Retrieval | None | Read-only via Express API |
+| Python processing service (`services/processing/`) | None | Stateless processor; hosts C2 pipeline and C3 query modules (ADR-042); returns results via HTTP/RPC |
+| Next.js frontend (`apps/frontend/`) | None | Read-only via Express API; proxies C3 queries directly to Python service (ADR-044, ADR-045) |
 | C4 Continuous Ingestion | None | Writes via Express API (same pattern as C1) |
 
 **Transaction boundaries** (ADR-031):
@@ -156,15 +161,25 @@ the embedding model requires a config update and a re-embedding pass, not a sche
 
 ## Provider Interfaces
 
-Four provider interfaces follow the same pattern: a TypeScript interface in Express with
-concrete implementations selected by config key via the factory pattern (ADR-016).
+Three provider interfaces live in Express (TypeScript); one lives in the Python processing
+service. All follow the same pattern: an interface or abstract base class with concrete
+implementations selected by config key via the factory pattern (ADR-016).
+
+**Express provider interfaces** (TypeScript):
 
 | Interface | Config Key | Phase 1 Implementation | Purpose | ADR |
 | --- | --- | --- | --- | --- |
 | `StorageService` | `storage.provider` | Local filesystem (configurable path) | Document file storage (OCR source, uploads, staging) | ADR-008 |
 | `VectorStore` | `vectorStore.provider` | pgvector (PostgreSQL) | Embedding storage and similarity search | ADR-033 |
 | `GraphStore` | `graph.provider` | PostgreSQL (SQL JOINs + recursive CTEs) | Entity/relationship storage and graph traversal | ADR-037 |
+
+**Python provider interface** (abstract base class in `services/processing/query/`):
+
+| Interface | Config Key | Phase 1 Implementation | Purpose | ADR |
+| --- | --- | --- | --- | --- |
 | `QueryRouter` | `query.router` | Pass-through (returns `vector` always) | Classify queries to select retrieval strategy | ADR-040 |
+
+`QueryRouter` lives in Python because it drives the Python query pipeline — placing it in Express would require an extra HTTP round-trip per query for a decision that has no database dependency. `VectorStore` and `GraphStore` remain in Express because they wrap database operations that Express owns (ADR-031).
 
 **GraphStore interface contract** (indicative -- exact methods refined at implementation):
 
@@ -176,7 +191,7 @@ concrete implementations selected by config key via the factory pattern (ADR-016
 
 **QueryRouter interface contract** (indicative):
 
-- `route(queryText): Promise<RouteDecision>` -- returns `strategy: 'vector' | 'graph' | 'both'` and optional context (e.g. extracted entity names for graph queries)
+- `route(query_text: str) -> RouteDecision` -- returns `strategy: Literal['vector', 'graph', 'both']` and optional context (e.g. extracted entity names for graph queries)
 
 The `GraphStore` operates on `vocabulary_terms` rows that have at least one corresponding row in
 `entity_document_occurrences` -- entities with evidential grounding in the archive. Seeded and
@@ -279,22 +294,27 @@ them as `llm_extracted` for later review.
 
 The Primary Archivist asks a natural language question via the CLI (Phase 1) or web UI (Phase 2).
 
-1. The query text is passed to the `QueryRouter` interface (ADR-040)
-2. **Phase 1**: the pass-through implementation returns `vector` for all queries
-3. **Phase 2**: the LLM classifier analyses the query and returns a routing decision:
-   - `vector` -- content similarity queries (e.g. "find documents about boundary disputes");
-     use vector similarity search via `VectorStore`
-   - `graph` -- entity relationship queries (e.g. "who owned the land adjacent to Field 42?");
-     use graph traversal via `GraphStore`
-   - `both` -- hybrid queries (e.g. "what did John Smith say about the boundary change
-     in 1967?"); run both retrievers and merge results
-4. The query text is embedded using the same embedding model as document chunks (ADR-024)
-5. pgvector similarity search finds relevant chunks via the `VectorStore` interface (ADR-033)
-6. For `graph` and `both` routes (Phase 2): `GraphStore.traverse()` finds related entities
-   and documents via graph traversal (ADR-037)
-7. Results are merged (for `both` routes) and assembled with parent document context for RAG
-8. An LLM synthesises a response with source citations
-9. Citations include document description, date, and archive reference (ADR-023)
+**Web UI path (ADR-045)**: The Next.js custom server proxies C3 query requests directly to the Python service, bypassing Express. Python owns the complete query pipeline. Express is not in the primary query path; it serves only the VectorStore and GraphStore callback endpoints called by Python.
+
+**CLI path (ADR-045)**: The CLI calls the Python service directly. The CLI operates with direct network access to all services and does not pass through the Next.js boundary layer — the internet-facing boundary exists to protect services from external callers; the CLI is not an external caller. The CLI uses the shared-key header for Python calls (ADR-044). Express is not in the CLI query path.
+
+C3 query code runs within the Python processing service (`services/processing/query/`) alongside the C2 pipeline code (ADR-042). Query embedding uses the same `EmbeddingService` instance as document processing, available in-process (ADR-042).
+
+The Python query pipeline:
+
+1. The `QueryRouter` interface selects a retrieval strategy (ADR-040)
+   - **Phase 1**: the pass-through implementation returns `vector` for all queries
+   - **Phase 2**: an LLM classifier analyses the query and returns `vector`, `graph`, or `both`
+2. The query text is embedded using the same embedding model as document chunks (ADR-024)
+3. Python calls back to Express to retrieve vector search results via the `VectorStore`
+   interface (ADR-033); Express performs the pgvector similarity search and returns matching chunks
+4. For `graph` and `both` routes (Phase 2): Python calls back to Express to perform graph
+   traversal via the `GraphStore` interface (ADR-037)
+5. Results are merged (for `both` routes) and assembled with parent document context
+6. An LLM synthesises a response with source citations
+7. Citations include document description, date, and archive reference (ADR-023)
+
+Python returns the complete response to the caller (Next.js custom server or CLI) unchanged.
 
 **4. Curation**
 
@@ -349,8 +369,8 @@ is session-based and graph-aware querying is not a real-time requirement (ADR-03
 - `entity_document_occurrences` table tracks entity-document provenance (ADR-028)
 - `GraphStore` interface defined; PostgreSQL implementation written (not called in Phase 1
   production code) (ADR-037, ADR-041)
-- `QueryRouter` interface defined; pass-through implementation returns `vector` for all
-  queries (ADR-040, ADR-041)
+- `QueryRouter` abstract base class defined in Python service (`query/`); pass-through
+  implementation returns `vector` for all queries (ADR-040, ADR-041)
 
 ### Phase 2 -- Expand and Share
 
@@ -373,6 +393,8 @@ is session-based and graph-aware querying is not a real-time requirement (ADR-03
 - Candidate: try-all validation mode for grouped ingestion (UR-038)
 - Candidate: merge pattern-based metadata extraction into the chunking LLM step; Phase 1 prompt
   is designed to return metadata fields to make this low-cost (ADR-036)
+- Candidate: split Python service into separate pipeline and query deployments if concurrent
+  load warrants it (ADR-042)
 
 ### Phase 3 -- Open to Others
 
@@ -425,8 +447,12 @@ is session-based and graph-aware querying is not a real-time requirement (ADR-03
 | Graph storage | `GraphStore` interface in Express; PostgreSQL Phase 1 impl (unified with vocabulary tables) | ADR-037, ADR-038 |
 | Entity extraction | LLM combined pass in C2; entities stored in `vocabulary_terms` with `source: llm_extracted` | ADR-038 |
 | Graph construction | Post-curation batch rebuild via Express API endpoint (Phase 2) | ADR-039 |
-| Query routing | `QueryRouter` interface; pass-through Phase 1, LLM classifier Phase 2 | ADR-040 |
+| Query routing | `QueryRouter` abstract base class in Python service; pass-through Phase 1, LLM classifier Phase 2 | ADR-040 |
 | Graph-RAG phasing | Entity extraction Phase 1; graph querying Phase 2; Neo4j Phase 3+ | ADR-041 |
+| C3 service placement | C3 shares Python processing service; separate `pipeline/` and `query/` modules; splittable in future phase | ADR-042 |
+| C3 query orchestration | ~~Express thin proxy~~ (superseded); Next.js proxies web UI queries to Python; CLI calls Python directly (direct network access — no boundary layer needed); Python callbacks to Express for VectorStore/GraphStore | ADR-043 (superseded), ADR-045 |
+| Next.js custom server | Next.js runs a custom server (not static export); sole internet-facing entry point; auth in Phase 2+ | ADR-044 |
+| Internal service trust | Shared-key header auth on all internal boundaries: Next.js → Express, Next.js → Python, Express → Python, CLI → Python; per-pair keys for independent rotation | ADR-044 |
 
 **Note**: ADR-006 (Human-in-the-Loop Development with Claude Agents) is a process decision and not included in this architecture summary; see [documentation/decisions/architecture-decisions.md](../decisions/architecture-decisions.md) for full ADR list.
 

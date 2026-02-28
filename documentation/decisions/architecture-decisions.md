@@ -70,9 +70,17 @@ in Phase 2 (UR-124), the structural boundary is already in place.
 **Revision note**: Reframed from "Three-Layer Security Architecture" to structural validation
 boundary. Phase 1 has no authentication; the security framing was premature.
 
+**Revision note [Extended by ADR-044 and ADR-045, 2026-02-28]**: Next.js routes to two
+backend services, not one. Data operations (C1 intake, C2 trigger, curation, reads) are
+forwarded to Express. C3 query requests (web UI path) are forwarded directly to the Python
+processing service, bypassing Express. The original principle is unchanged — neither Express
+nor Python is internet-accessible; all external requests enter through Next.js. ADR-044
+records the custom server requirement and shared-key internal trust model. ADR-045 records
+the C3 query routing decision.
+
 **Risk accepted**: Two-hop latency. Acceptable for document upload workflow (not real-time).
 
-**Source**: Carried forward from pre-approval ADR-003 (revised). Consistent with UR-121, UR-124.
+**Source**: Carried forward from pre-approval ADR-003 (revised). Consistent with UR-121, UR-124. Extended by ADR-044, ADR-045.
 
 ---
 
@@ -91,8 +99,10 @@ thousands). Unified database simplifies backup, migration, and querying.
 
 **Risk accepted**: May hit pgvector performance limits at very high scale. Acceptable for
 Phase 1 through Phase 3; can migrate to dedicated vector DB (e.g. OpenSearch) in Phase 4
-if needed — C2 requires no changes; C3 query logic in Express may require changes to handle
-application-level joins when pgvector is replaced by a dedicated vector DB (see ADR-033
+if needed — C2 requires no changes; the `VectorStore` interface implementation in Express
+may require changes to handle application-level joins when pgvector is replaced by a
+dedicated vector DB; C3 query logic in the Python service is unaffected (it calls the
+`VectorStore` interface and is agnostic to the underlying implementation — see ADR-033
 Tradeoffs).
 
 **Source**: Carried forward from pre-approval ADR-004. Consistent with UR-133. Revised
@@ -117,11 +127,12 @@ architecture and makes the pipeline easier to reason about. No capability is los
 
 **Clarification**: These components are functional groupings of related features, not service
 or structural boundaries. In practice, both the Next.js frontend and Express backend are
-cross-cutting systems that serve multiple components (intake, curation, query). Only the Python
-processing service (Component 2) maps to a single dedicated service. Curation — the document
-queue, vocabulary queue, flag management, and metadata correction — is a cross-cutting concern
-within the frontend and backend that does not belong to any single component. See ADR-015 for
-the actual service architecture.
+cross-cutting systems that serve multiple components (intake, curation, query). The Python
+processing service maps to a single dedicated service, hosting both Component 2 (processing
+pipeline) and Component 3 (query module) as separate internal modules (`pipeline/` and
+`query/`) — see ADR-042. Curation — the document queue, vocabulary queue, flag management,
+and metadata correction — is a cross-cutting concern within the frontend and backend that does
+not belong to any single component. See ADR-015 for the actual service architecture.
 
 **Source**: Carried forward from pre-approval ADR-005.
 
@@ -855,9 +866,8 @@ Migrations are numbered sequentially and run via `knex migrate:latest` at applic
 | Component | DB Access | Writes To |
 | --- | --- | --- |
 | Express backend | Read + Write | `documents`, `ingestion_runs`, `pipeline_steps`, `chunks`, `embeddings`, `vocabulary_terms`, `vocabulary_relationships`, `rejected_terms` |
-| Python processing service | None | Returns results to Express via HTTP/RPC |
-| Next.js frontend | None | Read-only via Express API |
-| C3 Query and Retrieval | None | Read-only via Express API |
+| Python processing service (C2 pipeline + C3 query module — ADR-042) | None | C2: returns processing results to Express via HTTP/RPC; C3: calls back to Express for VectorStore/GraphStore data retrieval (ADR-033, ADR-037, ADR-045) |
+| Next.js frontend | None | Read-only via Express API; proxies C3 queries to Python (ADR-045) |
 | C4 Continuous Ingestion | None | Write access via Express API (same pattern as C1) |
 
 **Express-to-Python processing contract**: The boundary between Express and the Python processing service is an RPC-style contract. Express sends a processing request (document ID, file reference) — where file reference is a storage-provider-specific locator: a filesystem path in Phase 1 (local storage, ADR-008), or a pre-signed URL / storage URI in later phases (e.g. S3). In Phase 1, Python accesses the file via a shared Docker Compose volume mount. Python never receives raw file content over HTTP — it always fetches from the storage layer using the provided reference. Python performs OCR, chunking, embedding, metadata extraction, entity and relationship extraction, and quality scoring; Python returns the complete set of processing outputs to Express in a single structured response. Express then writes all outputs to the database within a transaction, ensuring that either all processing results for a document are persisted or none are.
@@ -950,9 +960,11 @@ where it lives. This ADR closes that gap.
 **Rationale**: Placing the interface in Express is consistent with ADR-031 (Express is the
 sole database writer and reader) and keeps the network topology simple — no additional
 service hop is introduced. C2 sends embeddings to Express via the existing HTTP/RPC channel;
-Express writes them through the `VectorStore` interface. C3 calls `vectorStore.search()`
-through the same interface. Swapping pgvector for OpenSearch means replacing one
-implementation class and updating the config key — C2 and C3 are unchanged.
+Express writes them through the `VectorStore` interface. C3 (running in the Python service —
+ADR-042) calls back to Express via HTTP to perform vector search; Express executes
+`vectorStore.search()` and returns results to Python. Swapping pgvector for OpenSearch means
+replacing one implementation class in Express and updating the config key — C2 and C3 are
+unchanged.
 
 **Interface contract**:
 
@@ -1290,23 +1302,9 @@ without the graph needing to encode dates. Date fields on `vocabulary_relationsh
 considered and rejected — historical estate documents have fuzzy dates that make date-bounded
 relationships unreliable.
 
-**Revision note [Revised 2026-02-24 — entity_document_occurrences and source_document_id
-clarification]**: Entity-document provenance is now tracked via the
-`entity_document_occurrences` join table (see ADR-028 revision, 2026-02-24), which is the
-universal source of truth for all entity-document links regardless of how the entity entered
-the system. The `source_document_id` column on `vocabulary_terms` is clarified as purely an
-LLM extraction marker — it records the first document an entity was extracted from and is
-populated only for entities with `source: llm_extracted`. It is `NULL` for `seed`, `manual`,
-and `candidate_accepted` entities. This supersedes the earlier description of
-`source_document_id` as a general provenance field. Express writes
-`entity_document_occurrences` rows as part of the processing results transaction (ADR-031)
-for every entity returned by the LLM combined pass. Seeded entities start with no document
-links; links accumulate naturally as documents are processed and the LLM extracts matching
-entity names that hit existing deduplicated rows via `normalised_term`. The archivist can also
-manually associate a seeded entity with a document via the curation UI. See ADR-028 revision
-notes (2026-02-24) for full schema and seeding details.
+**Revision note [Revised 2026-02-24 — source_document_id removed; entity_document_occurrences is sole provenance source]**: The `source_document_id` column described in the original ADR-038 text has been removed (see ADR-028 revision, 2026-02-24). It was redundant: the first document an entity was extracted from is recoverable from `entity_document_occurrences` as the row with the earliest `created_at` for a given `entity_id`. Keeping a separate column would create a second source of truth. `entity_document_occurrences` is the universal source of truth for all entity-document links, regardless of how the entity entered the system. Express writes `entity_document_occurrences` rows as part of the processing results transaction (ADR-031) for every entity returned by the LLM combined pass. Seeded entities start with no document links; links accumulate naturally as documents are processed and the LLM extracts matching entity names that hit existing deduplicated rows via `normalised_term`. The archivist can also manually associate a seeded entity with a document via the curation UI. The `vocabulary_terms` schema extensions from ADR-038 are therefore: `confidence` (float, 0.0-1.0, nullable) and `llm_extracted` source enum value only; no `source_document_id` column.
 
-**Source**: Resolved in Head of Development phase, 2026-02-23. Addresses entity extraction in C2 for graph-RAG. Cross-references ADR-014 (human-in-the-loop vocabulary — revised), ADR-025 (LLM chunking — extended to combined pass), ADR-027 (pipeline step tracking — step list updated), ADR-028 (vocabulary schema — extended with source_document_id, confidence, llm_extracted), ADR-031 (Express as sole DB writer — processing contract updated), ADR-036 (metadata merge path — extended to include entities), ADR-037 (GraphStore interface — operates on unified tables).
+**Source**: Resolved in Head of Development phase, 2026-02-23. Addresses entity extraction in C2 for graph-RAG. Cross-references ADR-014 (human-in-the-loop vocabulary — revised), ADR-025 (LLM chunking — extended to combined pass), ADR-027 (pipeline step tracking — step list updated), ADR-028 (vocabulary schema — extended with confidence and llm_extracted; source_document_id removed per 2026-02-24 revision), ADR-031 (Express as sole DB writer — processing contract updated), ADR-036 (metadata merge path — extended to include entities), ADR-037 (GraphStore interface — operates on unified tables).
 
 ---
 
@@ -1344,24 +1342,23 @@ notes (2026-02-24) for full schema and seeding details.
 
 ### ADR-040: Query Routing via LLM Classifier Behind QueryRouter Interface
 
-**Decision**: Query routing in C3 uses an LLM classifier to determine the retrieval strategy for each query. The classifier analyses the user's natural language query and returns a routing decision: vector search only, graph traversal only, or both (hybrid). All query routing is accessed through a `QueryRouter` interface in the Express backend, mirroring the `VectorStore` (ADR-033) and `GraphStore` (ADR-037) interface patterns. The implementation is selected by config key (`query.router: "llm_classifier"`), following the factory pattern (ADR-016).
+**Decision**: Query routing in C3 uses an LLM classifier to determine the retrieval strategy for each query. The classifier analyses the user's natural language query and returns a routing decision: vector search only, graph traversal only, or both (hybrid). All query routing is accessed through a `QueryRouter` abstract base class in the Python processing service (`services/processing/query/`), following the same factory pattern (ADR-016) used for other provider interfaces. The implementation is selected by config key (`query.router: "llm_classifier"`). Note: `QueryRouter` is a Python interface, not a TypeScript interface in Express — it belongs in the Python service because it drives the Python query pipeline. `VectorStore` (ADR-033) and `GraphStore` (ADR-037) remain TypeScript interfaces in Express because they wrap database operations that Express owns.
 
 **How it works**:
 
-1. The user submits a natural language query via the web UI or CLI.
-2. Express passes the query text to the `QueryRouter` interface.
-3. The LLM classifier analyses the query and returns a routing decision:
-   - `vector` — the query is about content similarity (e.g. "find documents about boundary disputes"); use vector similarity search via `VectorStore`
-   - `graph` — the query is about entity relationships (e.g. "who owned the land adjacent to Field 42?"); use graph traversal via `GraphStore`
+1. The user submits a natural language query via the web UI (proxied by Next.js) or CLI (direct).
+2. Python's `QueryRouter` analyses the query and returns a routing decision:
+   - `vector` — the query is about content similarity (e.g. "find documents about boundary disputes"); use vector similarity search via `VectorStore` callback to Express
+   - `graph` — the query is about entity relationships (e.g. "who owned the land adjacent to Field 42?"); use graph traversal via `GraphStore` callback to Express
    - `both` — the query has both content and relationship aspects (e.g. "what did John Smith say about the boundary change in 1967?"); run both retrievers and merge results
-4. Express executes the retrieval strategy indicated by the routing decision, using `VectorStore` and/or `GraphStore` as appropriate.
-5. Results are merged (for `both` routes) and passed to the response generation step.
+3. Python executes the retrieval strategy by calling back to Express for `VectorStore` and/or `GraphStore` data as appropriate.
+4. Results are merged (for `both` routes) and passed to the response generation step.
 
 **QueryRouter interface contract** (indicative — exact methods refined at implementation):
 
-- `route(queryText: string): Promise<RouteDecision>` where `RouteDecision` includes `strategy: 'vector' | 'graph' | 'both'` and optional context (e.g. extracted entity names for graph queries)
+- `route(query_text: str) -> RouteDecision` where `RouteDecision` includes `strategy: Literal['vector', 'graph', 'both']` and optional context (e.g. extracted entity names for graph queries)
 
-**Phase 1 behaviour**: The `QueryRouter` interface is defined in Phase 1 code, but the LLM classifier implementation is Phase 2 (see ADR-041). In Phase 1, a simple default implementation returns `vector` for all queries — this is the pass-through behaviour that makes C3 function with vector-only retrieval. The interface exists so that Phase 2 can introduce the LLM classifier without changing any call sites.
+**Phase 1 behaviour**: The `QueryRouter` abstract base class is defined in Phase 1 code, but the LLM classifier implementation is Phase 2 (see ADR-041). In Phase 1, a simple default implementation returns `vector` for all queries — this is the pass-through behaviour that makes C3 function with vector-only retrieval. The interface exists so that Phase 2 can introduce the LLM classifier without changing any call sites.
 
 **Context**: The graph-RAG architecture introduces two retrieval paths: vector similarity search (existing, ADR-033) and knowledge graph traversal (ADR-037). The question is how the system decides which retrieval path to use for a given query. Three routing strategies were evaluated.
 
@@ -1392,7 +1389,7 @@ notes (2026-02-24) for full schema and seeding details.
 | Extended vocabulary schema | ADR-028 (revised), ADR-038 | `confidence` column; `llm_extracted` source enum value (entity provenance tracked via `entity_document_occurrences`, not `source_document_id`) |
 | Entity review queue | ADR-014 (revised) | LLM-extracted entities appear in the existing vocabulary review queue; curator accepts/rejects |
 | `GraphStore` interface definition | ADR-037 | Interface defined in Express; PostgreSQL implementation written but not called by any production code path in Phase 1 |
-| `QueryRouter` interface definition | ADR-040 | Interface defined in Express; default implementation returns `vector` for all queries (pass-through) |
+| `QueryRouter` interface definition | ADR-040 | Abstract base class defined in Python service (`query/`); default implementation returns `vector` for all queries (pass-through) |
 
 **Phase 2 — Graph construction and graph-aware querying**:
 
@@ -1417,3 +1414,109 @@ notes (2026-02-24) for full schema and seeding details.
 **Tradeoffs**: Phase 1 includes interface code and a PostgreSQL `GraphStore` implementation that are not called by any production code path. This is interface scaffolding — it adds a small amount of code to Phase 1 in exchange for a clean Phase 2 integration path. The `QueryRouter` pass-through implementation is trivially simple (return `vector` for all queries) and adds no meaningful complexity.
 
 **Source**: Resolved in Head of Development phase, 2026-02-24. Addresses phase placement for all graph-RAG capabilities. Cross-references ADR-037 (GraphStore), ADR-038 (entity extraction), ADR-039 (rebuild trigger), ADR-040 (query routing).
+
+---
+
+### ADR-042: C3 Query and Retrieval Shares the Python Processing Service
+
+**Decision**: C3 (Query and Retrieval) is implemented as a module within the existing Python processing service (`services/processing/`), not as a separate service. The C2 pipeline code and C3 RAG code must be kept in separate internal modules (`processing/pipeline/` and `processing/query/`) so that the service can be split into two separate deployments in a future phase without requiring code restructuring.
+
+**Context**: The `rag-implementation.md` skill noted the service placement of C3 as an open architectural question requiring an ADR before implementation begins. Two options were evaluated: sharing the existing Python service (simpler Phase 1 deployment) versus a dedicated query service (better isolation, independent scaling).
+
+**Rationale**: Phase 1 document volume is small (family estate archive) and OCR jobs are triggered manually rather than continuously. The risk of query latency being blocked by a processing job is low in Phase 1. Sharing the service eliminates the need for a second Dockerfile, virtualenv, and Docker Compose service entry, and avoids an inter-service HTTP call for query embedding (the `EmbeddingService` is directly available in-process). The internal module boundary (`processing/pipeline/` vs `processing/query/`) provides the same logical separation as a service split at zero additional infrastructure cost.
+
+**Options considered**:
+
+- Separate `services/query/` service — better isolation and independent scaling; rejected for Phase 1 because the operational cost (two services, inter-service embedding call) outweighs the benefit at current load
+- Shared service with no module boundary — rejected because it would couple C2 and C3 code, making a future service split a refactoring task rather than a deployment configuration change
+
+**Risk accepted**: Long-running OCR or LLM processing jobs could delay query responses if both run in the same process under concurrent load. This is accepted for Phase 1 because document ingestion is manually triggered and query load is negligible. If concurrent processing and querying become a real bottleneck, the service split is deferred to Phase 2.
+
+**Tradeoffs**: The internal module boundary (`processing/pipeline/` vs `processing/query/`) must be maintained as a discipline — shared utilities (configuration loading, `EmbeddingService`, HTTP client) belong in a `processing/shared/` or `processing/common/` module, not in either the pipeline or query module. Any code that couples the two modules makes the future split harder and should be flagged as a Code Reviewer finding.
+
+**Source**: Resolved 2026-02-28, agent creation phase. Addresses C3 service placement. Cross-references ADR-015 (Python placement), ADR-024 (EmbeddingService interface), ADR-033 (VectorStore interface), ADR-040 (QueryRouter).
+
+---
+
+### ADR-043: C3 Query Routing — Express as Thin Proxy, Python Owns Full Pipeline
+
+> **Superseded by ADR-045.** Written and superseded on the same day (2026-02-28) before approval, when the 12-factor custom server pattern (ADR-044) revealed that Next.js is the correct proxy layer. The decision text is preserved for audit purposes.
+
+**Decision**: Express acts as a thin proxy for C3 query requests. When a query arrives at the Express API, Express authenticates the request and forwards it to the Python service unchanged. The Python service owns the complete query pipeline: it runs the `QueryRouter`, generates the query embedding, calls back to Express to retrieve vector search results via the `VectorStore` interface, assembles context, runs RAG synthesis, and returns the complete response to Express. Express returns that response to the caller unchanged.
+
+**Context**: ADR-042 placed C3 within the Python processing service. A subsequent review of the system-diagrams.md Diagram 4 revealed that the original data-flow design fragmented the C3 pipeline across Express and Python — Express called `QueryRouter`, then forwarded the routing decision to Python for embedding, then received the embedding back, then forwarded it to `VectorStore`, then forwarded context to Python for RAG synthesis. This produced multiple sequential cross-process HTTP calls per query and placed orchestration responsibility in Express despite Express having no domain knowledge of the query pipeline. ADR-043 settles where the orchestration boundary sits.
+
+**Rationale**: The query pipeline is a single coherent unit of work (routing → embedding → retrieval → assembly → synthesis). Fragmenting it across two services forces Express to orchestrate a process it does not understand, increases per-query latency (multiple HTTP round-trips), and makes the pipeline harder to reason about. Python already owns the domain knowledge (RAG, embedding, routing logic). Concentrating the pipeline in Python produces a simpler Express role (authenticate + proxy), clearer service boundaries, and lower per-query HTTP overhead (one round-trip to Python, one callback to Express for VectorStore data).
+
+Express retains its role as the sole database writer (ADR-031) and the owner of the `VectorStore` and `GraphStore` interfaces (ADR-033, ADR-037). Python calls back to Express to retrieve vector search results; Express does not push data to Python. This preserves the data ownership boundary while giving Python full pipeline control.
+
+**Options considered**:
+
+- Express orchestrates C3 — Express calls `QueryRouter`, receives routing decision, forwards embedding request to Python, receives embedding, calls `VectorStore`, receives chunks, forwards context to Python for RAG, receives response. Rejected: multiple sequential HTTP calls per query; Express orchestrates a domain it does not own; pipeline logic split across two services increases complexity without benefit.
+- Python has read-only database access — Python queries pgvector directly, bypassing the `VectorStore` interface in Express. Rejected: violates ADR-031 (Express sole DB writer) and ADR-033 (VectorStore interface encapsulates all vector operations); destroys the abstraction layer that makes the vector store swappable.
+
+**Risk accepted**: Express cannot inspect or modify the query pipeline — it only sees the raw query and the final response. If query pipeline behaviour needs to change (e.g. adding request logging, rate limiting, or query transformation), those changes must be made in the Python service. This is accepted because Express has no legitimate reason to inspect the internals of the query pipeline; cross-cutting concerns (authentication, rate limiting) belong at the Express boundary anyway.
+
+**Tradeoffs**: Python must make an outbound HTTP call to Express to retrieve `VectorStore` results. This adds one HTTP round-trip to the query path that would not exist if Python had direct database access. This is the cost of maintaining the ADR-031/ADR-033 boundary. At Phase 1 load (single user, occasional queries), this cost is negligible. If query latency becomes a concern at higher load, the service split (ADR-042, deferred to Phase 2) would eliminate this call by co-locating VectorStore access in a query-dedicated Express instance or by extending the `VectorStore` interface to support a Python implementation.
+
+**Source**: Resolved 2026-02-28, agent creation phase. Addresses C3 query orchestration boundary. Cross-references ADR-015 (Python placement), ADR-031 (Express sole DB writer), ADR-033 (VectorStore interface), ADR-037 (GraphStore interface), ADR-040 (QueryRouter), ADR-042 (C3 service placement). **Superseded by ADR-045 on the same day.**
+
+---
+
+### ADR-044: Next.js Custom Server and Internal Shared-Key Authentication
+
+**Decision**: Next.js runs a custom server (not a static export and not the edge runtime). It is the sole internet-facing entry point for all external requests. All internal service-to-service calls are authenticated using a shared-key header — a pre-shared secret supplied via configuration. Each receiving service validates the key and rejects requests that do not carry it. Separate keys are used per service pair to allow individual rotation without affecting other service boundaries.
+
+The shared-key pattern applies to all internal service boundaries:
+
+| Caller | Receiver | Purpose |
+| --- | --- | --- |
+| Next.js custom server | Express backend | All data operations (C1 intake, C2 trigger, curation, reads) |
+| Next.js custom server | Python processing service | C3 query forwarding — web UI path (ADR-045) |
+| Express backend | Python processing service | C2 processing trigger |
+| CLI | Python processing service | C3 query forwarding — CLI path (ADR-045) |
+
+**CLI trust model**: The CLI is a local-access tool operated by the developer or administrator with direct network access to all internal services. It does not pass through the Next.js boundary layer — that boundary exists to protect services from external (internet) callers, and the CLI is not an external caller. The CLI uses the same shared-key header auth as other internal callers; it is trusted at the same level as an internal service, not as an anonymous internet client.
+
+**Context**: The 12-factor app methodology requires a server-to-server hop between the internet and any service that accesses the database. Next.js cannot be statically exported because it runs a custom server that handles auth and routes requests. This was the developer's intent from the start but was not recorded in the ADRs. ADR-003 records the structural boundary (Next.js in front of Express) but does not record the custom server, authentication placement, or internal trust model.
+
+**Rationale**: The custom server requirement follows from the 12-factor principle: the boundary layer (Next.js) faces the internet; backend services (Express, Python) are not internet-accessible. Authentication (Phase 2+) lives in the Next.js server because it is the entry point for all user requests — it is the correct place to validate identity before forwarding. Shared-key header auth between internal services provides a lightweight trust boundary: it prevents accidental direct access to Express or Python if a port is exposed, and provides a hook for future request signing or rotation without changing application code. Per-pair keys allow one boundary to be rotated without affecting others.
+
+**Phase 1 behaviour**: Phase 1 has a single user with no authentication (UR-121). The Next.js custom server is present as a structural requirement but performs no authentication in Phase 1. The shared-key headers between services are configured and validated in Phase 1 to establish the pattern before authentication is added in Phase 2.
+
+**Phase 2**: Authentication (user login, session management, token validation) is introduced in the Next.js server. The structural boundary already exists; Phase 2 adds the authentication logic.
+
+**Options considered**:
+
+- Static Next.js export — rejected; incompatible with the custom server required by the 12-factor boundary principle and Phase 2 authentication
+- Authentication in Express — rejected; Express is a backend service not directly accessible from the internet; authentication must live at the internet-facing boundary (Next.js)
+- Single global shared key — rejected; a single key across all service pairs means any rotation requires coordinated changes to all services simultaneously; per-pair keys allow isolated rotation
+
+**Risk accepted**: The Next.js custom server adds one HTTP hop and a running Node.js process compared to a static export. This is accepted because the boundary layer must run server-side code (shared-key validation, Phase 2 auth). The operational cost (one additional process in Docker Compose) is negligible.
+
+**Tradeoffs**: The shared-key pattern is a lightweight trust boundary, not a cryptographic request-signing scheme. It prevents accidental access but not a determined attacker who has read access to the config. This is acceptable for Phase 1 (local Docker Compose, single user) and Phase 2 (private network). If the system is ever exposed to a hostile network (Phase 3+ AWS deployment), request signing (HMAC) should replace the shared-key pattern — the interface is the same; only the validation implementation changes.
+
+**Source**: Resolved 2026-02-28, agent creation phase. Addresses Next.js custom server requirement and internal service trust model. Extends ADR-003 (structural boundary). Cross-references ADR-015 (Python service placement), ADR-016 (config patterns), ADR-031 (Express data ownership), ADR-045 (C3 query proxy).
+
+---
+
+### ADR-045: Next.js Proxies C3 Queries Directly to Python
+
+**Decision**: The Next.js custom server proxies C3 query requests directly to the Python processing service, bypassing Express in the query path. Python owns the complete query pipeline (unchanged: QueryRouter, query embedding, VectorStore callback to Express, context assembly, RAG synthesis, response). Python calls back to Express to retrieve vector search results and (Phase 2+) graph traversal results; Express remains the sole database accessor for these operations. Express does not have a C3 proxy endpoint; it only serves the VectorStore and GraphStore callback endpoints called by Python.
+
+**Principle**: Next.js proxies read paths; Express orchestrates write paths. C3 is a synchronous read path (query in, response out, no persistent state changes). C1 and C2 are write paths with multiple database state transitions and fire-and-forget asynchronous coordination — Express must orchestrate these because it is the data owner (ADR-031).
+
+**Context**: ADR-043 placed the C3 proxy in Express, making the query path Next.js → Express → Python → Express (VectorStore callback). Once the 12-factor custom server pattern (ADR-044) was recorded, it became clear that Next.js already performs the proxy role at the boundary: it authenticates requests, routes them to the appropriate backend service, and returns responses. Express's C3 proxy role was redundant — it added a network hop without adding any logic. ADR-045 removes that hop by having Next.js call Python directly.
+
+**Rationale**: Removing Express from the primary C3 query path reduces per-query latency by one HTTP round-trip. More importantly, it clarifies the role boundaries: Next.js routes to services; Express owns data. A query does not need to pass through the data layer to reach the compute layer. The Python callbacks to Express for VectorStore and GraphStore data preserve the ADR-031 boundary — Express is still the sole database accessor; Python still cannot query the database directly.
+
+**Options considered**:
+
+- Express proxies C3 (ADR-043) — superseded; Express adds a redundant hop with no logic; the Next.js custom server already provides the correct proxy layer
+- Python has read-only database access — rejected; violates ADR-031 (Express sole database writer/reader) and ADR-033 (VectorStore interface); destroys the abstraction layer
+
+**Risk accepted**: Next.js must know the Python service address and must use the shared-key header for Next.js → Python calls (ADR-044). This is a small additional configuration item. Service addresses are config-driven (ADR-001, ADR-016) and Docker Compose service names are stable within an environment.
+
+**Tradeoffs**: The CLI query path calls Python directly — the CLI operates with direct network access to all services and does not need to pass through the Next.js boundary layer. The CLI must know the Python service address and use the shared-key header directly. This is consistent with the CLI's local-access context: the internet-facing boundary (Next.js) exists to protect services from external callers; the CLI is not an external caller. Express is not in any C3 query path.
+
+**Source**: Resolved 2026-02-28, agent creation phase. Supersedes ADR-043 (Express as thin C3 proxy). Cross-references ADR-003 (structural boundary), ADR-031 (Express data ownership), ADR-033 (VectorStore interface), ADR-037 (GraphStore interface), ADR-040 (QueryRouter), ADR-042 (C3 service placement), ADR-044 (Next.js custom server and shared-key auth).
