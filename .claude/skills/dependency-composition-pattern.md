@@ -35,7 +35,7 @@ This pattern avoids:
 Institutional Knowledge has three deployment targets:
 
 1. **Express HTTP service** (backend API)
-2. **FastAPI HTTP service** (C2 processing pipeline; C3 Query & Retrieval is also Python-based — the Python handler function pattern in this skill applies directly to both)
+2. **FastAPI HTTP service** (C2 processing pipeline and C3 Query & Retrieval — both Python-based; C3 uses an inverted dependency pattern described below)
 3. **MCP server** (Claude Code integration for query/analysis)
 
 All three targets need the same underlying services (database, storage, embeddings, vector store, graph store). The composition pattern allows us to:
@@ -563,6 +563,8 @@ def create_query_routes(services: Services) -> APIRouter:
     return router
 ```
 
+**Note**: The `create_query_routes` example above illustrates the general Python pattern. For C3 query handlers specifically, the dependency pattern is inverted — see the C3 Python Query Handler Pattern section below. VectorStore and GraphStore are Express backend interfaces (ADR-033, ADR-037); C3 Python handlers access these via HTTP callbacks to Express, not via local service instances.
+
 ### Extracting Business Logic into Handler Functions (Python)
 
 Like the TypeScript pattern, extract business logic into separate handler functions that both FastAPI routes and MCP tools can call.
@@ -812,6 +814,168 @@ async def test_upload_document():
     mock_storage.upload_file.assert_called_once()
     mock_database.insert_document.assert_called_once()
 ```
+
+## C3 Python Query Handler Pattern
+
+C3 query handlers in Python use an **inverted dependency pattern** compared to the C2 processing pattern above. The key difference: C3 does not hold local VectorStore or GraphStore instances. Instead, it holds an HTTP client that calls back to Express, which owns those interfaces (ADR-031, ADR-033, ADR-037, ADR-045).
+
+### Why the Pattern Is Inverted
+
+In C2, Python is the computation owner — it calls Express to persist results. In C3, Python is again the computation owner (RAG pipeline), but the data it needs (vector search results, graph data) lives in Express's database layer. Python requests that data via HTTP callbacks to Express; Express executes the query and returns results.
+
+```text
+C2 pattern (write path):  Python → HTTP POST → Express (writes to DB)
+C3 pattern (read path):   Python → HTTP GET  → Express (reads from DB, returns results)
+```
+
+The composition pattern is the same; what changes is the direction of data flow and the services Python holds.
+
+### C3 Services Object
+
+C3 Python handlers receive an `ExpressDataClient` in place of local VectorStore/GraphStore instances:
+
+```python
+# File: query/services/__init__.py
+
+import httpx
+from config import config
+
+class ExpressDataClient:
+    """HTTP client for Express data callbacks (ADR-031, ADR-045).
+    Not a local service instance — all calls go via HTTP to Express."""
+
+    def __init__(self, base_url: str, internal_key: str):
+        self._client = httpx.AsyncClient(
+            base_url=base_url,
+            headers={"x-internal-key": internal_key},
+            timeout=30.0,
+        )
+
+    async def vector_search(
+        self,
+        query_embedding: list[float],
+        top_k: int,
+    ) -> list[dict]:
+        """Request vector similarity search from Express's VectorStore."""
+        response = await self._client.post("/internal/vector/search", json={
+            "embedding": query_embedding,
+            "top_k": top_k,
+        })
+        response.raise_for_status()
+        return response.json()["results"]
+
+    async def graph_search(
+        self,
+        entity_ids: list[str],
+    ) -> list[dict]:
+        """Request graph entity lookup from Express's GraphStore."""
+        response = await self._client.post("/internal/graph/entities", json={
+            "entity_ids": entity_ids,
+        })
+        response.raise_for_status()
+        return response.json()["entities"]
+
+
+class QueryServices:
+    def __init__(
+        self,
+        express_data: ExpressDataClient,
+        embedding_service,   # EmbeddingService ABC (Python-local)
+        llm_service,         # LLMService ABC (Python-local)
+    ):
+        self.express_data = express_data
+        self.embedding_service = embedding_service
+        self.llm_service = llm_service
+
+
+async def create_query_services() -> QueryServices:
+    express_data = ExpressDataClient(
+        base_url=config.express.base_url,
+        internal_key=config.express.internal_key,
+    )
+    embedding_service = create_embedding_service()  # Python factory (ADR-024)
+    llm_service = create_llm_service()              # Python factory (ADR-016)
+    return QueryServices(express_data, embedding_service, llm_service)
+```
+
+### C3 Handler Function
+
+The handler function uses `express_data` for data retrieval and Python-local services for computation:
+
+```python
+# File: query/handlers/search.py
+
+from query.services import QueryServices
+
+async def handle_query(
+    services: QueryServices,
+    query_text: str,
+) -> dict:
+    """Execute the full RAG pipeline for a user query."""
+    # Step 1: Query understanding (Python-local LLM call)
+    understanding = await services.llm_service.understand_query(query_text)
+
+    # Step 2: Query embedding (Python-local EmbeddingService)
+    query_embedding = await services.embedding_service.embed(
+        understanding.refined_search_terms
+    )
+
+    # Step 3: Vector search — HTTP callback to Express's VectorStore (ADR-033, ADR-045)
+    chunks = await services.express_data.vector_search(
+        query_embedding=query_embedding.embedding,
+        top_k=20,
+    )
+
+    # Step 4: Context assembly (Python-local)
+    context = assemble_context(chunks, token_budget=4000)
+
+    # Step 5: Response synthesis (Python-local LLM call)
+    response = await services.llm_service.synthesize_response(query_text, context)
+
+    return {"text": response.text, "citations": response.citations}
+```
+
+### Testing C3 Handlers
+
+Mock `ExpressDataClient` instead of a database — the pattern is identical to mocking any other injected service:
+
+```python
+# File: query/handlers/test_search.py
+
+import pytest
+from unittest.mock import AsyncMock
+from query.handlers.search import handle_query
+from query.services import QueryServices
+
+@pytest.mark.asyncio
+async def test_handle_query():
+    mock_express = AsyncMock()
+    mock_express.vector_search.return_value = [
+        {"chunk_id": "c1", "text": "East Meadow transferred...", "similarity_score": 0.92}
+    ]
+
+    mock_embedding = AsyncMock()
+    mock_embedding.embed.return_value = type("R", (), {"embedding": [0.1] * 768})()
+
+    mock_llm = AsyncMock()
+    mock_llm.understand_query.return_value = type("U", (), {"refined_search_terms": "East Meadow transfer"})()
+    mock_llm.synthesize_response.return_value = type("R", (), {
+        "text": "East Meadow was transferred in 1974.",
+        "citations": [{"chunk_id": "c1"}],
+    })()
+
+    services = QueryServices(
+        express_data=mock_express,
+        embedding_service=mock_embedding,
+        llm_service=mock_llm,
+    )
+
+    result = await handle_query(services, "Who owned East Meadow?")
+    assert "citations" in result
+    mock_express.vector_search.assert_called_once()
+```
+
+---
 
 ## Key Principles
 

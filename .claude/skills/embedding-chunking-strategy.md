@@ -219,7 +219,7 @@ Store the embedding vector and metadata in the database such that:
 
 ### The VectorStore Interface in Express
 
-All vector store operations (write embeddings, similarity search) are accessed through the `VectorStore` interface defined in the Express backend (ADR-033). The pgvector implementation is the Phase 1 concrete implementation.
+All vector store operations (write embeddings, similarity search) are accessed through the `VectorStore` interface defined in the Express backend (ADR-033). The pgvector implementation is the Phase 1 concrete implementation. The Python processing service has no direct database access (ADR-031); all vector write and read operations go via HTTP to Express's VectorStore implementation.
 
 **Interface contract**:
 
@@ -396,7 +396,8 @@ async def test_chunk_and_embed_document():
         embedding_result = await embedding_service.embed(chunk["text"])
         assert len(embedding_result.embedding) > 0  # Dimension determined by configured provider
 
-        # Step 7: Store in VectorStore (via HTTP to Express)
+        # Step 7: Store via HTTP callback to Express's VectorStore implementation
+        # (ADR-031, ADR-045) — vector_store_client is an HTTP client, not a local service instance
         await vector_store_client.write(
             document_id=document_id,
             chunk_id=f"chunk_{chunk['chunk_index']}",
@@ -454,7 +455,7 @@ embedding:
   dimension: null  # Auto-detect from API response
 ```
 
-The factory function in Express and Python automatically selects the correct EmbeddingService implementation based on the `provider` key. No code changes required.
+EmbeddingService is selected via configuration (`embedding.provider`) and instantiated by a Python factory function in `services/processing/shared/`. Express does not select or instantiate EmbeddingService — it receives completed embeddings from Python and writes them to the database via the VectorStore interface. No code changes required to swap embedding providers.
 
 ---
 

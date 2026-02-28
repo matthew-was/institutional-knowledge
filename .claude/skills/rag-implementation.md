@@ -15,7 +15,7 @@ Use this skill when implementing C3 (Query & Retrieval) — a Python-based learn
 
 **Important**: This skill is intentionally *not* a copy-paste template. You'll implement each component yourself, with guidance on what to think through at each step.
 
-**Language choice**: C3 query logic is likely to be Python, for two reasons: (1) it is a learning component like C2, and (2) Python has superior ecosystem support for complex querying workflows (vector search, graph traversal, RAG orchestration libraries). However, the routing architecture — whether Next.js calls Express which calls Python (consistent with C2's 2-hop pattern), or Next.js calls Python directly (lower latency for user-facing queries) — is an open architectural question that requires an ADR before implementation begins. See [decisions/architecture-decisions.md](../../documentation/decisions/architecture-decisions.md).
+**Language and routing**: C3 query code is Python, located in `services/processing/query/` (ADR-042). The routing architecture is resolved (ADR-045): Next.js proxies web UI queries directly to the Python service — Express is not in the C3 query path. The CLI calls Python directly (the CLI has direct network access and does not need the Next.js boundary layer). Python calls back to Express for VectorStore (ADR-033) and GraphStore (ADR-037) data retrieval only. See [decisions/architecture-decisions.md](../../documentation/decisions/architecture-decisions.md).
 
 ---
 
@@ -212,7 +212,7 @@ All five components need configuration (LLM providers, token budgets, citation f
 
 ## Phase 2 Extensions
 
-When QueryRouter becomes intelligent:
+When QueryRouter becomes intelligent (QueryRouter is a Python abstract base class in `services/processing/query/` — ADR-040, ADR-042):
 
 1. `QueryUnderstanding` now influences retrieval strategy (not just search refinement)
 2. Context assembly may include graph entities + relationships, not just vector chunks
@@ -229,5 +229,8 @@ No refactoring needed — the architecture is already ready for this evolution.
 - `pipeline-testing-strategy.md` — Testing patterns for RAG components
 - ADR-016 (Provider-agnostic interface pattern for all external services)
 - ADR-033 (VectorStore interface)
+- ADR-037 (GraphStore interface)
 - ADR-040 (QueryRouter, Phase 2)
 - ADR-041 (Graph-RAG phases)
+- ADR-042 (Python service placement for C2 and C3)
+- ADR-045 (Next.js proxies C3 queries directly to Python; CLI calls Python directly)
