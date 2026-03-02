@@ -306,7 +306,8 @@ If during implementation a pattern is identified that will be needed by multiple
 
 | Pattern | Why it might be a skill | Priority |
 | --- | --- | --- |
-| *(add as discovered)* | | |
+| **task-list-push** | One-way push of a `*-tasks.md` file to an external issue tracker (GitHub Projects or Linear). Invoked by the Project Manager after writing a task file. Covers field mapping (task title, description, dependencies, complexity, acceptance condition → issue fields), dependency expression (linked issues or project board ordering), and the choice of transport (MCP server vs `gh` CLI deferred to implementation). File is authoritative; tracker is a view. | Needed before first implementation session |
+| **task-list-sync** | Bidirectional reconciliation between a `*-tasks.md` file and an external issue tracker. Invoked by the Implementer and Pair Programmer at session start (pull status from tracker → update file) and session end (push file status → update tracker). Covers conflict resolution (file wins on structure; tracker wins on status), closed issue detection, and re-opened issue handling. Requires MCP server with full API access — `gh` CLI is insufficient for reliable bidirectional sync. | Needed before implementation sessions begin |
 
 ---
 
