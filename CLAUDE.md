@@ -45,9 +45,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Skills and agents creation. No implementation code exists yet.
-- **Design status**: All design documents approved. See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Create remaining agents (Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager). See Current Next Steps below.
+- **Current phase**: Design complete. All agents and skills written. Ready to begin implementation planning.
+- **Design status**: All design documents approved (ADR-001 to ADR-046). See [documentation/approvals.md](documentation/approvals.md).
+- **Next actionable step**: Invoke Senior Developer Frontend. See Current Next Steps below.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -78,7 +78,7 @@ documentation/
 │   ├── system-diagrams.md        ← Visual diagrams (4 levels of detail)
 │   └── developer-context.md      ← Developer background
 ├── decisions/
-│   └── architecture-decisions.md ← All 41 ADRs (ADR-001 to ADR-041)
+│   └── architecture-decisions.md ← All 46 ADRs (ADR-001 to ADR-046)
 ├── requirements/
 │   ├── user-requirements.md      ← 138 requirements with Architectural Flags
 │   └── phase-1-user-stories.md   ← 101 user stories for Phase 1
