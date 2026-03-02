@@ -42,7 +42,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 **File**: [`.claude/skills/overview-review-workflow.md`](../../.claude/skills/overview-review-workflow.md)
 
-**Status**: Written
+**Status**: ✓ Written — superseded by Document Review Workflow (skill 10) for new work; retained for reference
 
 **Purpose**: Defines the repeatable process for working through a Product Owner overview review with the developer — discussing each point, resolving decisions, applying changes to `overview.md`, archiving the review file, and updating project memory.
 
@@ -276,7 +276,7 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 **File**: [`.claude/skills/user-stories-review-workflow.md`](../../.claude/skills/user-stories-review-workflow.md)
 
-**Status**: ✓ Written
+**Status**: ✓ Written — superseded by Document Review Workflow (skill 10) for new work; retained for reference
 
 **Purpose**: Defines the repeatable process for working through a Product Owner user stories review with the developer — discussing each finding, resolving decisions, applying changes, archiving the review file, and updating project memory.
 
@@ -290,11 +290,25 @@ Skills are reusable workflow definitions and domain knowledge patterns reference
 
 **File**: [`.claude/skills/adr-review-workflow.md`](../../.claude/skills/adr-review-workflow.md)
 
-**Status**: ✓ Written
+**Status**: ✓ Written — superseded by Document Review Workflow (skill 10) for new work; retained for reference
 
 **Purpose**: Defines the repeatable process for working through a Head of Development ADR consistency review with the developer — discussing each finding, resolving decisions, applying changes, archiving the review file, and updating project memory.
 
 **Used by**: Developer-facing workflow; invoked when an `adr-consistency-review-*.md` file exists
+
+**Why this is a skill and not an agent**: It is a human-in-the-loop interactive process. The developer makes every decision; the skill defines the structure of the conversation and the steps that follow.
+
+---
+
+### 10. Document Review Workflow
+
+**File**: [`.claude/skills/document-review-workflow.md`](../../.claude/skills/document-review-workflow.md)
+
+**Status**: ✓ Written
+
+**Purpose**: Generic parameterized review workflow. Works with any review document and target document pair specified by the developer at invocation. Supersedes skills 3, 8, and 9 (overview, user stories, and ADR review workflows) for all new review cycles. Handles the full lifecycle: load context, discuss each finding, draft changes, write plan, apply changes, update tracker, archive review, update MEMORY.md.
+
+**Used by**: Developer-facing workflow; invoked whenever any agent has produced a review file and the developer wants to work through it
 
 **Why this is a skill and not an agent**: It is a human-in-the-loop interactive process. The developer makes every decision; the skill defines the structure of the conversation and the steps that follow.
 
@@ -317,8 +331,8 @@ Skills were written in this order — each is a dependency for work that comes a
 
 1. **agent-file-conventions.md** — ✓ Written; prerequisite for all agent files
 2. **approval-workflow.md** — ✓ Written; used by Product Owner and any agent that gates on approvals
-3. **overview-review-workflow.md** — ✓ Written; used during Product Owner review cycles
-4. **user-stories-review-workflow.md** — ✓ Written; used during Product Owner review cycles
+3. **overview-review-workflow.md** — ✓ Written; used during Product Owner review cycles (superseded by document-review-workflow.md)
+4. **user-stories-review-workflow.md** — ✓ Written; used during Product Owner review cycles (superseded by document-review-workflow.md)
 5. **configuration-patterns.md** — ✓ Written; blocks all Senior Developer agents
 6. **dependency-composition-pattern.md** — ✓ Written; needed before Implementer begins wiring routes
 7. **metadata-schema.md** — ✓ Written; needed by Integration Lead before validating any component
@@ -327,4 +341,5 @@ Skills were written in this order — each is a dependency for work that comes a
 10. **ocr-extraction-workflow.md** — ✓ Written; needed before Component 2 implementation
 11. **embedding-chunking-strategy.md** — ✓ Written; needed before Component 2 embedding stage + Component 3
 12. **rag-implementation.md** — ✓ Written; needed before Component 3 design
-13. **adr-review-workflow.md** — ✓ Written; used during Head of Development review cycles
+13. **adr-review-workflow.md** — ✓ Written; used during Head of Development review cycles (superseded by document-review-workflow.md)
+14. **document-review-workflow.md** — ✓ Written; generic review workflow replacing skills 3, 8, 9, 13

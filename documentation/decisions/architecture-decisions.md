@@ -1520,3 +1520,23 @@ The shared-key pattern applies to all internal service boundaries:
 **Tradeoffs**: The CLI query path calls Python directly — the CLI operates with direct network access to all services and does not need to pass through the Next.js boundary layer. The CLI must know the Python service address and use the shared-key header directly. This is consistent with the CLI's local-access context: the internet-facing boundary (Next.js) exists to protect services from external callers; the CLI is not an external caller. Express is not in any C3 query path.
 
 **Source**: Resolved 2026-02-28, agent creation phase. Supersedes ADR-043 (Express as thin C3 proxy). Cross-references ADR-003 (structural boundary), ADR-031 (Express data ownership), ADR-033 (VectorStore interface), ADR-037 (GraphStore interface), ADR-040 (QueryRouter), ADR-042 (C3 service placement), ADR-044 (Next.js custom server and shared-key auth).
+
+---
+
+### ADR-046: Biome for Linting and Formatting (TypeScript Services)
+
+**Decision**: Use [Biome](https://biomejs.dev/) as the single tool for linting and formatting across the TypeScript services (`apps/frontend/` and `apps/backend/`). Biome replaces the ESLint + Prettier combination. A single `biome.json` at the monorepo root configures both services.
+
+**Rationale**: Biome provides lint and format in a single tool with a single config file, eliminating the integration friction between ESLint and Prettier (conflicting rules, separate ignore files, ordering in pre-commit hooks). It is significantly faster than ESLint + Prettier at the scale of this project. TypeScript strict-mode support is solid. The learning value is meaningful — Biome is a substantively different approach to the ESLint/Prettier toolchain.
+
+**Known trade-off**: Biome does not yet have equivalents for all ESLint plugins. Notably, `eslint-plugin-react-hooks` rules (exhaustive-deps, rules-of-hooks) are not fully covered. This is an accepted gap for Phase 1; React hooks discipline is enforced by Code Review. If plugin coverage gaps cause recurring issues, revisiting ESLint for hooks-specific rules is an option in a later phase.
+
+**Python service**: Biome does not apply to `services/processing/`. The Python service uses Ruff for linting and formatting, consistent with the Python ecosystem.
+
+**Options considered**:
+
+- ESLint + Prettier — standard combination; well-understood; large plugin ecosystem; slower than Biome; config friction between the two tools
+- OXC (`oxlint`) — faster than Biome; formatter still early-stage; not a complete ESLint + Prettier replacement at this time
+- Biome — selected; single tool, single config, production-ready TypeScript support, genuine learning value
+
+**Source**: Resolved 2026-03-02, agent finalisation phase. Cross-references ADR-003 (Next.js structural boundary), ADR-015 (monorepo layout).

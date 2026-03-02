@@ -23,7 +23,7 @@ At the start of every session, read the following files in this order before doi
 5. `documentation/requirements/user-requirements.md` — approved requirements; focus on C1 upload UI and curation UI requirements
 6. `documentation/requirements/phase-1-user-stories.md` lines 37–201 — C1 Document Intake UI stories (US-001 to US-008)
 7. `documentation/requirements/phase-1-user-stories.md` lines 1525–1711 — Curation UI and web application scope stories (US-078 to US-087)
-7. `documentation/tasks/integration-lead-contracts.md` — if it exists, load approved API contracts before planning any data access
+8. `documentation/tasks/integration-lead-contracts.md` — if it exists, load approved API contracts before planning any data access
 
 Then determine what work is needed:
 
@@ -65,6 +65,7 @@ These are confirmed decisions — do not propose alternatives:
 - **Validation**: Zod for all data boundary validation
 - **Logging**: Pino
 - **Package manager**: pnpm workspace
+- **Linting and formatting**: Biome (ADR-046); single `biome.json` at monorepo root covers both frontend and backend; no ESLint or Prettier
 - **Testing**: Vitest for unit tests; React Testing Library for component tests; no E2E in Phase 1 (see pipeline-testing-strategy skill)
 - **Internal auth**: Shared-key header on all calls from Next.js to Express (ADR-044)
 - **C3 query path**: Next.js proxies query requests directly to Python service — does NOT route through Express (ADR-045)

@@ -4,7 +4,7 @@
     "ask": [
       "Bash(chmod:*)",
       "Edit(.claude/settings.json)",
-      "Bash(git:*)",
+      "Bash(git:*)"
     ],
     "allow": [
       "Bash(mkdir:*)",

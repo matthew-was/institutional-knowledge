@@ -1,7 +1,7 @@
 # System Diagrams
 
 Four diagrams describing the Institutional Knowledge system architecture. Each diagram is
-self-contained and can be read independently. Reflects ADR-001 through ADR-045.
+self-contained and can be read independently. Reflects ADR-001 through ADR-046.
 
 ---
 

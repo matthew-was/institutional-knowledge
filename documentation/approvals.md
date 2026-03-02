@@ -20,9 +20,9 @@ The table below lists approved documents in precedence order. In case of contrad
 | `documentation/project/overview.md` | Approved | 2026/02/17 |
 | `documentation/requirements/user-requirements.md` | Approved | 2026/02/17 |
 | `documentation/requirements/phase-1-user-stories.md` | Approved | 2026/02/17 |
-| `documentation/decisions/architecture-decisions.md` | Approved | 2026/02/28 |
-| `documentation/project/architecture.md` | Approved | 2026/02/28 |
-| `documentation/project/system-diagrams.md` | Approved | 2026/02/28 |
+| `documentation/decisions/architecture-decisions.md` | Approved | 2026/03/02 |
+| `documentation/project/architecture.md` | Approved | 2026/03/02 |
+| `documentation/project/system-diagrams.md` | Approved | 2026/03/02 |
 
 ## Audit Log
 
@@ -64,4 +64,10 @@ The table below lists approved documents in precedence order. In case of contrad
 2026/02/28 - architecture-decisions.md approved - Developer - HoD consistency review complete; ADR-042 through ADR-045 integrated; 16 issues resolved (6 confirmed, 4 high-priority, 6 observations); ADR-001 through ADR-045 consistent
 2026/02/28 - architecture.md approved - Developer - HoD consistency review complete; reflects ADR-001 through ADR-045; QueryRouter moved to Python; CLI trust model documented
 2026/02/28 - system-diagrams.md approved - Developer - HoD consistency review complete; all four diagrams reflect ADR-001 through ADR-045; CLI node added to Diagram 1; Diagram 4 data flow corrected
+2026/03/02 - architecture-decisions.md unapproved - Developer - ADR-046 added (Biome for TypeScript linting and formatting); requires re-approval
+2026/03/02 - architecture-decisions.md approved - Developer - ADR-046 is additive; no impact on existing ADRs or architectural rules; re-approved immediately
+2026/03/02 - architecture.md unapproved - Developer - upstream cascade from ADR-046; HoD review required to confirm architecture.md is consistent with ADR-046
+2026/03/02 - system-diagrams.md unapproved - Developer - upstream cascade from ADR-046; HoD review required to confirm system-diagrams.md is consistent with ADR-046
+2026/03/02 - architecture.md approved - Head of Development - ADR-046 is a tooling decision; no runtime architecture, component boundaries, or data flows affected; ADR range reference updated to ADR-046
+2026/03/02 - system-diagrams.md approved - Head of Development - ADR-046 is a tooling decision; no diagram content affected; ADR range reference updated to ADR-046
 ```

@@ -97,7 +97,8 @@ The plan must cover:
 5. **GraphStore implementation** — PostgreSQL Phase 1 implementation of the GraphStore interface (ADR-037): entity and relationship write/read methods using `vocabulary_terms`, `vocabulary_relationships`, and `entity_document_occurrences`.
 6. **Knex migrations** — one migration file per schema change approved in the contracts document. Each migration: file name (timestamp prefix), tables/columns created, indexes, foreign keys. Do not write migration code — specify the migration content outline.
 7. **Configuration** — nconf keys required by the backend (see configuration-patterns skill); shared-key values, database connection, Python service URL.
-8. **Testing approach** — which handlers to unit test with mocked services, which to integration test with a real database (see pipeline-testing-strategy skill).
+8. **Tooling** — Biome (ADR-046) is the linter and formatter for `apps/backend/`; no ESLint or Prettier; `biome check` must pass before any task is `code_complete`.
+9. **Testing approach** — which handlers to unit test with mocked services, which to integration test with a real database (see pipeline-testing-strategy skill).
 
 Write the plan to `documentation/tasks/integration-lead-backend-plan.md` using the Write tool.
 
@@ -221,6 +222,10 @@ Write this document using the Write tool once all contracts are approved. Struct
 ## Configuration
 
 [nconf keys required; environment override strategy]
+
+## Tooling
+
+Biome (ADR-046): linter and formatter for `apps/backend/`. No ESLint or Prettier. All code must pass `biome check` before a task is `code_complete`.
 
 ## Testing approach
 

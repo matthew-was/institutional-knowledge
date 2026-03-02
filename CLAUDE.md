@@ -99,24 +99,21 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `notion-lab-entry.md` (updated 2026-02-26 with explicit `date` command requirement), `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`
-- Agents: `product-owner.md`, `head-of-development.md`
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `notion-lab-entry.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`
+- Agents: `product-owner.md`, `head-of-development.md`, `integration-lead.md`, `senior-developer-frontend.md`, `senior-developer-python.md`, `project-manager.md`, `implementer.md`, `pair-programmer.md`, `code-reviewer.md`
 
-**Remaining to create:** Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager agents.
+**All agents and skills written.** Design phase complete.
 
 **Current next steps:**
 
-1. ✅ DONE: Approve `documentation/decisions/architecture-decisions.md` (ADR-001 to ADR-041) — approved 2026-02-25
-2. ✅ DONE: Head of Development rewrites `architecture.md` and `system-diagrams.md` to reflect all ADRs — completed and approved 2026-02-25
-3. ✅ DONE: Approve revised architecture and system diagrams — approved 2026-02-25
-4. ✅ DONE: Write `configuration-patterns.md` skill
-5. ✅ DONE: Write `dependency-composition-pattern.md` skill
-6. ✅ DONE: Write `metadata-schema.md` skill
-7. ✅ DONE: Write `pipeline-testing-strategy.md` skill
-8. ✅ DONE: Write `ocr-extraction-workflow.md` skill
-9. ✅ DONE: Write `embedding-chunking-strategy.md` skill
-10. ✅ DONE: Write `rag-implementation.md` skill
-11. NEXT: Create remaining agents: Integration Lead, Senior Developer × 2, Implementer, Pair Programmer, Code Reviewer, Project Manager
+1. ✅ DONE: All skills written (14 total)
+2. ✅ DONE: All agents written (9 total) — ADR-001 to ADR-046 approved
+3. ✅ DONE: Head of Development reviewed `architecture.md` and `system-diagrams.md` for ADR-046 consistency; both re-approved 2026-03-02. Design phase complete.
+4. NEXT: Invoke Senior Developer Frontend to produce `documentation/tasks/senior-developer-frontend-plan.md`
+5. Then: Invoke Senior Developer Python to produce `documentation/tasks/senior-developer-python-plan.md`
+6. Then: Invoke Integration Lead to review plans, produce contracts and backend plan
+7. Then: Invoke Project Manager × 3 to decompose plans into task lists
+8. Then: Begin implementation with Implementer (frontend + backend) and Pair Programmer (Python)
 
 ### Key Output Locations
 

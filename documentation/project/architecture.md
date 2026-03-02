@@ -2,7 +2,7 @@
 
 This document is a synthesis of all decisions recorded in
 [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (ADR-001 through
-ADR-045). It describes the confirmed system architecture for the Institutional Knowledge project.
+ADR-046). It describes the confirmed system architecture for the Institutional Knowledge project.
 
 ---
 
