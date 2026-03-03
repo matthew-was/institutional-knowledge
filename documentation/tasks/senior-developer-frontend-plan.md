@@ -8,11 +8,9 @@ Approved — 2026-03-03
 
 ## Integration Lead contracts notice
 
-`documentation/tasks/integration-lead-contracts.md` does not exist at the time this plan was
-written. Every API call listed in this document is flagged as **pending Integration Lead
-contract**. Implementation of any data access point must not begin until the Integration Lead
-has produced and approved the contracts document, and each flagged call has been matched to an
-approved contract.
+All 12 API calls in this plan have been matched to approved contracts in
+`documentation/tasks/integration-lead-contracts.md` (Approved 2026-03-03). Open questions
+OQ-001 through OQ-004 are resolved. Implementation may proceed.
 
 ---
 
@@ -131,8 +129,10 @@ The submission sequence when the user clicks Submit:
    it sets `clientErrors` and stops.
 2. If validation passes, `submitting` is set to `true` and a `multipart/form-data` POST is
    sent to the Next.js API route `/api/documents/upload`.
-3. The Next.js API route adds the `x-internal-key` header (ADR-044) and forwards the request
-   to the Express backend.
+3. The Next.js API route handler decomposes this into the three Express calls internally
+   (initiate via DOC-001, upload file bytes via DOC-002, finalize via DOC-003) per the
+   composite browser upload contract DOC-004. The browser does not call three separate
+   Next.js routes.
 4. On success (HTTP 201), the page navigates to `/upload/success` with the returned document
    record passed via query parameters or session storage.
 5. On a duplicate detection error (HTTP 409), `serverError` is set and `DuplicateConflictAlert`
@@ -142,11 +142,12 @@ The submission sequence when the user clicks Submit:
 7. `submitting` is set back to `false` on completion regardless of outcome.
 
 **Note on the four-status upload lifecycle**: The architecture (ADR-007, ADR-017) defines an
-`initiated → uploaded → stored → finalized` lifecycle for web UI uploads. The frontend is
-responsible for initiating the lifecycle and following it through to finalisation. The exact
-API shape for each step is pending Integration Lead contracts; the frontend plan assumes a
-multi-step call sequence (initiate, upload, finalize) and will be refined once contracts are
-approved.
+`initiated -> uploaded -> stored -> finalized` lifecycle for web UI uploads. Per OQ-001
+resolution, the four-status lifecycle is an Express-internal concern. The browser sends a
+single `multipart/form-data` POST to the Next.js API route `/api/documents/upload` (contract
+DOC-004). The Next.js handler orchestrates the three Express calls (DOC-001, DOC-002, DOC-003)
+internally. If any Express step fails, the Next.js handler calls the cleanup endpoint
+(DOC-005) and returns an appropriate error to the browser.
 
 **Filename parsing** is a pure client-side operation in `FilePickerInput`. On file selection:
 
@@ -163,22 +164,13 @@ so it can be unit tested independently of the component.
 
 ### API calls required
 
-| Call | Method | Next.js route | Forwards to | Purpose | Contract status |
+| Call | Method | Next.js route | Forwards to | Purpose | Contract |
 | --- | --- | --- | --- | --- | --- |
-| Initiate upload | `POST` | `/api/documents/initiate` | Express `POST /documents/initiate` | Start the upload lifecycle; receive an upload ID | **Pending Integration Lead contract** |
-| Upload file bytes | `POST` | `/api/documents/:uploadId/upload` | Express `POST /documents/:uploadId/upload` | Transfer the file bytes to Express staging | **Pending Integration Lead contract** |
-| Finalize upload | `POST` | `/api/documents/:uploadId/finalize` | Express `POST /documents/:uploadId/finalize` | Complete the upload lifecycle; receive the document record | **Pending Integration Lead contract** |
+| Browser upload (composite) | `POST` | `/api/documents/upload` | Express DOC-001, DOC-002, DOC-003 internally | Single browser POST; Next.js orchestrates the three-step Express lifecycle | DOC-004 |
+| Cleanup incomplete upload | `DELETE` | `/api/documents/:uploadId` | Express `DELETE /api/documents/:uploadId` | Called by the Next.js handler if initiate succeeds but a later step fails | DOC-005 |
 
-All three calls carry the `x-internal-key` header set in the Next.js API route handlers, not
-by the browser client (ADR-044). The browser POST goes to the Next.js server only.
-
-**Open question OQ-001**: The architecture specifies an `initiated → uploaded → stored → finalized`
-lifecycle (ADR-017) but does not specify whether the Next.js API route should implement this as
-three separate calls from the browser to Next.js, or as a single browser POST that Next.js
-decomposes into multiple Express calls internally. This is a data-access pattern question that
-the Integration Lead must resolve in the contracts document. This plan assumes three
-browser-to-Next.js calls for maximum atomicity transparency, but the Integration Lead's
-contracts may specify a single browser call that Next.js orchestrates internally.
+The Next.js API route handler adds the `x-internal-key` header (ADR-044) before each Express
+call. The browser POST goes to the Next.js server only.
 
 ### Validation
 
@@ -280,18 +272,18 @@ The `/curation` root page serves as a navigation hub linking to `/curation/docum
   re-embedding (UR-062); displays a success message or error message on completion
 - `MetadataEditFields` — controlled inputs for each editable field; uses the same `date` input
   pattern as the intake form for the date field; description uses a `<textarea>`; document type
-  uses a `<select>` or text input (type list TBD — see Open Questions); people and land
-  references use comma-separated text inputs or multi-value inputs (TBD — see Open Questions)
+  uses a text input (free-text string, per OQ-003 resolution); people and land references use
+  comma-separated text inputs that the form handler splits into JSON string arrays before
+  submission and joins for display (per OQ-002 resolution — stored as PostgreSQL `text[]`,
+  transmitted as JSON string arrays)
 
-**Open question OQ-002**: The metadata fields for `people` and `land references` are not
-specified in detail in the requirements or ADRs. The database schema for these fields, and
-whether they are stored as arrays, JSON, or structured sub-records, affects the form input
-design. The Integration Lead must specify the shape of these fields in the contracts document
-before this component can be designed in detail.
+**OQ-002 resolved**: `people` and `land_references` are stored as PostgreSQL `text[]` (text
+arrays). The Express API accepts and returns them as JSON string arrays. The frontend renders
+them as comma-separated text inputs, splitting into arrays on submit and joining for display.
 
-**Open question OQ-003**: The document type field is described as a metadata field but the
-valid values (document type enumeration or free text) are not specified. The Integration Lead
-must specify the field type and valid values in the contracts document.
+**OQ-003 resolved**: `document_type` is a free-text string field in Phase 1 (not a controlled
+enumeration). The pattern-based metadata extraction step produces a detected document type as
+a string; the curator can correct it to any value via the metadata edit form.
 
 #### Vocabulary review queue
 
@@ -310,18 +302,21 @@ must specify the field type and valid values in the contracts document.
 #### Manual vocabulary term entry
 
 - `AddVocabularyTermForm` (Client Component) — form for manually entering a new vocabulary
-  term (US-062, UR-089); fields: term name, category, description, aliases (multi-value input),
-  relationships (multi-value input linking to existing terms); on submit, POSTs to the API;
+  term (US-062, UR-089); fields: term name (string, required), category (free-text string,
+  required), description (string, optional), aliases (multi-value input, string array, optional),
+  relationships (multi-value input linking to existing terms via
+  `{ targetTermId: string, relationshipType: string }`, optional); on submit, POSTs to the API;
   displays success or error on completion
 - `TermRelationshipsInput` — sub-component of `AddVocabularyTermForm`; allows the user to
-  specify relationships between the new term and existing vocabulary terms; exact interaction
-  design depends on the vocabulary schema (pending Integration Lead contracts — OQ-002 applies)
+  specify relationships between the new term and existing vocabulary terms; relationship types
+  are free-text strings matching the indicative types from ADR-038 (owned_by, transferred_to,
+  witnessed_by, adjacent_to, employed_by, referenced_in, performed_by, succeeded_by)
 
-**Open question OQ-004**: The vocabulary term schema (term, category, description, aliases,
-relationships) is described at a high level in UR-088 and US-061 but the exact field types,
-category enumeration, and relationship structure are deferred to the architecture phase. The
-Integration Lead must specify these in the contracts document before `AddVocabularyTermForm`
-can be designed in detail.
+**OQ-004 resolved**: The vocabulary term schema follows ADR-028. `term` (string, required),
+`category` (free-text string, required — not a controlled enumeration in Phase 1),
+`description` (string, optional), `aliases` (string array, optional, defaults to empty array),
+`relationships` (array of `{ targetTermId: string, relationshipType: string }`, optional —
+relationship types are free-text strings per ADR-028/ADR-038).
 
 ### Data fetching and state
 
@@ -331,7 +326,7 @@ Data is fetched client-side on page mount and after mutations. The page uses `us
 client-side data fetching rather than React Server Component streaming, because the queue must
 re-render without full page navigation after flag-clear actions.
 
-Fetch: `GET /api/curation/documents` → Next.js API route → Express backend.
+Fetch: `GET /api/curation/documents` -> Next.js API route -> Express backend.
 After `ClearFlagButton` succeeds: call `mutate()` on the SWR key to re-fetch the queue list.
 After `DocumentMetadataForm` save succeeds: display success message; no queue re-fetch needed
 (metadata edit does not affect queue membership unless the document was removed).
@@ -363,21 +358,21 @@ data is not a concern in this single-user context.
 
 #### Document curation queue
 
-| Call | Method | Next.js route | Forwards to | Purpose | Contract status |
+| Call | Method | Next.js route | Forwards to | Purpose | Contract |
 | --- | --- | --- | --- | --- | --- |
-| Fetch document queue | `GET` | `/api/curation/documents` | Express `GET /curation/documents` | List all flagged documents, ordered by flag timestamp | **Pending Integration Lead contract** |
-| Clear a flag | `POST` | `/api/curation/documents/:id/clear-flag` | Express `POST /curation/documents/:id/clear-flag` | Clear the flag on a document, marking it ready to resume | **Pending Integration Lead contract** |
-| Fetch document detail | `GET` | `/api/curation/documents/:id` | Express `GET /documents/:id` | Retrieve a single document record for the metadata edit form | **Pending Integration Lead contract** |
-| Update document metadata | `PATCH` | `/api/curation/documents/:id/metadata` | Express `PATCH /documents/:id/metadata` | Save corrected metadata fields | **Pending Integration Lead contract** |
+| Fetch document queue | `GET` | `/api/curation/documents` | Express `GET /api/curation/documents` | List all flagged documents, ordered by flag timestamp | DOC-006 |
+| Clear a flag | `POST` | `/api/curation/documents/:id/clear-flag` | Express `POST /api/documents/:id/clear-flag` | Clear the flag on a document, marking it ready to resume | DOC-008 |
+| Fetch document detail | `GET` | `/api/curation/documents/:id` | Express `GET /api/documents/:id` | Retrieve a single document record for the metadata edit form | DOC-007 |
+| Update document metadata | `PATCH` | `/api/curation/documents/:id/metadata` | Express `PATCH /api/documents/:id/metadata` | Save corrected metadata fields | DOC-009 |
 
 #### Vocabulary review queue
 
-| Call | Method | Next.js route | Forwards to | Purpose | Contract status |
+| Call | Method | Next.js route | Forwards to | Purpose | Contract |
 | --- | --- | --- | --- | --- | --- |
-| Fetch vocabulary queue | `GET` | `/api/curation/vocabulary` | Express `GET /curation/vocabulary` | List pending vocabulary candidates | **Pending Integration Lead contract** |
-| Accept a candidate | `POST` | `/api/curation/vocabulary/:termId/accept` | Express `POST /curation/vocabulary/:termId/accept` | Accept a candidate term into the vocabulary | **Pending Integration Lead contract** |
-| Reject a candidate | `POST` | `/api/curation/vocabulary/:termId/reject` | Express `POST /curation/vocabulary/:termId/reject` | Reject a candidate term (adds to rejected list) | **Pending Integration Lead contract** |
-| Add a manual term | `POST` | `/api/curation/vocabulary/terms` | Express `POST /curation/vocabulary/terms` | Create a new vocabulary term manually | **Pending Integration Lead contract** |
+| Fetch vocabulary queue | `GET` | `/api/curation/vocabulary` | Express `GET /api/curation/vocabulary` | List pending vocabulary candidates | VOC-001 |
+| Accept a candidate | `POST` | `/api/curation/vocabulary/:termId/accept` | Express `POST /api/curation/vocabulary/:termId/accept` | Accept a candidate term into the vocabulary | VOC-002 |
+| Reject a candidate | `POST` | `/api/curation/vocabulary/:termId/reject` | Express `POST /api/curation/vocabulary/:termId/reject` | Reject a candidate term (adds to rejected list) | VOC-003 |
+| Add a manual term | `POST` | `/api/curation/vocabulary/terms` | Express `POST /api/curation/vocabulary/terms` | Create a new vocabulary term manually | VOC-004 |
 
 All API route handlers in `apps/frontend/src/app/api/` add the `x-internal-key` header before
 forwarding to Express (ADR-044). The browser never sees or sends this header.
@@ -391,21 +386,30 @@ Applied in `DocumentMetadataForm` before the PATCH call:
 - `date` — if provided, must be a valid calendar date in `YYYY-MM-DD` format; may be empty
   (undated documents are valid)
 - `description` — must be a non-empty, non-whitespace-only string
-- `documentType` — string; valid values TBD pending Integration Lead contracts (OQ-003)
-- `people` — array of non-empty strings or comma-separated string; TBD pending contracts (OQ-002)
-- `landReferences` — array of non-empty strings or comma-separated string; TBD pending
-  contracts (OQ-002)
+- `documentType` — free-text string; any non-empty value is valid (per OQ-003 resolution)
+- `people` — JSON string array (`string[]`); each element must be a non-empty string; the form
+  handler splits a comma-separated text input into the array before submission (per OQ-002
+  resolution)
+- `landReferences` — JSON string array (`string[]`); each element must be a non-empty string;
+  same comma-separated input pattern as `people` (per OQ-002 resolution)
 
 #### `AddTermSchema` (Zod schema)
 
-Applied in `AddVocabularyTermForm` before the POST call. Fields and types TBD pending
-Integration Lead contracts (OQ-004).
+Applied in `AddVocabularyTermForm` before the POST call (per OQ-004 resolution):
+
+- `term` — string, required; must be non-empty
+- `category` — string, required; free-text (not an enumeration in Phase 1)
+- `description` — string, optional
+- `aliases` — array of strings, optional (defaults to empty array)
+- `relationships` — array of `{ targetTermId: string, relationshipType: string }`, optional;
+  relationship types are free-text strings
 
 #### API response validation
 
 All API responses consumed by the curation UI are validated with Zod schemas at the frontend
-boundary before being stored in component state or rendered. Response schemas are TBD pending
-Integration Lead contracts.
+boundary before being stored in component state or rendered. Response schemas match the
+TypeScript interfaces defined in the approved contracts (DOC-006, DOC-007, DOC-008, DOC-009,
+VOC-001, VOC-002, VOC-003, VOC-004).
 
 ### Testing approach
 
@@ -448,7 +452,7 @@ into the Docker image, and an optional `config.override.json` volume-mounted at 
 | --- | --- | --- | --- |
 | `server.port` | `number` | Port the Next.js custom server listens on | `3000` |
 | `express.baseUrl` | `string` | Internal URL of the Express backend | `http://backend:4000` |
-| `express.internalKey` | `string` | Shared key for Next.js → Express calls (ADR-044) | `change-me-in-production` |
+| `express.internalKey` | `string` | Shared key for Next.js -> Express calls (ADR-044) | `change-me-in-production` |
 | `upload.maxFileSizeMb` | `number` | Maximum file size accepted at the client boundary | `50` |
 | `upload.acceptedExtensions` | `string[]` | Accepted file extensions for the file picker and client-side validation | `[".pdf", ".tif", ".tiff", ".jpg", ".jpeg", ".png"]` |
 
@@ -462,13 +466,9 @@ config). The validated config singleton is imported by API route handlers and Se
 Components. It must never be imported into Client Components, because Client Component code
 is bundled into the browser.
 
-**Open question OQ-005**: If the ADR-045 C3 query proxy path is prepared at the server level
-in Phase 1 (even though the web UI query page is deferred to Phase 2), the Python service
-address and shared key will also need to be in the frontend config. This plan does not plan
-the C3 proxy path because it is Phase 2 scope. However, if the Integration Lead or Head of
-Development determines that the custom server routing infrastructure for ADR-045 must be
-scaffolded in Phase 1, an additional config key `python.baseUrl` and `python.internalKey`
-will be required.
+**OQ-005 deferred to Phase 2**: The C3 query proxy infrastructure (ADR-045) is not scaffolded
+in Phase 1. No `python.baseUrl` or `python.internalKey` config keys are required. If the web
+UI query page is delivered in Phase 2, these keys will be added at that time.
 
 ### Authentication
 
@@ -546,25 +546,25 @@ relevant SWR key is invalidated via `mutate()` to trigger a re-fetch.
 
 ## Open questions
 
-| ID | Question | Blocking | Owner |
+| ID | Question | Status | Resolution |
 | --- | --- | --- | --- |
-| OQ-001 | Does the browser call three separate Next.js API routes (initiate, upload, finalize) or a single route that Next.js decomposes internally? The answer affects form submission flow and error handling granularity. | Yes — affects upload form implementation | Integration Lead |
-| OQ-002 | What is the storage shape for `people` and `land references` metadata fields? Are they arrays, JSON, structured sub-records, or comma-separated strings? Affects both display in the curation queue and the metadata edit form input design. | Yes — affects `DocumentMetadataForm` component design | Integration Lead |
-| OQ-003 | What is the valid set of values for `documentType`? Is it a controlled enumeration or free text? Affects the form input for metadata correction. | Yes — affects `DocumentMetadataForm` component design | Integration Lead |
-| OQ-004 | What is the exact schema for a vocabulary term (category enumeration, relationship structure, required vs optional fields)? Affects `AddVocabularyTermForm` and the vocabulary candidate display. | Yes — affects `AddVocabularyTermForm` and `VocabularyQueueItem` | Integration Lead |
-| OQ-005 | Should the C3 query proxy infrastructure (ADR-045) be scaffolded in Phase 1 at the custom server level even though the web UI query page is Phase 2? If yes, `python.baseUrl` and `python.internalKey` config keys are needed. | No — Phase 2 concern; flag for Head of Development if it affects Phase 1 scaffolding | Head of Development |
+| OQ-001 | Does the browser call three separate Next.js API routes (initiate, upload, finalize) or a single route that Next.js decomposes internally? | Resolved | Single browser POST to `/api/documents/upload` (DOC-004); Next.js orchestrates three Express calls internally (DOC-001, DOC-002, DOC-003). |
+| OQ-002 | What is the storage shape for `people` and `land references` metadata fields? | Resolved | PostgreSQL `text[]` arrays; Express API accepts/returns JSON string arrays; frontend uses comma-separated text inputs. |
+| OQ-003 | What is the valid set of values for `documentType`? | Resolved | Free-text string in Phase 1; not a controlled enumeration. |
+| OQ-004 | What is the exact schema for a vocabulary term? | Resolved | Per ADR-028: term (string, required), category (free-text string, required), description (string, optional), aliases (string array, optional), relationships (array of `{ targetTermId, relationshipType }`, optional; types are free-text strings). |
+| OQ-005 | Should the C3 query proxy infrastructure (ADR-045) be scaffolded in Phase 1? | Deferred to Phase 2 | No Phase 1 action required. Config keys `python.baseUrl` and `python.internalKey` will be added when the web UI query page is delivered. |
 
 ---
 
 ## Handoff checklist
 
-- [ ] Integration Lead has reviewed all flagged API calls (all 12 calls listed in this plan)
-- [ ] OQ-001 resolved: upload lifecycle browser-to-Next.js call pattern confirmed
-- [ ] OQ-002 resolved: `people` and `land references` field shapes confirmed
-- [ ] OQ-003 resolved: `documentType` field values confirmed
-- [ ] OQ-004 resolved: vocabulary term schema confirmed
-- [ ] OQ-005 resolved or deferred to Phase 2
-- [ ] Developer has approved this plan
+- [x] Integration Lead has reviewed all flagged API calls (all 12 calls listed in this plan)
+- [x] OQ-001 resolved: single browser POST; Next.js orchestrates Express lifecycle internally
+- [x] OQ-002 resolved: `people` and `land_references` are PostgreSQL `text[]`, JSON string arrays
+- [x] OQ-003 resolved: `document_type` is a free-text string in Phase 1
+- [x] OQ-004 resolved: vocabulary term schema per ADR-028; category and relationship types are free-text strings
+- [x] OQ-005 deferred to Phase 2; no Phase 1 action required
+- [x] Developer has approved this plan
 
 ---
 
@@ -574,21 +574,21 @@ This section maps each in-scope Phase 1 user story to the plan components that a
 
 | Story | Coverage |
 | --- | --- |
-| US-001 (upload via web form) | `DocumentUploadForm`, `/upload` page, API call: initiate/upload/finalize |
+| US-001 (upload via web form) | `DocumentUploadForm`, `/upload` page, API call: DOC-004 (composite browser upload) |
 | US-002 (date and description at intake) | `MetadataFields` inside `DocumentUploadForm` |
 | US-003 (reject invalid date) | `UploadFormSchema` (client), server-side rejection handling in `ValidationFeedback` |
 | US-003b (reject empty description) | `UploadFormSchema` (client), server-side rejection handling in `ValidationFeedback` |
 | US-004 (pre-populate from filename) | `parseFilename` utility, `FilePickerInput` |
 | US-005 (restrict and validate file format) | `FilePickerInput` `accept` attribute, `UploadFormSchema` extension check, `DuplicateConflictAlert` / `ValidationFeedback` for server-side rejection |
-| US-006 (upload atomicity) | Handled by the multi-step lifecycle (initiate/upload/finalize); atomicity is an Express concern; the frontend displays the error state if any step fails |
+| US-006 (upload atomicity) | Handled by the composite upload (DOC-004); atomicity is an Express concern; the frontend displays the error state if any step fails |
 | US-078 (minimal curation web UI) | `/curation` pages, `DocumentQueueList`, `VocabularyQueueList`, `ClearFlagButton`, `DocumentMetadataForm` |
 | US-079 (distinct queue views) | `/curation/documents` and `/curation/vocabulary` are separate pages and components; `CurationNav` links to both |
 | US-080 (view document curation queue) | `DocumentQueueList`, `DocumentQueueItem` |
-| US-081 (clear a flag) | `ClearFlagButton`, API call: clear flag |
-| US-082 (correct metadata) | `DocumentMetadataForm`, `/curation/documents/:id` page, API call: update metadata |
+| US-081 (clear a flag) | `ClearFlagButton`, API call: DOC-008 |
+| US-082 (correct metadata) | `DocumentMetadataForm`, `/curation/documents/:id` page, API call: DOC-009 |
 | US-083 (no in-app document removal) | No delete/remove UI component exists anywhere in this plan |
 | US-086 (single web application) | All pages under a single Next.js application; `AppNav` in `app/layout.tsx` links `/upload` and `/curation`; `CurationNav` links within curation |
 | US-087 (single session) | No concurrent session handling required; acknowledged limitation per requirement |
-| US-062 (add vocabulary terms manually) | `AddVocabularyTermForm`, `/curation/vocabulary/new` page, API call: add manual term |
+| US-062 (add vocabulary terms manually) | `AddVocabularyTermForm`, `/curation/vocabulary/new` page, API call: VOC-004 |
 | US-063 (surface candidates in review queue) | `VocabularyQueueList` — displays candidates from API |
-| US-066 (accept or reject a candidate) | `AcceptCandidateButton`, `RejectCandidateButton`, API calls: accept/reject candidate |
+| US-066 (accept or reject a candidate) | `AcceptCandidateButton`, `RejectCandidateButton`, API calls: VOC-002, VOC-003 |

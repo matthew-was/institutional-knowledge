@@ -28,10 +28,10 @@ The plan covers:
 lives in `processing/shared/`. Any coupling risk is called out explicitly. This boundary
 exists to allow future splitting into separate Docker deployments without code restructuring.
 
-**Integration Lead contracts status**: `documentation/tasks/integration-lead-contracts.md`
-does not exist at the time this plan was written. Every HTTP call to Express is flagged as
-**PENDING Integration Lead contract**. The plan cannot be finalised until the Integration
-Lead reviews and approves all flagged calls.
+**Integration Lead contracts status**: All HTTP calls to Express have been reviewed and
+approved by the Integration Lead. See `documentation/tasks/integration-lead-contracts.md`
+(Approved 2026-03-03) for full contract definitions. Contract references: PROC-002, PROC-003,
+QUERY-001, QUERY-002.
 
 ---
 
@@ -521,33 +521,41 @@ transaction (ADR-031).
 
 ### HTTP calls to Express required (C2)
 
-The following Express endpoints are called from the C2 pipeline. All are flagged as
-**PENDING Integration Lead contract** because `integration-lead-contracts.md` does not
-yet exist.
+The following Express endpoints are called from the C2 pipeline. All contracts have been
+reviewed and approved by the Integration Lead. See
+`documentation/tasks/integration-lead-contracts.md` for full TypeScript interface definitions.
 
-**C2-E1: Retrieve document file for processing**
+**C2-E1: Express calls Python to process a document (contract PROC-003)**
 
-- **Direction**: Express → Python (Express initiates; Python does not call Express for the
-  file)
-- **Pattern**: Express sends the document file path (or file content) in the processing
-  request body when it calls Python; Python does not make a separate GET call to retrieve
-  the file
-- **Clarification needed**: Does Express send the file as binary content in the request, or
-  send the storage path and expect Python to read the file directly? Python has no direct DB
-  access but may have filesystem access to the document storage area. This needs to be
-  resolved by the Integration Lead.
-- **Flag**: PENDING Integration Lead contract
+- **Direction**: Express → Python (Express initiates the call to Python's `POST /process`
+  endpoint)
+- **Pattern**: Express sends the document's filesystem path as `fileReference` in the JSON
+  request body. Python reads the file directly from the shared Docker Compose volume mount.
+  No binary file content is transferred over HTTP.
+- **Contract**: PROC-003 (`POST /process` on the Python FastAPI server). Express sends a
+  `ProcessDocumentRequest` containing `documentId`, `fileReference` (filesystem path in
+  Phase 1), `incompleteSteps` (step names to run), and `previousOutputs` (data from
+  previously completed steps for re-entrancy). The response body matches the
+  `ProcessingResultsRequest` schema defined in PROC-002.
+- **Auth**: `x-internal-key` header with `auth.pythonServiceKey` from Express config
+  (ADR-044)
+- **Status**: Approved — see PROC-003 in
+  `documentation/tasks/integration-lead-contracts.md`
 
-**C2-E2: POST processing results**
+**C2-E2: POST processing results (contract PROC-002)**
 
-- **Caller**: Python `pipeline/orchestrator.py`
+- **Caller**: Python `pipeline/orchestrator.py` via `shared/http_client.py`
 - **Direction**: Python → Express
 - **Purpose**: After all six steps complete (or the pipeline halts at an earlier step due to
   a flag), Python POSTs all results to Express in a single call. Express writes everything
   atomically in one transaction (ADR-031).
-- **Auth**: `x-internal-key` header with the Express-Python shared key (ADR-044)
-- **Flag**: PENDING Integration Lead contract — exact endpoint path, request schema, and
-  response schema require Integration Lead approval
+- **Contract**: PROC-002 (`POST /api/processing/results`). Request body is
+  `ProcessingResultsRequest` containing `documentId`, `stepResults` (record of step name to
+  status), `flags`, `metadata`, `chunks` (with embeddings), `entities`, and `relationships`.
+  Response is `ProcessingResultsResponse` with `documentId` and `status`.
+- **Auth**: `x-internal-key` header with `auth.expressKey` from Python config (ADR-044)
+- **Status**: Approved — see PROC-002 in
+  `documentation/tasks/integration-lead-contracts.md`
 
 Indicative request body:
 
@@ -592,7 +600,8 @@ Indicative request body:
 }
 ```
 
-Expected response: `200 OK` on success; `4xx` on validation failure; `5xx` on write failure.
+Expected response: `200 OK` with `ProcessingResultsResponse`; `400` on validation failure;
+`401` on invalid auth; `500` on write failure.
 
 ---
 
@@ -803,7 +812,7 @@ and the CLI (ADR-042, ADR-044, ADR-045).
 
 **Auth middleware**: Every route validates the `x-internal-key` header against the configured
 shared key (ADR-044). Requests without a valid key receive `401 Unauthorized`. The key is
-read from config key `auth.internalKey`.
+read from config key `auth.inboundKey`.
 
 **FastAPI** is the web framework (confirmed technology constraint). The app is created in
 `app.py` and wired to both the pipeline orchestrator and the query handler at startup. All
@@ -814,24 +823,31 @@ at startup and injected into route handlers via FastAPI dependency injection.
 
 ### HTTP calls to Express required (C3)
 
-**C3-E1: Vector search callback**
+All contracts have been reviewed and approved by the Integration Lead. See
+`documentation/tasks/integration-lead-contracts.md` for full TypeScript interface definitions.
 
-- **Caller**: Python `query/query_handler.py`
+**C3-E1: Vector search callback (contract QUERY-001)**
+
+- **Caller**: Python `query/query_handler.py` via `shared/http_client.py`
 - **Direction**: Python → Express
 - **Purpose**: Python sends a query embedding to Express; Express performs the pgvector
   similarity search via the `VectorStore` interface and returns matching chunks
-- **Auth**: `x-internal-key` header with the Python-to-Express shared key (ADR-044)
-- **Flag**: PENDING Integration Lead contract — exact endpoint path, request schema,
-  response schema (particularly which document metadata fields are included), and
-  auth header name require Integration Lead approval
+- **Contract**: QUERY-001 (`POST /api/search/vector`). Request body is `VectorSearchRequest`
+  containing `embedding` (float array) and `topK` (max results). Response is
+  `VectorSearchResponse` containing `results` array, where each result includes `chunkId`,
+  `documentId`, `text`, `chunkIndex`, `tokenCount`, `similarityScore`, and a `document`
+  object with `description`, `date`, and `documentType`. Document metadata fields are joined
+  from the `documents` table so Python can assemble citations without a separate lookup.
+- **Auth**: `x-internal-key` header with `auth.expressKey` from Python config (ADR-044)
+- **Status**: Approved — see QUERY-001 in
+  `documentation/tasks/integration-lead-contracts.md`
 
 Indicative request body:
 
 ```json
 {
   "embedding": [0.1234, -0.5678],
-  "top_k": 20,
-  "filters": {}
+  "top_k": 20
 }
 ```
 
@@ -845,28 +861,35 @@ Indicative response body:
       "document_id": "<uuid>",
       "text": "...",
       "similarity_score": 0.92,
-      "metadata": {
-        "chunk_index": 0,
-        "token_count": 250,
-        "document_description": "Transfer of East Meadow",
-        "document_date": "1967-03-15"
+      "chunk_index": 0,
+      "token_count": 250,
+      "document": {
+        "description": "Transfer of East Meadow",
+        "date": "1967-03-15",
+        "document_type": null
       }
     }
   ]
 }
 ```
 
-**C3-E2: Graph traversal callback (Phase 2 — interface only in Phase 1)**
+**C3-E2: Graph traversal callback (contract QUERY-002 — Phase 2 stub)**
 
 - **Caller**: Python `query/query_handler.py` (Phase 2 only)
 - **Direction**: Python → Express
 - **Purpose**: Python calls Express to perform graph traversal via the `GraphStore` interface
   (ADR-037); not called in Phase 1 (pass-through router always returns `vector`)
+- **Contract**: QUERY-002 (`POST /api/search/graph`). Request body is `GraphSearchRequest`
+  containing `entityNames`, `maxDepth`, and optional `relationshipTypes`. Response is
+  `GraphSearchResponse` containing `entities` and `relationships` arrays. Both the Express
+  route and the Python stub are implemented in Phase 1 for testing, but the
+  `PassthroughQueryRouter` ensures this endpoint is never called in Phase 1 production.
 - **Phase 1 plan**: Define the interface contract in `query/query_handler.py` as a stub
   method `_graph_search()` that raises `NotImplementedError`; the pass-through router
   ensures it is never called in Phase 1
-- **Flag**: PENDING Integration Lead contract — endpoint path and request/response schema
-  are Phase 2 concerns but should be roughed out now for interface design purposes
+- **Auth**: `x-internal-key` header with `auth.expressKey` from Python config (ADR-044)
+- **Status**: Approved (Phase 2 stub) — see QUERY-002 in
+  `documentation/tasks/integration-lead-contracts.md`
 
 ---
 
@@ -904,7 +927,7 @@ and its adapters and factory are all under `shared/`, not `pipeline/`.
 
 `shared/http_client.py` — a thin wrapper around `httpx` (or `aiohttp`) that:
 
-- Reads the shared key from config (`auth.internalKey` or a per-pair key)
+- Reads the outbound key from config (`auth.expressKey`) for all Express-bound requests
 - Adds the `x-internal-key` header to every outgoing request
 - Provides methods for each Express callback: `post_processing_results(...)`,
   `vector_search(...)`, and (Phase 2 stub) `graph_search(...)`
@@ -945,7 +968,8 @@ class QueryConfig(BaseModel):
     synthesis: SynthesisConfig
 
 class AuthConfig(BaseModel):
-    internalKey: str
+    inboundKey: str   # validates incoming x-internal-key headers
+    expressKey: str   # used on outbound calls to Express
 
 class ServiceConfig(BaseModel):
     express_base_url: str
@@ -1027,7 +1051,12 @@ The following config keys are required in `settings.json` or `settings.override.
 
 **Auth**
 
-- `auth.internalKey` — the shared key for this service's inbound requests (ADR-044)
+- `auth.inboundKey` — the shared key for validating inbound requests from Next.js, Express,
+  and CLI (ADR-044); Python checks this against the `x-internal-key` header on incoming
+  requests
+- `auth.expressKey` — the shared key used on outbound calls to Express (processing results,
+  vector search, graph search); a different per-pair key that Express validates against
+  `auth.pythonKey` in its own config
 
 **Service**
 
@@ -1147,19 +1176,21 @@ pytest services/processing/tests/
 
 ## Open questions
 
-**OQ-1 (Integration Lead — blocking)**: `integration-lead-contracts.md` does not exist. All
-HTTP calls to Express (C2-E1, C2-E2, C3-E1, C3-E2 stub) are PENDING contract. The plan
-cannot be finalised until the Integration Lead has reviewed and approved these contracts.
-Specifically:
+**OQ-1 (Resolved — 2026-03-03)**: All four HTTP calls to Express are now covered by approved
+Integration Lead contracts in `documentation/tasks/integration-lead-contracts.md`:
 
-- C2-E1: How does Express deliver the document file to Python for OCR? Binary in request
-  body, or a shared filesystem path? If a path, does Python have read access to the document
-  storage area?
-- C2-E2: Exact endpoint path, full request schema (including how metadata field updates are
-  structured separately from chunk data), and response schema
-- C3-E1: Exact endpoint path, query embedding request schema, and response schema (which
-  document metadata fields are included alongside chunk text — particularly `document_date`
-  and `document_description` for citations)
+- C2-E1 → PROC-003: Express calls Python at `POST /process` with the document's filesystem
+  path (`fileReference`). Python reads the file from the shared Docker Compose volume mount.
+  No binary transfer over HTTP.
+- C2-E2 → PROC-002: Python POSTs processing results to `POST /api/processing/results` with
+  `ProcessingResultsRequest` schema (step results, flags, metadata, chunks with embeddings,
+  entities, relationships). Express writes atomically.
+- C3-E1 → QUERY-001: Python calls `POST /api/search/vector` with query embedding and `topK`.
+  Response includes chunk text, similarity score, and document metadata (description, date,
+  documentType) for citation assembly.
+- C3-E2 → QUERY-002 (Phase 2 stub): Python calls `POST /api/search/graph` with entity names
+  and traversal depth. Stubbed in Phase 1 (`_graph_search()` raises `NotImplementedError`);
+  the `PassthroughQueryRouter` ensures it is never called.
 
 **OQ-2 (Developer — note)**: The plan places `LLMService` in `shared/interfaces/` to satisfy
 the ADR-042 boundary. If the developer wishes to use different LLM interfaces for pipeline
@@ -1181,20 +1212,29 @@ pass (step 5) takes precedence; if step 5 yields no description, step 3 (pattern
 result is used; if neither detects a description, the original intake description is
 preserved.
 
-**OQ-6 (Integration Lead — note)**: ADR-044 specifies per-pair shared keys for independent
-rotation. The plan uses a single `auth.internalKey` in the Python config, which is the key
-validating inbound requests (Next.js → Python and Express → Python). Python also makes
-outbound requests to Express (processing results, vector search); the key for these calls
-may be a different per-pair key. The Integration Lead must clarify whether one or two keys
-are required in the Python config, and what the config key names are for each.
+**OQ-6 (Resolved — 2026-03-03)**: The Integration Lead confirmed that the Python service
+config requires two keys (see Python OQ-6 resolution in
+`documentation/tasks/integration-lead-contracts.md`):
+
+- `auth.inboundKey` — validates inbound requests from Next.js, Express, and CLI. Python
+  checks this against the `x-internal-key` header on incoming requests. One key covers all
+  inbound callers in Phase 1.
+- `auth.expressKey` — used by Python on outbound calls to Express (processing results,
+  vector search, graph search). This is a different per-pair key that Express validates
+  against `auth.pythonKey` in its config.
+
+Per-pair key independence is preserved at the config level. The AuthConfig Pydantic model
+and the HTTP client have been updated in this plan to reflect the two-key model.
 
 ---
 
 ## Handoff checklist
 
-- [ ] Integration Lead has reviewed all flagged HTTP calls to Express (OQ-1, C2-E1, C2-E2,
-      C3-E1, C3-E2 stub)
+- [x] Integration Lead has reviewed all flagged HTTP calls to Express (OQ-1, C2-E1, C2-E2,
+      C3-E1, C3-E2 stub) — all contracts approved 2026-03-03
 - [ ] ADR-042 module boundary respected throughout the plan — LLMService placement confirmed
       in shared/ (OQ-2)
-- [ ] All open questions resolved (OQ-1 through OQ-6)
+- [x] Integration Lead open questions resolved (OQ-1, OQ-6) — contracts and auth keys
+      confirmed 2026-03-03
+- [ ] Developer open questions resolved (OQ-2, OQ-3, OQ-4)
 - [ ] Developer has approved this plan
