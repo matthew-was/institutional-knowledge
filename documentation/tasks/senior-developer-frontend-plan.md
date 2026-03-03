@@ -267,19 +267,20 @@ The `/curation` root page serves as a navigation hub linking to `/curation/docum
 #### Document metadata edit
 
 - `DocumentMetadataForm` (Client Component) — editable form for document type, date, people,
-  land references, and description (US-082, UR-114); pre-populated from the document record
-  fetched via the API; on submit, PATCHes the metadata via the API; does not trigger
-  re-embedding (UR-062); displays a success message or error message on completion
+  organisations, land references, and description (US-082, UR-114); pre-populated from the
+  document record fetched via the API; on submit, PATCHes the metadata via the API; does not
+  trigger re-embedding (UR-062); displays a success message or error message on completion
 - `MetadataEditFields` — controlled inputs for each editable field; uses the same `date` input
   pattern as the intake form for the date field; description uses a `<textarea>`; document type
-  uses a text input (free-text string, per OQ-003 resolution); people and land references use
-  comma-separated text inputs that the form handler splits into JSON string arrays before
-  submission and joins for display (per OQ-002 resolution — stored as PostgreSQL `text[]`,
-  transmitted as JSON string arrays)
+  uses a text input (free-text string, per OQ-003 resolution); people, organisations, and land
+  references use comma-separated text inputs that the form handler splits into JSON string
+  arrays before submission and joins for display (per OQ-002 resolution — stored as PostgreSQL
+  `text[]`, transmitted as JSON string arrays)
 
-**OQ-002 resolved**: `people` and `land_references` are stored as PostgreSQL `text[]` (text
-arrays). The Express API accepts and returns them as JSON string arrays. The frontend renders
-them as comma-separated text inputs, splitting into arrays on submit and joining for display.
+**OQ-002 resolved**: `people`, `organisations`, and `land_references` are stored as PostgreSQL
+`text[]` (text arrays). The Express API accepts and returns them as JSON string arrays. The
+frontend renders them as comma-separated text inputs, splitting into arrays on submit and
+joining for display.
 
 **OQ-003 resolved**: `document_type` is a free-text string field in Phase 1 (not a controlled
 enumeration). The pattern-based metadata extraction step produces a detected document type as
@@ -390,6 +391,8 @@ Applied in `DocumentMetadataForm` before the PATCH call:
 - `people` — JSON string array (`string[]`); each element must be a non-empty string; the form
   handler splits a comma-separated text input into the array before submission (per OQ-002
   resolution)
+- `organisations` — JSON string array (`string[]`); each element must be a non-empty string;
+  same comma-separated input pattern as `people` (per DOC-007/DOC-009 contract)
 - `landReferences` — JSON string array (`string[]`); each element must be a non-empty string;
   same comma-separated input pattern as `people` (per OQ-002 resolution)
 
