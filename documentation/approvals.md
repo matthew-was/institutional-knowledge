@@ -23,6 +23,10 @@ The table below lists approved documents in precedence order. In case of contrad
 | `documentation/decisions/architecture-decisions.md` | Approved | 2026/03/02 |
 | `documentation/project/architecture.md` | Approved | 2026/03/02 |
 | `documentation/project/system-diagrams.md` | Approved | 2026/03/02 |
+| `documentation/tasks/senior-developer-frontend-plan.md` | Approved | 2026/03/03 |
+| `documentation/tasks/senior-developer-python-plan.md` | Approved | 2026/03/03 |
+| `documentation/tasks/integration-lead-contracts.md` | Approved | 2026/03/03 |
+| `documentation/tasks/integration-lead-backend-plan.md` | Approved | 2026/03/03 |
 
 ## Audit Log
 
@@ -70,4 +74,8 @@ The table below lists approved documents in precedence order. In case of contrad
 2026/03/02 - system-diagrams.md unapproved - Developer - upstream cascade from ADR-046; HoD review required to confirm system-diagrams.md is consistent with ADR-046
 2026/03/02 - architecture.md approved - Head of Development - ADR-046 is a tooling decision; no runtime architecture, component boundaries, or data flows affected; ADR range reference updated to ADR-046
 2026/03/02 - system-diagrams.md approved - Head of Development - ADR-046 is a tooling decision; no diagram content affected; ADR range reference updated to ADR-046
+2026/03/03 - senior-developer-frontend-plan.md approved - Developer - review complete; Integration Lead resolved OQ-001 to OQ-004; organisations field added to MetadataEditFields and MetadataEditSchema; readiness confirmed by Senior Developer Frontend agent
+2026/03/03 - senior-developer-python-plan.md approved - Developer - review complete; Integration Lead resolved OQ-1 and OQ-6; auth key model updated to auth.inboundKey/auth.expressKey; OQ-2/3/4 deferred to implementer; readiness confirmed by Senior Developer Python agent
+2026/03/03 - integration-lead-contracts.md approved - Developer - review complete; all contracts defined for DOC, VOC, PROC, QUERY, ING, ADMIN series; all frontend and Python open questions resolved
+2026/03/03 - integration-lead-backend-plan.md approved - Developer - review complete; all 10 self-review issues resolved; final consistency review passed; all 16 Express contracts covered; all 20 handlers described
 ```
