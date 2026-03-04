@@ -13,6 +13,7 @@
       "Bash(ls:*)",
       "Bash(tail:*)",
       "Bash(markdownlint:*)",
+      "Bash(date:*)",
       "Bash(python3:*)",
       "Edit(./*)",
       "Read(./*)",

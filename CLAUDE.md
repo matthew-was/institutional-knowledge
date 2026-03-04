@@ -46,8 +46,8 @@ This is the **Institutional Knowledge** project — a family document archiving 
 ### Quick Orientation
 
 - **Current phase**: Design complete. All agents and skills written. Ready to begin implementation planning.
-- **Design status**: All design documents approved (ADR-001 to ADR-046). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Invoke Senior Developer Frontend. See Current Next Steps below.
+- **Design status**: All design documents approved (ADR-001 to ADR-047). See [documentation/approvals.md](documentation/approvals.md).
+- **Next actionable step**: Begin implementation. All task lists ready. Resolve OQ-3 (embedding model) before Python Task 15/22. See Current Next Steps below.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -78,7 +78,7 @@ documentation/
 │   ├── system-diagrams.md        ← Visual diagrams (4 levels of detail)
 │   └── developer-context.md      ← Developer background
 ├── decisions/
-│   └── architecture-decisions.md ← All 46 ADRs (ADR-001 to ADR-046)
+│   └── architecture-decisions.md ← All 47 ADRs (ADR-001 to ADR-047)
 ├── requirements/
 │   ├── user-requirements.md      ← 138 requirements with Architectural Flags
 │   └── phase-1-user-stories.md   ← 101 user stories for Phase 1
@@ -109,11 +109,12 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 1. ✅ DONE: All skills written (14 total)
 2. ✅ DONE: All agents written (9 total) — ADR-001 to ADR-046 approved
 3. ✅ DONE: Head of Development reviewed `architecture.md` and `system-diagrams.md` for ADR-046 consistency; both re-approved 2026-03-02. Design phase complete.
-4. NEXT: Invoke Senior Developer Frontend to produce `documentation/tasks/senior-developer-frontend-plan.md`
-5. Then: Invoke Senior Developer Python to produce `documentation/tasks/senior-developer-python-plan.md`
-6. Then: Invoke Integration Lead to review plans, produce contracts and backend plan
-7. Then: Invoke Project Manager × 3 to decompose plans into task lists
-8. Then: Begin implementation with Implementer (frontend + backend) and Pair Programmer (Python)
+4. ✅ DONE: Senior Developer Frontend plan produced and approved (`documentation/tasks/senior-developer-frontend-plan.md`)
+5. ✅ DONE: Senior Developer Python plan produced and approved (`documentation/tasks/senior-developer-python-plan.md`)
+6. ✅ DONE: Integration Lead contracts and backend plan produced and approved
+7. ✅ DONE: Project Manager × 3 — all task lists produced (`frontend-tasks.md`, `python-tasks.md`, `backend-tasks.md`)
+8. ✅ DONE: ADR-047 (ESM module format) approved 2026-03-04
+9. NEXT: Begin implementation with Implementer (frontend + backend) and Pair Programmer (Python)
 
 ### Key Output Locations
 

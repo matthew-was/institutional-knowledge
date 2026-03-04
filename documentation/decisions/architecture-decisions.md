@@ -1540,3 +1540,30 @@ The shared-key pattern applies to all internal service boundaries:
 - Biome — selected; single tool, single config, production-ready TypeScript support, genuine learning value
 
 **Source**: Resolved 2026-03-02, agent finalisation phase. Cross-references ADR-003 (Next.js structural boundary), ADR-015 (monorepo layout).
+
+---
+
+### ADR-047: ESM Module Format for TypeScript Services
+
+**Decision**: Both `apps/frontend/` and `apps/backend/` use ECMAScript Modules (ESM). Each `package.json` sets `"type": "module"`. All imports use explicit `.js` extensions (required by the Node.js ESM resolver, even for TypeScript source files).
+
+**Context**: The project uses modern TypeScript tooling throughout — Biome (ADR-046), Vitest, tsx, pnpm workspaces (ADR-002). A module format decision is required before scaffolding begins; deferring it creates ambiguity about import syntax, `__dirname` availability, and tooling flags.
+
+**Rationale**: ESM is the current standard for Node.js. The chosen toolchain supports it natively: Vitest and tsx handle ESM without flags; Biome is format-agnostic. Adopting ESM now avoids a future migration and aligns with the direction of the Node.js ecosystem.
+
+**Implementation notes**:
+
+- `import.meta.url` replaces `__dirname` and `__filename`, which are not available in ESM
+- `nconf` ships CommonJS only; it is loaded via a dynamic `import()` call or a thin CommonJS-compatible wrapper at the config module boundary — this is an implementer decision
+- Knex is initialised programmatically using values from the nconf config singleton (`knex({ client: 'pg', connection: { ... } })`); no `knexfile.js` is used in production or test operation
+- A `knexfile.ts` may be provided as optional developer tooling for running `knex migrate:rollback` and similar CLI commands manually; it is not required for normal operation because migrations run via `knex.migrate.latest()` at Express startup
+- `packages/shared/` follows the same ESM convention so cross-package imports work without transformation
+
+**Risk accepted**: A small number of dependencies may ship CommonJS only. Dynamic `import()` or thin wrapper shims resolve these cases without requiring a project-wide format change.
+
+**Options considered**:
+
+- CommonJS — established; universally compatible; `require()` and `__dirname` available; not the direction of the ecosystem for new projects
+- ESM — selected; native Node.js standard; supported by all chosen tooling; no CJS-only blockers identified that cannot be shimmed
+
+**Source**: Resolved 2026-03-04, implementation planning phase. Cross-references ADR-002 (pnpm workspaces), ADR-015 (monorepo layout), ADR-046 (Biome).

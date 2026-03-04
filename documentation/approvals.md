@@ -20,7 +20,7 @@ The table below lists approved documents in precedence order. In case of contrad
 | `documentation/project/overview.md` | Approved | 2026/02/17 |
 | `documentation/requirements/user-requirements.md` | Approved | 2026/02/17 |
 | `documentation/requirements/phase-1-user-stories.md` | Approved | 2026/02/17 |
-| `documentation/decisions/architecture-decisions.md` | Approved | 2026/03/02 |
+| `documentation/decisions/architecture-decisions.md` | Approved | 2026/03/04 |
 | `documentation/project/architecture.md` | Approved | 2026/03/02 |
 | `documentation/project/system-diagrams.md` | Approved | 2026/03/02 |
 | `documentation/tasks/senior-developer-frontend-plan.md` | Approved | 2026/03/03 |
@@ -78,4 +78,6 @@ The table below lists approved documents in precedence order. In case of contrad
 2026/03/03 - senior-developer-python-plan.md approved - Developer - review complete; Integration Lead resolved OQ-1 and OQ-6; auth key model updated to auth.inboundKey/auth.expressKey; OQ-2/3/4 deferred to implementer; readiness confirmed by Senior Developer Python agent
 2026/03/03 - integration-lead-contracts.md approved - Developer - review complete; all contracts defined for DOC, VOC, PROC, QUERY, ING, ADMIN series; all frontend and Python open questions resolved
 2026/03/03 - integration-lead-backend-plan.md approved - Developer - review complete; all 10 self-review issues resolved; final consistency review passed; all 16 Express contracts covered; all 20 handlers described
+2026/03/04 - architecture-decisions.md unapproved - Developer - ADR-047 added (ESM module format for TypeScript services); requires re-approval
+2026/03/04 - architecture-decisions.md approved - Developer - ADR-047 is additive; no impact on existing ADRs, runtime architecture, or data flows; re-approved immediately
 ```
