@@ -10,13 +10,12 @@ Draft — 2026-03-04
 
 ## Flagged issues
 
-**F-001 — ESM vs CommonJS (Open Question 1 from backend plan)**
+**F-001 — ESM vs CommonJS (resolved by ADR-047)**
 
-The backend plan defers the ESM vs CommonJS decision to a "scaffolding session" (noted in
-CLAUDE.md). This decision must be made before Task 1 (project scaffolding) can be completed.
-The backend plan is module-format-agnostic, but the scaffold (`package.json`, tsconfig, Knex
-wiring, and Biome configuration) cannot be finalised without it. The developer must resolve
-this — and ideally capture it as ADR-047 — before implementation begins.
+ADR-047 (approved 2026-03-04) resolves this: both `apps/frontend/` and `apps/backend/` use
+ESM (`"type": "module"` in `package.json`). All imports use explicit `.js` extensions.
+`import.meta.url` replaces `__dirname`/`__filename`. This flag is informational only —
+no action required before Task 1.
 
 **F-002 — Knex config wiring (Open Question 2 from backend plan)**
 
@@ -28,14 +27,15 @@ comment in the Knex initialisation module.
 
 **F-003 — `packages/shared/` archive reference function**
 
-The backend plan (Open Question 4) notes that the `archiveReference` derivation function lives
-in `packages/shared/` and must be importable by both `apps/frontend/` and `apps/backend/`. The
-backend task list assumes `packages/shared/` exists and exports this function; however, no
-backend task or frontend task explicitly creates it. The frontend task list likely includes
-this (Task 1 of the frontend plan covers shared types), but this cross-service dependency
-should be confirmed. If `packages/shared/` is not set up before Task 2 (migration), handlers
-that derive archive references will not compile. This dependency is flagged for the developer
-to confirm against the frontend task list before starting Task 8 (document handlers).
+The `archiveReference` derivation function (`YYYY-MM-DD — [description]` or
+`[undated] — [description]`) must live in `packages/shared/` and be importable by
+`apps/backend/`. The frontend displays `archiveReference` as a value returned by the API and
+does not call the derivation function directly — this is a backend-only dependency. No existing
+backend task explicitly creates `packages/shared/` or the derivation function. The developer
+must treat this as pre-work for Task 8 (document upload handlers): create the
+`packages/shared/` package with the `archiveReference` function before starting Task 8.
+The pnpm workspace root `package.json` must reference `packages/shared/` for cross-package
+imports to resolve in `apps/backend/`.
 
 ---
 
@@ -71,8 +71,8 @@ Specifically:
 - Create the Express entry point `src/index.ts`: loads config, validates it with Zod, connects
   to the database, runs migrations, runs startup sweeps (stubs — sweeps implemented in Task 8),
   conditionally runs seeds, starts the HTTP server
-- Confirm the module format (ESM or CommonJS) is set correctly in `package.json` — see Flagged
-  Issue F-001; this must be decided before this task can be completed
+- Set `"type": "module"` in `package.json` (ESM — resolved by ADR-047). All imports must use
+  explicit `.js` extensions. Use `import.meta.url` in place of `__dirname`/`__filename`
 
 **Depends on**: none
 
@@ -958,7 +958,7 @@ in the database with status `finalized`.
 - Auth required (standard shared-key auth applies)
 - Execute `REINDEX INDEX CONCURRENTLY` on the IVFFlat index on `embeddings.embedding` via
   `knex.raw`
-- Return `{ status: 'reindexing' }` immediately
+- Return `{ reindexed: true }` immediately (per ADMIN-001 contract: `{ reindexed: boolean }`)
 
 Register both endpoints on their respective routers (`/api/health` and `/api/admin`).
 
@@ -969,7 +969,7 @@ Register both endpoints on their respective routers (`/api/health` and `/api/adm
 **Acceptance condition**: Vitest unit test confirms:
 (a) `healthCheck`: returns `{ status: 'ok', timestamp: <ISO string> }`.
 (b) `reindexEmbeddings`: calls `knex.raw` with a query containing `REINDEX INDEX
-CONCURRENTLY`; returns `{ status: 'reindexing' }`.
+CONCURRENTLY`; returns `{ reindexed: true }`.
 
 Integration test (real database): call `POST /api/admin/reindex-embeddings` against a real
 database that has the embeddings IVFFlat index (from migration 004); verify the command

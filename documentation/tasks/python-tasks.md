@@ -50,7 +50,7 @@ plan's module structure. This includes all subdirectory placeholders:
 Create the root-level files: `app.py` (empty skeleton), `settings.json` (with all required
 config keys from the plan's "Dynaconf keys required" section populated with placeholder or
 default values), `requirements.txt` (listing `fastapi`, `uvicorn`, `dynaconf`, `pydantic`,
-`httpx`, `pytest`, `pytest-asyncio`, `python-multipart`, `docling`, `pytesseract`),
+`httpx`, `pytest`, `pytest-asyncio`, `python-multipart`, `docling`, `pytesseract`, `ruff`),
 `Dockerfile` (multi-stage: install dependencies, copy source, expose port 8000, run with
 uvicorn), and `pytest.ini` (registers the `integration` marker).
 
@@ -995,3 +995,29 @@ found.
 **Status**: not_started
 
 ---
+
+### Task 24: Ruff linting and formatting quality gate
+
+**Description**: Configure Ruff as the linter and formatter for the Python processing service
+(ADR-046 mandates Ruff for `services/processing/`). Create `services/processing/ruff.toml`
+(or a `[tool.ruff]` section in `pyproject.toml`) with the following configuration:
+
+- `line-length = 100`
+- `select = ["E", "F", "I"]` — pycodestyle errors, Pyflakes, and isort
+- `target-version` set to match the Python version in the Dockerfile
+
+All source files must pass `ruff check` with zero violations. All source files must be
+formatted with `ruff format`. Document the lint and format commands in the project
+`README` or `Makefile`.
+
+**Depends on**: Task 21 (unit test suite complete — all source files exist)
+
+**Complexity**: S
+
+**Acceptance condition**: Running `ruff check services/processing/` from the repository root
+reports zero violations. Running `ruff format --check services/processing/` reports zero
+unformatted files. A `ruff.toml` or equivalent config file exists in `services/processing/`.
+
+**Condition type**: automated
+
+**Status**: not_started

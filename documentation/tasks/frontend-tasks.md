@@ -28,6 +28,8 @@ wraps Next.js and must be the entry point (i.e. `node server.ts` or equivalent, 
 the custom server. Add `swr` as a production dependency for client-side data fetching
 in the curation UI. Add `pino` as a production dependency for server-side logging. The
 project must sit within the pnpm monorepo workspace defined at the repository root.
+Set `"type": "module"` in `package.json` (ESM — resolved by ADR-047). All imports must use
+explicit `.js` extensions. Use `import.meta.url` in place of `__dirname`/`__filename`.
 Do not configure any application routes, components, or API routes in this task — only
 the project skeleton, tooling, and server entry point.
 
@@ -355,7 +357,7 @@ The handler must:
    metadata fields (date, description).
 2. Call Express `POST /api/documents` via `apiClient` to initiate the document record
    (DOC-001). Use the `x-internal-key` header (injected automatically by `apiClient`).
-3. Call Express `PUT /api/documents/:uploadId/file` via `apiClient` to upload the
+3. Call Express `POST /api/documents/:uploadId/upload` via `apiClient` to upload the
    file bytes (DOC-002).
 4. Call Express `POST /api/documents/:uploadId/finalize` via `apiClient` to finalize
    the record (DOC-003).
@@ -409,7 +411,9 @@ Create the following components:
   in the queue. Displays: document description, date, flag reason (full text, including
   failing pages where applicable per UR-051/UR-055), and submitter identity. Provides a
   "Clear flag" action button (rendered as `ClearFlagButton`) and a "Edit metadata" link
-  to `/curation/documents/:id`.
+  to `/curation/documents/:id`. The DOC-006 contract also returns `pipelineStatus` (a
+  summary string of pipeline progress) per document — display this field alongside the
+  flag reason so the curator can see where processing reached before the flag was raised.
 
 - `ClearFlagButton` (Client Component, `curation/ClearFlagButton.tsx`) — posts to
   `/api/curation/documents/:id/clear-flag`. On success, calls a callback prop to
@@ -428,7 +432,7 @@ upload schemas from Task 4) matching the DOC-006 contract shape.
 
 **Acceptance condition**: Vitest + React Testing Library component tests exist covering:
 (a) `DocumentQueueList` renders a list of flagged documents from a mocked SWR response,
-showing description, date, flag reason, and submitter identity for each; (b) empty queue
+showing description, date, flag reason, pipeline status, and submitter identity for each; (b) empty queue
 shows an empty-state message; (c) fetch failure shows error state with a retry button
 (not an empty list); (d) `ClearFlagButton` shows loading state while the request is
 in-flight; (e) after a successful clear-flag call, the queue re-fetch callback is
