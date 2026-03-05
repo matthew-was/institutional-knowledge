@@ -25,17 +25,38 @@ decision. This is an acceptable implementation-level choice and does not require
 The implementer should document the chosen approach (programmatic or knexfile) in a code
 comment in the Knex initialisation module.
 
-**F-003 — `packages/shared/` archive reference function**
+**F-003 — `packages/shared/` archive reference function (resolved)**
 
-The `archiveReference` derivation function (`YYYY-MM-DD — [description]` or
-`[undated] — [description]`) must live in `packages/shared/` and be importable by
-`apps/backend/`. The frontend displays `archiveReference` as a value returned by the API and
-does not call the derivation function directly — this is a backend-only dependency. No existing
-backend task explicitly creates `packages/shared/` or the derivation function. The developer
-must treat this as pre-work for Task 8 (document upload handlers): create the
-`packages/shared/` package with the `archiveReference` function before starting Task 8.
-The pnpm workspace root `package.json` must reference `packages/shared/` for cross-package
-imports to resolve in `apps/backend/`.
+~~The `archiveReference` derivation function must live in `packages/shared/` and be importable
+by `apps/backend/`. No existing backend task explicitly creates `packages/shared/` or the
+derivation function.~~
+
+Resolved: the Platform Engineer agent creates `packages/shared/` (including
+`archiveReference`) during the scaffolding phase, which must complete before Task 1. By the
+time the backend Implementer reaches Task 8 (document upload handlers), `archiveReference`
+is already available as `@institutional-knowledge/shared`. No pre-work is required from the
+Implementer.
+
+---
+
+## Prerequisites
+
+**Platform Engineer scaffolding must complete before Task 1 can begin.**
+
+The Platform Engineer agent is responsible for:
+
+- Creating the pnpm workspace root (`pnpm-workspace.yaml`, root `package.json`, root
+  `tsconfig.json`, root `biome.json`)
+- Creating the `packages/shared/` skeleton including the `archiveReference` function
+  (resolves F-003 above)
+
+Task 1 depends on these files existing so that `apps/backend/` can extend the root
+`tsconfig.json` and `biome.json`, and so that `@institutional-knowledge/shared` is
+importable from Task 8 onward. Running `pnpm install` at the workspace root must succeed
+before backend dependency installation is meaningful.
+
+Once the Platform Engineer confirms scaffolding is complete, remove this section (or mark
+it done) and proceed with Task 1.
 
 ---
 
@@ -73,8 +94,12 @@ Specifically:
   conditionally runs seeds, starts the HTTP server
 - Set `"type": "module"` in `package.json` (ESM — resolved by ADR-047). All imports must use
   explicit `.js` extensions. Use `import.meta.url` in place of `__dirname`/`__filename`
+- `apps/backend/tsconfig.json` must extend the root `tsconfig.json` created by the Platform
+  Engineer; do not redefine settings already set at the root
+- `apps/backend/biome.json` must extend the root `biome.json` created by the Platform
+  Engineer; do not redefine settings already set at the root
 
-**Depends on**: none
+**Depends on**: Platform Engineer scaffolding phase complete
 
 **Complexity**: M
 

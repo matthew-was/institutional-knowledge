@@ -30,6 +30,7 @@ Agents have no memory between sessions. Each conversation starts fresh. To re-es
 | Product Owner | [project/overview.md](../project/overview.md) |
 | Head of Development | `documentation/requirements/user-requirements.md`, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md), [process/development-principles.md](development-principles.md) |
 | Integration Lead | `documentation/requirements/user-requirements.md`, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md), [project/architecture.md](../project/architecture.md), component specifications (written by Senior Developers) |
+| Platform Engineer | [project/architecture.md](../project/architecture.md), approved task lists; for dependency review: existing `package.json` and `pyproject.toml` files |
 | Senior Developer | Component specification (written by this agent), `documentation/requirements/phase-1-user-stories.md`, [decisions/architecture-decisions.md](../decisions/architecture-decisions.md), Integration Lead contracts |
 | Project Manager | Senior Developer implementation plan |
 | Implementer / Pair Programmer | Project Manager task list, component specification |
@@ -162,7 +163,61 @@ The project grew from informal design conversations scattered across multiple ch
 
 ---
 
-### 4. Senior Developer Agent (Template — One Per Component)
+### 4. Platform Engineer Agent
+
+**File**: `.claude/agents/platform-engineer.md`
+
+**Responsibility**: Own the platform layer — everything that sits above and between the
+four service directories. Does not write application code and does not make architectural
+decisions about services, APIs, or data access patterns.
+
+**Four phases (each independently invocable):**
+
+1. **Monorepo root scaffolding** — creates `pnpm-workspace.yaml`, root `package.json`,
+   root `tsconfig.json`, root `biome.json`, and the `packages/shared/` skeleton
+   (including `archiveReference`). Must complete before any Implementer or Pair Programmer
+   session begins.
+
+2. **Docker Compose** — creates `docker-compose.yml` for the local development environment
+   (PostgreSQL + pgvector, backend, frontend, Python processing service) and `.env.example`
+   documenting all required environment variables.
+
+3. **GitHub Actions CI/CD** — creates `.github/workflows/ci.yml` (lint, type-check, and
+   test jobs for all services on every push; PR gate to `main`) and
+   `.github/workflows/dependency-audit.yml` (weekly scheduled audit report).
+
+4. **Dependency update review** — on-demand; reads all `package.json` files and
+   `pyproject.toml`/`requirements.txt`, fetches current and latest versions, assesses
+   security advisories against actual code usage, and writes a structured recommendation
+   report. Does not create tasks or upgrade packages.
+
+**When to invoke**:
+
+- Scaffolding phase: immediately after all task lists are approved, before Implementer
+  Task 1 for either frontend or backend
+- Docker Compose and CI/CD phases: any time after scaffolding; can overlap with
+  Implementer work
+- Dependency review: on-demand, any time during or after implementation
+
+**Inputs**: `documentation/project/architecture.md`, approved task lists, existing
+`package.json` and `pyproject.toml` files (dependency review phase)
+
+**Output locations**:
+
+- `pnpm-workspace.yaml` — workspace root
+- `package.json`, `tsconfig.json`, `biome.json` — workspace root
+- `packages/shared/src/archiveReference.ts` — shared utility
+- `docker-compose.yml`, `.env.example` — repository root
+- `.github/workflows/ci.yml`, `.github/workflows/dependency-audit.yml`
+- `documentation/tasks/dependency-review-YYYY-MM-DD.md` — dependency review reports
+
+**Key constraint**: Does not modify approved design documents or task lists (except to
+update prerequisite status notes in `frontend-tasks.md` and `backend-tasks.md` once
+scaffolding is confirmed complete).
+
+---
+
+### 5. Senior Developer Agent (Template — One Per Component)
 
 **File template**: `.claude/agents/senior-developer-template.md`
 
@@ -327,6 +382,10 @@ Integration Lead validates data access contracts
   ↓ [DoD: contracts approved, no outstanding data access queries]
 Project Manager creates task breakdown
   ↓ [DoD: every task has an acceptance condition, reviewed by developer]
+Platform Engineer — monorepo root scaffolding          ← ONE-TIME; gates all Implementer Task 1s
+  ↓ [DoD: workspace root, packages/shared/, biome.json, tsconfig.json exist; pnpm install passes]
+Platform Engineer — Docker Compose and CI/CD           ← can run concurrently with Implementer
+  ↓ [DoD: docker-compose.yml, .env.example, .github/workflows/ exist]
 Implementer agent writes code + tests
   ↓ [DoD: all tasks complete, tests passing, no skipped tests]
 Code Reviewer validates quality & security
@@ -347,6 +406,8 @@ Integration Lead validates data access contracts
   ↓ [DoD: contracts approved, no outstanding data access queries]
 Project Manager creates task breakdown
   ↓ [DoD: every task has an acceptance condition, reviewed by developer]
+Platform Engineer — monorepo root scaffolding          ← shared with C1; only run once
+  ↓ [DoD: workspace root complete — skip if already done]
 Developer implements with Pair Programmer support (task by task)
   ↓ [DoD: all tasks complete, tests passing, developer understands what was built]
 Code Reviewer validates quality & security

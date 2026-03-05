@@ -37,6 +37,33 @@ can be started.
 
 ---
 
+## Prerequisites
+
+**Platform Engineer scaffolding (Phase 1) must complete before Task 1 can begin.**
+
+The Platform Engineer agent is responsible for:
+
+- Creating `services/processing/.python-version` — the canonical Python version pin
+  referenced by the Dockerfile, the CI `setup-python` action, and Ruff's `target-version`
+- Creating the root `.gitignore` (includes Python-specific entries: `__pycache__/`,
+  `*.pyc`, `.venv/`)
+
+**Platform Engineer Docker Compose (Phase 2) should complete before integration testing
+begins (Task 22 and Task 23).**
+
+The Platform Engineer is responsible for:
+
+- Creating `services/processing/Dockerfile` — the Pair Programmer inherits this rather
+  than writing it
+- Adding an `ollama` service to `docker-compose.yml` so integration tests have a running
+  Ollama instance available via `http://ollama:11434` inside the Compose network
+
+Once the Platform Engineer confirms Phase 1 scaffolding is complete, remove this section
+(or mark it done) and proceed with Task 1. Docker Compose Phase 2 is not required before
+Tasks 1–21 and can be completed concurrently with implementation.
+
+---
+
 ## Tasks
 
 ### Task 1: Service scaffolding and project structure
@@ -51,14 +78,22 @@ Create the root-level files: `app.py` (empty skeleton), `settings.json` (with al
 config keys from the plan's "Dynaconf keys required" section populated with placeholder or
 default values), `requirements.txt` (listing `fastapi`, `uvicorn`, `dynaconf`, `pydantic`,
 `httpx`, `pytest`, `pytest-asyncio`, `python-multipart`, `docling`, `pytesseract`, `ruff`),
-`Dockerfile` (multi-stage: install dependencies, copy source, expose port 8000, run with
-uvicorn), and `pytest.ini` (registers the `integration` marker).
+and `pytest.ini` (registers the `integration` marker).
+
+**Note on Dockerfile**: `services/processing/Dockerfile` is created by the Platform
+Engineer during the Docker Compose phase (Phase 2), not by the Pair Programmer. The
+Dockerfile references `services/processing/.python-version` (created by the Platform
+Engineer in Phase 1 scaffolding) as the canonical Python version. The Pair Programmer
+owns `requirements.txt` and the application code; the Platform Engineer owns the
+container definition. If the Platform Engineer's Docker Compose phase has not yet run,
+the Pair Programmer may stub out a minimal `Dockerfile` for local testing, clearly
+marking it as temporary.
 
 Add `__init__.py` files in every Python package directory. Do not implement any logic yet —
 the goal is a runnable (but empty) service skeleton that passes `pytest -m "not integration"
 services/processing/tests/` with zero failures and zero errors.
 
-**Depends on**: none
+**Depends on**: Platform Engineer scaffolding phase complete
 
 **Complexity**: S
 
@@ -1004,7 +1039,9 @@ found.
 
 - `line-length = 100`
 - `select = ["E", "F", "I"]` — pycodestyle errors, Pyflakes, and isort
-- `target-version` set to match the Python version in the Dockerfile
+- `target-version` set to match the Python version in `services/processing/.python-version`
+  (created by Platform Engineer in Phase 1 scaffolding — this is the canonical version
+  reference for Ruff, the Dockerfile, and CI)
 
 All source files must pass `ruff check` with zero violations. All source files must be
 formatted with `ruff format`. Document the lint and format commands in the project
