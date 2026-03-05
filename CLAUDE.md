@@ -59,6 +59,15 @@ This is the **Institutional Knowledge** project — a family document archiving 
 | C3 | Query & Retrieval | Skill written, spec not started |
 | C4 | Continuous Ingestion | Placeholder (Phase 2+) |
 
+### Monorepo Layout (ADR-015)
+
+```text
+apps/frontend/        # Next.js
+apps/backend/         # Express
+packages/shared/      # Shared TS types + Zod schemas
+services/processing/  # Python (own virtualenv, Dockerfile)
+```
+
 ### Core Principle
 
 **Infrastructure as Configuration**: every external service (storage, database, OCR, embedding, LLM) is abstracted via an interface. Concrete implementation is selected at runtime via config. No hardcoded providers.
@@ -104,31 +113,17 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **All agents and skills written.** Design phase complete.
 
-**Current next steps:**
-
-1. ✅ DONE: All skills written (14 total)
-2. ✅ DONE: All agents written (10 total) — ADR-001 to ADR-047 approved
-3. ✅ DONE: Head of Development reviewed `architecture.md` and `system-diagrams.md` for ADR-046 consistency; both re-approved 2026-03-02. Design phase complete.
-4. ✅ DONE: Senior Developer Frontend plan produced and approved (`documentation/tasks/senior-developer-frontend-plan.md`)
-5. ✅ DONE: Senior Developer Python plan produced and approved (`documentation/tasks/senior-developer-python-plan.md`)
-6. ✅ DONE: Integration Lead contracts and backend plan produced and approved
-7. ✅ DONE: Project Manager × 3 — all task lists produced (`frontend-tasks.md`, `python-tasks.md`, `backend-tasks.md`)
-8. ✅ DONE: ADR-047 (ESM module format) approved 2026-03-04
-9. ✅ DONE: Platform Engineer agent added 2026-03-05 — resolves monorepo scaffolding ownership gap; all task lists updated with Prerequisites sections
-10. NEXT: Invoke Platform Engineer Phase 1 (monorepo scaffolding), then Implementer (frontend + backend) and Pair Programmer (Python)
+**Current next step:** Invoke Platform Engineer Phase 1 (monorepo scaffolding), then Implementer (frontend + backend) and Pair Programmer (Python). Resolve OQ-3 (embedding model) before Python Task 15/22.
 
 ### Key Output Locations
 
 As agents complete their phases, outputs are written here:
 
 ```text
-documentation/
-├── requirements/
-│   ├── user-requirements.md       ← Product Owner (Step 1) — authoritative scope baseline
-│   └── phase-1-user-stories.md    ← Product Owner (Step 2)
-└── tasks/
-    ├── component-1-tasks.md       ← Project Manager (Step 10)
-    └── component-2-tasks.md       ← Project Manager (Step 18)
+documentation/tasks/
+├── frontend-tasks.md     ← 21 tasks (Next.js frontend)
+├── python-tasks.md       ← 23 tasks (Python processing service)
+└── backend-tasks.md      ← 19 tasks (Express backend)
 ```
 
 These documents are the handoff mechanism between agents. Each subsequent agent reads from the relevant output documents of prior phases. When starting a new agent session, pass the appropriate documents as context — see [documentation/process/agent-workflow.md](documentation/process/agent-workflow.md) for the per-agent context table.
