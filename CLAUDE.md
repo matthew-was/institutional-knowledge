@@ -45,9 +45,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Design complete. All agents and skills written. Ready to begin implementation planning.
+- **Current phase**: Implementation ready. All agents, skills, and task lists complete. Platform Engineer agent added 2026-03-05.
 - **Design status**: All design documents approved (ADR-001 to ADR-047). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Begin implementation. All task lists ready. Resolve OQ-3 (embedding model) before Python Task 15/22. See Current Next Steps below.
+- **Next actionable step**: Invoke Platform Engineer Phase 1 (monorepo scaffolding) first, then Implementer (frontend + backend) and Pair Programmer (Python). Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -83,7 +83,7 @@ documentation/
 │   ├── user-requirements.md      ← 138 requirements with Architectural Flags
 │   └── phase-1-user-stories.md   ← 101 user stories for Phase 1
 ├── process/
-│   ├── agent-workflow.md         ← 8-agent workflows and role definitions
+│   ├── agent-workflow.md         ← 10-agent workflows and role definitions (incl. Platform Engineer)
 │   ├── skills-catalogue.md       ← All identified skills and creation order
 │   └── development-principles.md ← Core principles and constraints
 └── tasks/                        ← Created during implementation phases
@@ -100,21 +100,22 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 **Existing `.claude/` files (do not recreate):**
 
 - Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `notion-lab-entry.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`
-- Agents: `product-owner.md`, `head-of-development.md`, `integration-lead.md`, `senior-developer-frontend.md`, `senior-developer-python.md`, `project-manager.md`, `implementer.md`, `pair-programmer.md`, `code-reviewer.md`
+- Agents: `product-owner.md`, `head-of-development.md`, `integration-lead.md`, `senior-developer-frontend.md`, `senior-developer-python.md`, `project-manager.md`, `implementer.md`, `pair-programmer.md`, `code-reviewer.md`, `platform-engineer.md`
 
 **All agents and skills written.** Design phase complete.
 
 **Current next steps:**
 
 1. ✅ DONE: All skills written (14 total)
-2. ✅ DONE: All agents written (9 total) — ADR-001 to ADR-046 approved
+2. ✅ DONE: All agents written (10 total) — ADR-001 to ADR-047 approved
 3. ✅ DONE: Head of Development reviewed `architecture.md` and `system-diagrams.md` for ADR-046 consistency; both re-approved 2026-03-02. Design phase complete.
 4. ✅ DONE: Senior Developer Frontend plan produced and approved (`documentation/tasks/senior-developer-frontend-plan.md`)
 5. ✅ DONE: Senior Developer Python plan produced and approved (`documentation/tasks/senior-developer-python-plan.md`)
 6. ✅ DONE: Integration Lead contracts and backend plan produced and approved
 7. ✅ DONE: Project Manager × 3 — all task lists produced (`frontend-tasks.md`, `python-tasks.md`, `backend-tasks.md`)
 8. ✅ DONE: ADR-047 (ESM module format) approved 2026-03-04
-9. NEXT: Begin implementation with Implementer (frontend + backend) and Pair Programmer (Python)
+9. ✅ DONE: Platform Engineer agent added 2026-03-05 — resolves monorepo scaffolding ownership gap; all task lists updated with Prerequisites sections
+10. NEXT: Invoke Platform Engineer Phase 1 (monorepo scaffolding), then Implementer (frontend + backend) and Pair Programmer (Python)
 
 ### Key Output Locations
 
