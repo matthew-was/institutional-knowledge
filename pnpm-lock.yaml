@@ -23,6 +23,9 @@ importers:
       express:
         specifier: 4.21.2
         version: 4.21.2
+      json5:
+        specifier: ^2.2.3
+        version: 2.2.3
       knex:
         specifier: 3.1.0
         version: 3.1.0(pg@8.13.3)
@@ -838,6 +841,11 @@ packages:
 
   isarray@1.0.0:
     resolution: {integrity: sha1-u5NdSFgsuhaMBoNJV6VKPgcSTxE=}
+
+  json5@2.2.3:
+    resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
+    engines: {node: '>=6'}
+    hasBin: true
 
   knex@3.1.0:
     resolution: {integrity: sha512-GLoII6hR0c4ti243gMs5/1Rb3B+AjwMOfjYm97pu0FOQa7JH56hgBxYf5WK2525ceSbBY1cjeZ9yk99GPMB6Kw==}
@@ -2014,6 +2022,8 @@ snapshots:
   is-fullwidth-code-point@3.0.0: {}
 
   isarray@1.0.0: {}
+
+  json5@2.2.3: {}
 
   knex@3.1.0(pg@8.13.3):
     dependencies:

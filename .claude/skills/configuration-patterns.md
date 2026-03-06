@@ -247,43 +247,43 @@ export type StorageConfig = z.infer<typeof StorageConfigSchema>;
 
 Base configuration file (built into Docker image):
 
-```json
-// config.json (in project root)
+```json5
+// config.json5 (in project root)
 {
-  "storage": {
-    "provider": "local",
-    "basePath": "./storage"
+  storage: {
+    provider: "local",
+    basePath: "./storage",
   },
-  "database": {
-    "host": "localhost",
-    "port": 5432,
-    "name": "institutional_knowledge"
-  }
+  database: {
+    host: "localhost",
+    port: 5432,
+    name: "institutional_knowledge",
+  },
 }
 ```
 
 For production or environment-specific overrides, use a volume-mounted config file (see **Docker & Runtime Configuration** section below):
 
-```json
-// docker/config.override.json (volume-mounted at runtime)
+```json5
+// docker/config.override.json5 (volume-mounted at runtime)
 {
-  "storage": {
-    "provider": "s3",
-    "bucket": "institutional-knowledge-prod",
-    "region": "us-east-1"
+  storage: {
+    provider: "s3",
+    bucket: "institutional-knowledge-prod",
+    region: "us-east-1",
   },
-  "database": {
-    "host": "db.internal",
-    "port": 5432,
-    "name": "institutional_knowledge_prod"
-  }
+  database: {
+    host: "db.internal",
+    port: 5432,
+    name: "institutional_knowledge_prod",
+  },
 }
 ```
 
 **Notes:**
 
-- Base `config.json` is in the project root and built into the Docker image
-- Override `config.override.json` is volume-mounted at `/etc/app/config.override.json` at runtime
+- Base `config.json5` is in the project root and built into the Docker image
+- Override `config.override.json5` is volume-mounted at runtime
 - `nconf` merges both: base config is the foundation, override file provides environment-specific values
 - Environment variables can override anything (e.g., `STORAGE_PROVIDER=s3`)
 - See **Docker & Runtime Configuration** section for the complete setup pattern
@@ -902,11 +902,11 @@ nconf
   .argv()  // command-line args (highest priority)
   .env('__')  // environment variables with '__' separator (shell-friendly)
   .file('environment', {
-    file: 'config.override.json',  // volume-mounted override
+    file: 'config.override.json5',  // volume-mounted override
     format: JSON5,
   })
   .file('default', {
-    file: 'config.json',  // base config (in project root)
+    file: 'config.json5',  // base config (in project root)
     format: JSON5,
   });
 
@@ -945,7 +945,7 @@ services:
     environment:
       NODE_ENV: production
     volumes:
-      - ./docker/config.override.json:./config.override.json:ro
+      - ./apps/backend/config.override.json5:/app/apps/backend/config.override.json5:ro
     ports:
       - "3000:8080"
 ```
@@ -953,25 +953,25 @@ services:
 **Notes:**
 
 - `:ro` flag makes the mounted volume read-only (prevents accidental modification)
-- `./docker/config.override.json` is on the host machine
-- `./config.override.json` inside container is where the `Config` class looks for overrides
-- Base `config.json` stays in the Docker image (built at image build time)
+- `./apps/backend/config.override.json5` is on the host machine
+- `/app/apps/backend/config.override.json5` inside container is where nconf looks for overrides
+- Base `config.json5` stays in the Docker image (built at image build time)
 - Override file can be changed on the host without rebuilding the image
 - Config class validates both files at startup; app fails fast if config is invalid
 
 ### Base Config Example
 
-```json
-// config.json (in project root, built into image)
+```json5
+// config.json5 (in project root, built into image)
 {
-  "server": {
-    "port": 3000
+  server: {
+    port: 3000,
   },
-  "storage": {
-    "provider": "local",
-    "basePath": "./storage"
+  storage: {
+    provider: "local",
+    basePath: "./storage",
   },
-  "database": {
+  database: {
     "host": "localhost",
     "port": 5432,
     "name": "institutional_knowledge"
@@ -981,19 +981,19 @@ services:
 
 ### Override Config Example
 
-```json
-// docker/config.override.json (volume-mounted at runtime)
+```json5
+// config.override.json5 (volume-mounted at runtime)
 {
-  "storage": {
-    "provider": "s3",
-    "bucket": "institutional-knowledge-prod",
-    "region": "us-east-1"
+  storage: {
+    provider: "s3",
+    bucket: "institutional-knowledge-prod",
+    region: "us-east-1",
   },
-  "database": {
-    "host": "db.internal",
-    "port": 5432,
-    "name": "institutional_knowledge_prod"
-  }
+  database: {
+    host: "db.internal",
+    port: 5432,
+    name: "institutional_knowledge_prod",
+  },
 }
 ```
 
@@ -1180,7 +1180,7 @@ db = create_database_connection(config.database_config)
 - **Security**: Sensitive values (database URLs, API keys) in override file, not in version control
 - **Environment parity**: Same image deployed to dev/staging/prod with different override files
 - **Validation**: Use Pydantic to validate final merged config at startup (fails fast if config is wrong)
-- **Consistency**: Same pattern as TypeScript backend (`config.json` + `config.override.json`)
+- **Consistency**: Same pattern as TypeScript backend (`config.json5` + `config.override.json5`)
 
 ---
 

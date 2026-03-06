@@ -103,7 +103,7 @@ Actions `setup-python` step in the CI workflow, and the `target-version` in
 multiple places.
 
 **`.gitignore`** — if not already present at the root. Must include: `node_modules/`,
-`dist/`, `build/`, `.env`, `config.override.json`, `*.local.json`, `coverage/`,
+`dist/`, `build/`, `.env`, `config.override.json`, `config.override.json5`, `*.local.json`, `coverage/`,
 `.pnpm-store/`, `__pycache__/`, `*.pyc`, `.venv/`, `services/processing/.pytest_cache/`
 
 **`packages/shared/` skeleton**:
@@ -188,7 +188,7 @@ the `FROM` line must match the `.nvmrc` at the repository root.
 - Port: `4000:4000`
 - Environment: `DATABASE_URL`, `AUTH_INBOUND_KEY`, `AUTH_PYTHON_KEY`,
   `PYTHON_SERVICE_URL` — reference `.env`
-- Volume mount: `./apps/backend/config.override.json:/app/config.override.json:ro`
+- Volume mount: `./apps/backend/config.override.json5:/app/apps/backend/config.override.json5:ro`
   (only mounted if the file exists — document this)
 
 **`frontend`**:
@@ -197,7 +197,7 @@ the `FROM` line must match the `.nvmrc` at the repository root.
 - Depends on: `backend`
 - Port: `3000:3000`
 - Environment: `EXPRESS_BASE_URL`, `EXPRESS_INTERNAL_KEY` — reference `.env`
-- Volume mount: `./apps/frontend/config.override.json:/app/config.override.json:ro`
+- Volume mount: `./apps/frontend/config.override.json5:/app/apps/frontend/config.override.json5:ro`
 
 **`processing`**:
 

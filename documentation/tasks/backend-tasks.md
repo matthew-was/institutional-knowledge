@@ -181,8 +181,8 @@ Specifically:
   1. CLI arguments
   2. Environment variables prefixed with `IK_` (using `__` as nested key separator, e.g.
      `IK_DB__HOST` maps to `db.host`)
-  3. `config.override.json` if present (volume-mounted Docker Compose override)
-  4. `config.json` (base config file, provides local development defaults)
+  3. `config.override.json5` if present (volume-mounted Docker Compose override)
+  4. `config.json5` (base config file, provides local development defaults)
   5. nconf defaults
 
 - Define Zod schema for all required config keys:
@@ -205,8 +205,8 @@ Specifically:
 - Export a `getConfig()` function that returns the validated config object, typed using the
   Zod inferred type.
 
-- Create `config.json` with sensible local development defaults (no secrets — those come from
-  env vars or `config.override.json`).
+- Create `config.json5` with sensible local development defaults (no secrets — those come from
+  env vars or `config.override.json5`).
 
 **Depends on**: Task 1
 

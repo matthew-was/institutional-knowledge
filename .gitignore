@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 config.override.json
+config.override.json5
 *.local.json
 coverage/
 .pnpm-store/

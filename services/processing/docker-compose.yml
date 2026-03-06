@@ -56,8 +56,8 @@ services:
     volumes:
       - ../../apps/backend/src:/app/apps/backend/src
       - ../../packages/shared/src:/app/packages/shared/src
-      - ../../apps/backend/config.json:/app/apps/backend/config.json:ro
-      # - ../../apps/backend/config.override.json:/app/apps/backend/config.override.json:ro
+      - ../../apps/backend/config.json5:/app/apps/backend/config.json5:ro
+      # - ../../apps/backend/config.override.json5:/app/apps/backend/config.override.json5:ro
     restart: unless-stopped
 
   # ── Python processing service (hot-reload) ────────────────────────────────

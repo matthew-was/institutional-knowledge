@@ -674,12 +674,12 @@ hierarchy is:
 
 1. CLI arguments (highest priority)
 2. Environment variables (prefixed with `IK_` to avoid collisions)
-3. Config override file (`config.override.json`, volume-mounted)
-4. Base config file (`config.json`, built into Docker image)
+3. Config override file (`config.override.json5`, volume-mounted)
+4. Base config file (`config.json5`, built into Docker image)
 5. Defaults (lowest priority)
 
-The `config.json` file provides sane defaults for local development. The
-`config.override.json` file is for Docker Compose runtime overrides. Environment variables
+The `config.json5` file provides sane defaults for local development. The
+`config.override.json5` file is for Docker Compose runtime overrides. Environment variables
 with `IK_` prefix provide per-key overrides (e.g. `IK_DB__HOST=postgres` overrides
 `db.host`). nconf supports nested key notation with `__` as separator.
 

@@ -12,14 +12,15 @@
  * nconf hierarchy (highest priority first):
  *   1. CLI arguments
  *   2. Environment variables prefixed IK_ (__ as nested-key separator)
- *   3. config.override.json (git-ignored, per-developer overrides)
- *   4. config.json (committed, safe local defaults)
+ *   3. config.override.json5 (git-ignored, per-developer overrides)
+ *   4. config.json5 (committed, safe local defaults)
  *   5. nconf defaults
  */
 
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import JSON5 from "json5";
 import { z } from "zod";
 
 const require = createRequire(import.meta.url);
@@ -35,8 +36,8 @@ const backendRoot = path.resolve(__dirname, "..", "..");
 nconf
 	.argv()
 	.env({ prefix: "IK_", separator: "__", lowerCase: true })
-	.file("override", { file: path.join(backendRoot, "config.override.json") })
-	.file("base", { file: path.join(backendRoot, "config.json") });
+	.file("override", { file: path.join(backendRoot, "config.override.json5"), format: JSON5 })
+	.file("base", { file: path.join(backendRoot, "config.json5"), format: JSON5 });
 
 // ---------------------------------------------------------------------------
 // Zod schema — all required config keys
