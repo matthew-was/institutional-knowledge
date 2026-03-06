@@ -15,26 +15,6 @@ None. All open questions (OQ-001 to OQ-004) are resolved in the approved plan. O
 
 ---
 
-## Prerequisites
-
-**Platform Engineer scaffolding must complete before Task 1 can begin.**
-
-The Platform Engineer agent is responsible for:
-
-- Creating the pnpm workspace root (`pnpm-workspace.yaml`, root `package.json`, root
-  `tsconfig.json`, root `biome.json`)
-- Creating the `packages/shared/` skeleton (including `archiveReference`)
-
-Task 1 depends on these files existing so that `apps/frontend/` can extend the root
-`tsconfig.json` and `biome.json` rather than defining them independently. Running
-`pnpm install` at the workspace root must succeed before frontend dependency installation
-is meaningful.
-
-Once the Platform Engineer confirms scaffolding is complete, remove this section (or mark
-it done) and proceed with Task 1.
-
----
-
 ## Tasks
 
 ### Task 1: Next.js project scaffolding and custom server setup

@@ -39,27 +39,6 @@ Implementer.
 
 ---
 
-## Prerequisites
-
-**Platform Engineer scaffolding must complete before Task 1 can begin.**
-
-The Platform Engineer agent is responsible for:
-
-- Creating the pnpm workspace root (`pnpm-workspace.yaml`, root `package.json`, root
-  `tsconfig.json`, root `biome.json`)
-- Creating the `packages/shared/` skeleton including the `archiveReference` function
-  (resolves F-003 above)
-
-Task 1 depends on these files existing so that `apps/backend/` can extend the root
-`tsconfig.json` and `biome.json`, and so that `@institutional-knowledge/shared` is
-importable from Task 8 onward. Running `pnpm install` at the workspace root must succeed
-before backend dependency installation is meaningful.
-
-Once the Platform Engineer confirms scaffolding is complete, remove this section (or mark
-it done) and proceed with Task 1.
-
----
-
 ## Tasks
 
 ### Task 1: Scaffold the Express backend application

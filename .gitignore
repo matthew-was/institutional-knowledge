@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+config.override.json
+*.local.json
+coverage/
+.pnpm-store/
+__pycache__/
+*.pyc
+.venv/
+services/processing/.pytest_cache/
+docker-compose.override.yml

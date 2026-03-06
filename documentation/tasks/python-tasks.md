@@ -37,33 +37,6 @@ can be started.
 
 ---
 
-## Prerequisites
-
-**Platform Engineer scaffolding (Phase 1) must complete before Task 1 can begin.**
-
-The Platform Engineer agent is responsible for:
-
-- Creating `services/processing/.python-version` — the canonical Python version pin
-  referenced by the Dockerfile, the CI `setup-python` action, and Ruff's `target-version`
-- Creating the root `.gitignore` (includes Python-specific entries: `__pycache__/`,
-  `*.pyc`, `.venv/`)
-
-**Platform Engineer Docker Compose (Phase 2) should complete before integration testing
-begins (Task 22 and Task 23).**
-
-The Platform Engineer is responsible for:
-
-- Creating `services/processing/Dockerfile` — the Pair Programmer inherits this rather
-  than writing it
-- Adding an `ollama` service to `docker-compose.yml` so integration tests have a running
-  Ollama instance available via `http://ollama:11434` inside the Compose network
-
-Once the Platform Engineer confirms Phase 1 scaffolding is complete, remove this section
-(or mark it done) and proceed with Task 1. Docker Compose Phase 2 is not required before
-Tasks 1–21 and can be completed concurrently with implementation.
-
----
-
 ## Tasks
 
 ### Task 1: Service scaffolding and project structure
