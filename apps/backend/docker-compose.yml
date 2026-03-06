@@ -1,0 +1,62 @@
+# apps/backend/docker-compose.yml — Backend-only development environment (hot-reload)
+#
+# Starts PostgreSQL and the Express backend with hot-reload enabled.
+# Source files are bind-mounted so code changes are reflected immediately
+# without rebuilding the image.
+#
+# Run from the repository root:
+#   docker compose -f apps/backend/docker-compose.yml up
+#
+# Configuration is read from apps/backend/config.json (committed defaults).
+# Place apps/backend/config.override.json alongside it to override values
+# locally (e.g. different credentials). config.override.json is git-ignored.
+#
+# The Postgres init credentials below must match database.url in
+# apps/backend/config.json.
+
+services:
+
+  # ── PostgreSQL + pgvector ──────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: institutional_knowledge
+      POSTGRES_USER: ik_user
+      POSTGRES_PASSWORD: ik_local_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ik_user -d institutional_knowledge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Express backend (hot-reload) ───────────────────────────────────────────
+  # Builds only up to the deps stage (dependencies installed, no compiled output).
+  # Source is bind-mounted so tsx watch picks up changes without a rebuild.
+  backend:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+      target: deps
+    command: ["pnpm", "--filter", "backend", "dev"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    volumes:
+      # Live source — changes restart the server via tsx watch
+      - ../../apps/backend/src:/app/apps/backend/src
+      # Shared package source — changes are visible without rebuilding shared
+      - ../../packages/shared/src:/app/packages/shared/src
+      # Optional local config overrides (file must exist to mount; create if needed)
+      # - ../../apps/backend/config.override.json:/app/apps/backend/config.override.json:ro
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -1,0 +1,98 @@
+# services/processing/docker-compose.yml — Python processing service + backend (hot-reload)
+#
+# Starts PostgreSQL, the Express backend, Ollama, and the Python processing service
+# with hot-reload enabled. Source files are bind-mounted so code changes are picked
+# up by uvicorn --reload without rebuilding the image.
+#
+# Run from the repository root:
+#   docker compose -f services/processing/docker-compose.yml up
+#
+# After first run, pull the Ollama model (one-time step):
+#   docker compose -f services/processing/docker-compose.yml exec ollama ollama pull llama3.2
+# The model name must match llm.model and embedding.model in
+# services/processing/config.json. The downloaded model persists in the ollama_data volume.
+#
+# Configuration is read from config.json in each service directory (committed defaults).
+# Place a config.override.json alongside it to override values locally (e.g. to point
+# at an external LLM instead of Ollama). config.override.json is git-ignored.
+#
+# The Postgres init credentials below must match database.url in
+# apps/backend/config.json.
+
+services:
+
+  # ── PostgreSQL + pgvector ──────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: institutional_knowledge
+      POSTGRES_USER: ik_user
+      POSTGRES_PASSWORD: ik_local_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ik_user -d institutional_knowledge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Express backend (hot-reload) ───────────────────────────────────────────
+  # Required by the processing service for VectorStore/GraphStore callbacks (ADR-031).
+  backend:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+      target: deps
+    command: ["pnpm", "--filter", "backend", "dev"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    volumes:
+      - ../../apps/backend/src:/app/apps/backend/src
+      - ../../packages/shared/src:/app/packages/shared/src
+      # - ../../apps/backend/config.override.json:/app/apps/backend/config.override.json:ro
+    restart: unless-stopped
+
+  # ── Python processing service (hot-reload) ────────────────────────────────
+  # Builds only up to the builder stage (dependencies installed).
+  # Source is bind-mounted so uvicorn --reload picks up changes without a rebuild.
+  processing:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        PYTHON_VERSION: "3.13"
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      - backend
+      - ollama
+    ports:
+      # Exposed locally so you can call the API directly during development
+      - "8000:8000"
+    volumes:
+      # Bind-mount the entire service source for uvicorn --reload
+      - .:/app
+    restart: unless-stopped
+
+  # ── Ollama (local LLM + embedding inference) ───────────────────────────────
+  # To use an external LLM provider instead, set llm.baseUrl and embedding.baseUrl
+  # in services/processing/config.override.json and remove this service (and the
+  # processing depends_on entry) in a local docker-compose.override.yml.
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:

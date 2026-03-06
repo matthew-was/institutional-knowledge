@@ -1,0 +1,53 @@
+# apps/backend/Dockerfile
+#
+# The Node.js version is sourced from .nvmrc at the repository root.
+# The FROM version below must match .nvmrc. Update both together.
+# GitHub Actions ci.yml reads .nvmrc via node-version-file so CI stays in sync.
+
+FROM node:24-slim AS base
+
+# Enable corepack for pnpm
+RUN corepack enable
+
+WORKDIR /app
+
+# ── dependency install stage ───────────────────────────────────────────────────
+FROM base AS deps
+
+# Copy workspace manifests needed for frozen install
+COPY pnpm-workspace.yaml ../../pnpm-workspace.yaml
+COPY package.json ../../package.json
+COPY pnpm-lock.yaml ../../pnpm-lock.yaml
+COPY packages/shared/package.json ../../packages/shared/package.json
+COPY apps/backend/package.json ./package.json
+
+RUN pnpm install --frozen-lockfile
+
+# ── build stage ───────────────────────────────────────────────────────────────
+FROM deps AS builder
+
+# Copy shared package source and build it first
+COPY packages/shared/ ../../packages/shared/
+RUN pnpm --filter @institutional-knowledge/shared build
+
+# Copy backend source and build
+COPY apps/backend/ ./
+RUN pnpm --filter backend build
+
+# ── runtime stage ─────────────────────────────────────────────────────────────
+FROM node:24-slim AS runtime
+
+RUN corepack enable
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy built application and production node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+
+EXPOSE 4000
+
+CMD ["node", "dist/server.js"]

@@ -1,0 +1,129 @@
+# docker-compose.yml — Institutional Knowledge local development environment
+#
+# Configuration is managed via config.json in each service directory (committed,
+# safe local defaults) and config.override.json alongside it (git-ignored, per-developer
+# overrides for secrets or non-default settings such as an external LLM API key).
+#
+# PostgreSQL init variables are hardcoded below with local dev defaults. The same
+# values must appear in apps/backend/config.json as the database connection string.
+#
+# After first `docker compose up`, pull the Ollama model manually:
+#   docker compose exec ollama ollama pull llama3.2
+# This is a one-time step; the model is persisted in the ollama_data named volume.
+# If you switch to an external LLM provider, set the relevant config in
+# config.override.json and the Ollama service can be omitted from your
+# docker-compose.override.yml.
+#
+# For hot-reload development (bind-mounting source directories), copy
+# docker-compose.override.yml.example to docker-compose.override.yml and adjust.
+#
+# Service network topology (ADR-042, ADR-044, ADR-045):
+#   frontend (3000) → backend (4000)    [shared-key auth, ADR-044]
+#   frontend (3000) → processing (8000) [C3 queries, ADR-045]
+#   backend  (4000) → processing (8000) [C2 processing trigger, ADR-044]
+#   backend  (4000) → postgres  (5432)
+#   processing (8000) → backend (4000)  [VectorStore / GraphStore callbacks, ADR-031]
+#   processing (8000) → ollama  (11434) [LLM + embedding inference]
+
+services:
+
+  # ── PostgreSQL + pgvector ──────────────────────────────────────────────────
+  # Image includes the pgvector extension required for embedding storage (ADR-004).
+  # These init variables are local dev defaults. The backend reads the connection
+  # string from apps/backend/config.json (database.url), which must use the same
+  # values. Override in apps/backend/config.override.json for non-default setups.
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: institutional_knowledge
+      POSTGRES_USER: ik_user
+      POSTGRES_PASSWORD: ik_local_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ik_user -d institutional_knowledge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Express backend ────────────────────────────────────────────────────────
+  # Sole database writer (ADR-031). Hosts VectorStore and GraphStore interfaces.
+  # Reads config from apps/backend/config.json. Place a config.override.json
+  # alongside it (bind-mounted via docker-compose.override.yml) to override
+  # individual values without modifying committed config.
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+
+  # ── Next.js frontend ──────────────────────────────────────────────────────
+  # Internet-facing entry point (ADR-003, ADR-044).
+  # Proxies C3 query requests directly to the processing service (ADR-045).
+  # Reads config from apps/frontend/config.json.
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # ── Python processing service ─────────────────────────────────────────────
+  # Hosts C2 pipeline and C3 query modules (ADR-042). Stateless — no DB access.
+  # Calls back to Express for VectorStore/GraphStore operations (ADR-031).
+  # Not exposed externally; reachable over the internal Docker Compose network.
+  #
+  # Python version is canonical in services/processing/.python-version (3.13).
+  # The Dockerfile PYTHON_VERSION build arg must match — update both together.
+  #
+  # Default Ollama URLs in services/processing/config.json should point to
+  # http://ollama:11434 (Docker service name) when running inside Compose, and
+  # http://localhost:11434 when running outside. Use config.override.json to
+  # switch between them or to point at an external LLM provider.
+  processing:
+    build:
+      context: ./services/processing
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: "3.13"
+    depends_on:
+      - backend
+      - ollama
+    restart: unless-stopped
+
+  # ── Ollama (local LLM + embedding inference) ───────────────────────────────
+  # Required by the processing service for chunking, entity extraction, and
+  # embedding generation (ADR-024, ADR-025, ADR-038).
+  #
+  # IMPORTANT: After `docker compose up` for the first time, pull the model:
+  #   docker compose exec ollama ollama pull llama3.2
+  # The model name must match llm.model and embedding.model in
+  # services/processing/config.json. This is a one-time step; the model is
+  # persisted in the ollama_data volume across restarts.
+  #
+  # To use an external LLM instead, set llm.baseUrl and embedding.baseUrl in
+  # services/processing/config.override.json and remove or comment out this
+  # service (and the processing depends_on entry) in docker-compose.override.yml.
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:
