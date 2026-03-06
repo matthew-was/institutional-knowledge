@@ -91,7 +91,7 @@ output.
 
 **Condition type**: manual
 
-**Status**: not_started
+**Status**: code_complete
 
 ---
 

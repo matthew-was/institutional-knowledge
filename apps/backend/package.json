@@ -1,0 +1,41 @@
+{
+	"name": "backend",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsx watch src/server.ts",
+		"start": "node dist/server.js",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@institutional-knowledge/shared": "workspace:*",
+		"express": "4.21.2",
+		"knex": "3.1.0",
+		"multer": "1.4.5-lts.2",
+		"nconf": "0.12.1",
+		"pg": "8.13.3",
+		"pino": "9.6.0",
+		"pino-http": "10.4.0",
+		"uuid": "11.1.0",
+		"zod": "3.24.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@types/express": "5.0.1",
+		"@types/multer": "1.4.12",
+		"@types/nconf": "0.10.7",
+		"@types/node": "22.13.10",
+		"@types/pg": "8.11.11",
+		"@types/uuid": "10.0.0",
+		"tsx": "4.19.3",
+		"typescript": "5.7.3",
+		"vitest": "3.0.8"
+	}
+}
