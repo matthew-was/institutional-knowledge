@@ -9,12 +9,12 @@
  * and is not part of this router.
  */
 
-import { Router } from "express";
+import { Router } from 'express';
 
 export function createRouter(): Router {
-	const router = Router();
+  const router = Router();
 
-	// Route groups added in Tasks 8–15
+  // Route groups added in Tasks 8–15
 
-	return router;
+  return router;
 }

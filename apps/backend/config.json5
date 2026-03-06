@@ -1,74 +1,76 @@
 {
   // HTTP server
-  server: {
-    port: 4000,
+  "server": {
+    "port": 4000
   },
-
   // PostgreSQL connection. Use the Docker service name when running inside Compose.
   // Override host/port in config.override.json5 to connect to an external instance.
-  db: {
-    host: "postgres",
-    port: 5432,
-    database: "institutional_knowledge",
-    user: "ik_user",
-    password: "ik_local_dev",
+  "db": {
+    "host": "postgres",
+    "port": 5432,
+    "database": "institutional_knowledge",
+    "user": "ik_user",
+    "password": "ik_local_dev"
   },
-
   // Internal shared-key authentication (ADR-044).
   // frontendKey: key the Next.js frontend sends to Express.
   // pythonKey: key the Python processing service sends to Express.
   // pythonServiceKey: key Express sends when calling the Python service.
-  auth: {
-    frontendKey: "dev-frontend-key",
-    pythonKey: "dev-python-key",
-    pythonServiceKey: "dev-python-service-key",
+  "auth": {
+    "frontendKey": "dev-frontend-key",
+    "pythonKey": "dev-python-key",
+    "pythonServiceKey": "dev-python-service-key"
   },
-
   // File storage. provider must be "local" in Phase 1.
   // basePath: permanent storage root. stagingPath: temporary upload area.
-  storage: {
-    provider: "local",
-    local: {
-      basePath: "./data/storage",
-      stagingPath: "./data/staging",
-    },
+  "storage": {
+    "provider": "local",
+    "local": {
+      "basePath": "./data/storage",
+      "stagingPath": "./data/staging"
+    }
   },
-
   // Upload constraints applied at the route boundary.
-  upload: {
-    maxFileSizeMb: 50,
-    acceptedExtensions: [".pdf", ".jpg", ".jpeg", ".png", ".tiff", ".tif"],
+  "upload": {
+    "maxFileSizeMb": 50,
+    "acceptedExtensions": [
+      ".pdf",
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".tiff",
+      ".tif"
+    ]
   },
-
   // Processing pipeline timeouts and retry behaviour.
-  pipeline: {
-    runningStepTimeoutMinutes: 30,
-    maxRetries: 3,
+  "pipeline": {
+    "runningStepTimeoutMinutes": 30,
+    "maxRetries": 3
   },
-
   // Python processing service base URL. Use the Docker service name inside Compose.
-  python: {
-    baseUrl: "http://processing:8000",
+  "python": {
+    "baseUrl": "http://processing:8000"
   },
-
   // VectorStore and GraphStore provider selection.
   // Both are interface-backed; only pgvector/postgresql are implemented in Phase 1.
-  vectorStore: {
-    provider: "pgvector",
+  "vectorStore": {
+    "provider": "pgvector"
   },
-  graph: {
-    provider: "postgresql",
+  "graph": {
+    "provider": "postgresql"
   },
-
   // Embedding vector dimension. Must match the model configured in the Python service.
   // Changing this requires a new database migration (migration 004 hardcodes it).
-  embedding: {
-    dimension: 384,
+  "embedding": {
+    "dimension": 384
   },
-
   // CLI ingestion run settings.
-  ingestion: {
-    partialAuditReport: false,
-    reportOutputDirectory: "./data/reports",
+  "ingestion": {
+    "partialAuditReport": false,
+    "reportOutputDirectory": "./data/reports"
   },
+  // log level settings
+  "logger": {
+    "level": "info"
+  }
 }

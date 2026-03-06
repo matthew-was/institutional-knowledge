@@ -12,44 +12,44 @@
  */
 
 export interface GraphEntity {
-	entityId: string;
-	term: string;
-	category: string;
-	confidence: number | null;
+  entityId: string;
+  term: string;
+  category: string;
+  confidence: number | null;
 }
 
 export interface GraphRelationship {
-	sourceEntityId: string;
-	targetEntityId: string;
-	relationshipType: string;
-	confidence: number | null;
+  sourceEntityId: string;
+  targetEntityId: string;
+  relationshipType: string;
+  confidence: number | null;
 }
 
 export interface TraversalResult {
-	entities: GraphEntity[];
-	relationships: GraphRelationship[];
-	depth: number;
+  entities: GraphEntity[];
+  relationships: GraphRelationship[];
+  depth: number;
 }
 
 export interface DocumentReference {
-	documentId: string;
-	description: string;
-	date: string;
+  documentId: string;
+  description: string;
+  date: string;
 }
 
 export interface GraphStore {
-	writeEntity(entity: GraphEntity): Promise<void>;
-	writeRelationship(relationship: GraphRelationship): Promise<void>;
-	getEntity(entityId: string): Promise<GraphEntity | null>;
-	getRelationships(
-		entityId: string,
-		direction?: "outgoing" | "incoming" | "both",
-	): Promise<GraphRelationship[]>;
-	traverse(
-		startEntityId: string,
-		maxDepth: number,
-		relationshipTypes?: string[],
-	): Promise<TraversalResult>;
-	findEntitiesByType(entityType: string): Promise<GraphEntity[]>;
-	findDocumentsByEntity(entityId: string): Promise<DocumentReference[]>;
+  writeEntity(entity: GraphEntity): Promise<void>;
+  writeRelationship(relationship: GraphRelationship): Promise<void>;
+  getEntity(entityId: string): Promise<GraphEntity | null>;
+  getRelationships(
+    entityId: string,
+    direction?: 'outgoing' | 'incoming' | 'both',
+  ): Promise<GraphRelationship[]>;
+  traverse(
+    startEntityId: string,
+    maxDepth: number,
+    relationshipTypes?: string[],
+  ): Promise<TraversalResult>;
+  findEntitiesByType(entityType: string): Promise<GraphEntity[]>;
+  findDocumentsByEntity(entityId: string): Promise<DocumentReference[]>;
 }

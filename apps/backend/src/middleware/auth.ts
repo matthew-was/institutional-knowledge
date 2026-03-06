@@ -10,25 +10,25 @@
  * This middleware is applied to all routes except GET /api/health.
  */
 
-import type { NextFunction, Request, Response } from "express";
-import type { AppConfig } from "../config/index.js";
+import type { NextFunction, Request, Response } from 'express';
+import type { AppConfig } from '../config/index.js';
 
-export function createAuthMiddleware(authConfig: AppConfig["auth"]) {
-	const validKeys = new Set([authConfig.frontendKey, authConfig.pythonKey]);
+export function createAuthMiddleware(authConfig: AppConfig['auth']) {
+  const validKeys = new Set([authConfig.frontendKey, authConfig.pythonKey]);
 
-	return function authMiddleware(
-		req: Request,
-		res: Response,
-		next: NextFunction,
-	): void {
-		const key = req.headers["x-internal-key"];
-		if (typeof key !== "string" || !validKeys.has(key)) {
-			res.status(401).json({
-				error: "unauthorized",
-				message: "Missing or invalid x-internal-key header",
-			});
-			return;
-		}
-		next();
-	};
+  return function authMiddleware(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): void {
+    const key = req.headers['x-internal-key'];
+    if (typeof key !== 'string' || !validKeys.has(key)) {
+      res.status(401).json({
+        error: 'unauthorized',
+        message: 'Missing or invalid x-internal-key header',
+      });
+      return;
+    }
+    next();
+  };
 }
