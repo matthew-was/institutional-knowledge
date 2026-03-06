@@ -11,3 +11,4 @@ __pycache__/
 .venv/
 services/processing/.pytest_cache/
 docker-compose.override.yml
+.vscode/

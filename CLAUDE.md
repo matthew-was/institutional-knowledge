@@ -24,6 +24,17 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ---
 
+## Task Status Changes
+
+**CRITICAL: Never change a task status in `documentation/tasks/` without explicit user instruction.** This is a hard rule, not a preference.
+
+- Do not update `**Status**` fields in any task file unless the user explicitly says to update it
+- Do not set any task to `done` — only the Project Manager agent may do this, on explicit user instruction
+- Presenting completed work does not imply permission to update task status
+- If you believe a status change is warranted, say so and wait for the user to confirm
+
+---
+
 ## Git Commits
 
 **CRITICAL: Never commit to git without explicit user instruction.** This is a hard rule, not a preference.
