@@ -3,6 +3,8 @@
 	"compilerOptions": {
 		"outDir": "./dist",
 		"rootDir": "./src",
+		// Required: Express is a CJS module with no ESM default export.
+		// Without this, `import express from "express"` fails under module: NodeNext.
 		"esModuleInterop": true
 	},
 	"include": ["src/**/*"],

@@ -16,13 +16,12 @@
  */
 
 import express from "express";
-import { pino } from "pino";
 import type { AppConfig } from "./config/index.js";
 import type { KnexInstance } from "./db/index.js";
 import type { GraphStore } from "./graphstore/types.js";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import { createErrorHandler } from "./middleware/errorHandler.js";
-import { requestLogger } from "./middleware/logger.js";
+import { logger, requestLogger } from "./middleware/logger.js";
 import { createRouter } from "./routes/index.js";
 import type { StorageService } from "./storage/types.js";
 import type { VectorStore } from "./vectorstore/types.js";
@@ -36,7 +35,6 @@ export interface AppDependencies {
 }
 
 export function createApp(deps: AppDependencies): express.Application {
-	const log = pino({ level: "info" });
 	const app = express();
 
 	// 1. Pino request logger
@@ -58,7 +56,7 @@ export function createApp(deps: AppDependencies): express.Application {
 	app.use("/api", createRouter());
 
 	// 6. Error handler (must be last)
-	app.use(createErrorHandler(log));
+	app.use(createErrorHandler(logger));
 
 	return app;
 }
