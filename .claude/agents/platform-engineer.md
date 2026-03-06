@@ -334,6 +334,31 @@ when a security advisory is raised.
 
 ### Process
 
+**Step 0 — Runtime version audit** (always run first, before package dependencies):
+
+Check the pinned runtime versions against the current recommended releases. Use `WebFetch`
+to retrieve the live release schedules — do not rely on training data, as release schedules
+change frequently.
+
+For **Node.js**: fetch `https://nodejs.org/en/about/previous-releases` and identify:
+
+- The current **Active LTS** version (recommended for new projects)
+- The version pinned in `.nvmrc` and `package.json` `engines.node`
+- If the pinned version is not Active LTS, flag it with a recommendation to update both
+  files. Classify as: Active LTS (no action), Maintenance LTS (recommend upgrade), or
+  End-of-Life (urgent — flag as blocking)
+
+For **Python**: fetch `https://www.python.org/downloads/` and identify:
+
+- The current **bugfix** release (full active support — recommended)
+- The version pinned in `services/processing/.python-version`
+- If the pinned version is not in bugfix status, flag it. Classify as: bugfix (no action),
+  security-only (recommend upgrade), or End-of-Life (urgent — flag as blocking)
+
+Include runtime version findings in their own section at the top of the report (before
+package dependencies). If either runtime is out of date, list the exact files to update
+and the new version to use.
+
 1. Read all dependency manifests:
    - `apps/frontend/package.json`
    - `apps/backend/package.json`
@@ -374,6 +399,13 @@ Write tool. Structure:
 
 ```markdown
 # Dependency Review — YYYY-MM-DD
+
+## Runtime versions
+
+| Runtime | Pinned | Current recommended | Status | Action |
+| --- | --- | --- | --- | --- |
+| Node.js | 24 | 24 | Active LTS | None |
+| Python | 3.13 | 3.13 | Bugfix | None |
 
 ## Summary
 

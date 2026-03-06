@@ -13,6 +13,8 @@ Current allow list (`.claude/settings.json`):
 - `Bash(tail:*)`
 - `Bash(git:*)`
 - `Bash(markdownlint:*)`
+- `Bash(pnpm:*)`
+- `Bash(docker:*)`
 - `Bash(chmod:*)`
 - `Edit(./*)`
 - `Read(./*)`
