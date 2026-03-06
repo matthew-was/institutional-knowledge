@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Code review agent for the Institutional Knowledge project. Invoke after an Implementer or developer marks a task code_complete. The caller specifies the service (frontend or backend) and the task number. Reviews code for quality, security, and plan compliance. Read-only — does not modify code.
+description: Code review agent for the Institutional Knowledge project. Invoke after an Implementer or developer marks a task code_complete. The caller specifies the service (frontend or backend) and the task number. Reviews code for quality, security, and plan compliance. Does not modify source code or task files — writes a review file to archive/code-reviews/[service]/.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 skills: configuration-patterns, pipeline-testing-strategy
