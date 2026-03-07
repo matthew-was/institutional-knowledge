@@ -58,9 +58,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Platform Engineer Phases 1 and 2 complete (2026-03-06).
+- **Current phase**: Implementation in progress. Backend Task 2 code_complete (Knex migrations, reviewed, awaiting PM verification). Backend Task 1 done (2026-03-07, merged to main).
 - **Design status**: All design documents approved (ADR-001 to ADR-047). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Invoke Implementer (Frontend Task 1, Backend Task 1). Platform Engineer Phase 3 (GitHub Actions CI/CD) can run any time — defer until at least one service has runnable code. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Invoke Project Manager to verify Backend Task 2, then merge to main. Begin Backend Task 3 (nconf config module) and/or Frontend Task 1 in parallel. Platform Engineer Phase 3 (GitHub Actions CI/CD) unblocked. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
