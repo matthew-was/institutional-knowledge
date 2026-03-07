@@ -14,12 +14,15 @@ WORKDIR /app
 # ── dependency install stage ───────────────────────────────────────────────────
 FROM base AS deps
 
-# Copy workspace manifests needed for frozen install
-COPY pnpm-workspace.yaml ../../pnpm-workspace.yaml
-COPY package.json ../../package.json
-COPY pnpm-lock.yaml ../../pnpm-lock.yaml
-COPY packages/shared/package.json ../../packages/shared/package.json
-COPY apps/frontend/package.json ./package.json
+# Copy workspace manifests needed for frozen install.
+# The monorepo root sits at /app; pnpm requires the workspace file and all
+# package.json manifests to be present at their real workspace-relative paths
+# before running --frozen-lockfile.
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY apps/frontend/package.json ./apps/frontend/package.json
 
 RUN pnpm install --frozen-lockfile
 
@@ -27,11 +30,11 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS builder
 
 # Copy shared package source and build it first
-COPY packages/shared/ ../../packages/shared/
+COPY packages/shared/ ./packages/shared/
 RUN pnpm --filter @institutional-knowledge/shared build
 
 # Copy frontend source and build
-COPY apps/frontend/ ./
+COPY apps/frontend/ ./apps/frontend/
 RUN pnpm --filter frontend build
 
 # ── runtime stage ─────────────────────────────────────────────────────────────
@@ -43,12 +46,17 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy built application and production node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
+# Copy built application and production node_modules from their workspace paths.
+# After the Next.js build the output is at /app/apps/frontend/.next and
+# node_modules are hoisted to /app/node_modules by pnpm.
+COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
+COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
+COPY --from=builder /app/apps/frontend/package.json ./apps/frontend/package.json
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/frontend/.next/standalone/server.js"]

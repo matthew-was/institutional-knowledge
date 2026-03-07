@@ -52,7 +52,8 @@ services:
     volumes:
       - ../../apps/backend/src:/app/apps/backend/src
       - ../../packages/shared/src:/app/packages/shared/src
-      # - ../../apps/backend/config.override.json:/app/apps/backend/config.override.json:ro
+      - ../../apps/backend/config.json5:/app/apps/backend/config.json5:ro
+      # - ../../apps/backend/config.override.json5:/app/apps/backend/config.override.json5:ro
     restart: unless-stopped
 
   # ── Next.js frontend (hot-reload) ─────────────────────────────────────────
@@ -72,6 +73,7 @@ services:
       - ../../apps/frontend/src:/app/apps/frontend/src
       - ../../apps/frontend/public:/app/apps/frontend/public
       - ../../packages/shared/src:/app/packages/shared/src
+      - ../../apps/frontend/config.json:/app/apps/frontend/config.json:ro
       # - ../../apps/frontend/config.override.json:/app/apps/frontend/config.override.json:ro
     restart: unless-stopped
 

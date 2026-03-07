@@ -446,8 +446,8 @@ Integration tests use MSW to mock the Next.js API routes.
 
 The Next.js frontend reads its own scoped configuration file at startup via `nconf`. It does
 not read the Express or Python configuration files. The configuration follows the pattern
-defined in the configuration-patterns skill: a base `config.json` in `apps/frontend/` built
-into the Docker image, and an optional `config.override.json` volume-mounted at runtime.
+defined in the configuration-patterns skill: a base `config.json5` in `apps/frontend/` built
+into the Docker image, and an optional `config.override.json5` volume-mounted at runtime.
 
 **nconf keys required by the frontend**:
 

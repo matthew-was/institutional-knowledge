@@ -1,9 +1,13 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
   "formatter": {
     "enabled": true,
-    "indentStyle": "tab",
-    "quoteStyle": "double"
+    "indentStyle": "space"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    }
   },
   "linter": {
     "enabled": true,
@@ -16,8 +20,5 @@
         "noUnusedVariables": "error"
       }
     }
-  },
-  "organizeImports": {
-    "enabled": true
   }
 }

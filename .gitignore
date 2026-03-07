@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 config.override.json
+config.override.json5
 *.local.json
 coverage/
 .pnpm-store/
@@ -10,3 +11,4 @@ __pycache__/
 .venv/
 services/processing/.pytest_cache/
 docker-compose.override.yml
+.vscode/

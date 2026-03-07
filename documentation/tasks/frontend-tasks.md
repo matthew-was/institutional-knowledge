@@ -67,13 +67,13 @@ The following nconf keys must be defined and validated:
 - `upload.maxFileSizeMb` — `number`, required, must be positive
 - `upload.acceptedExtensions` — `string[]`, required, must be non-empty
 
-Create `apps/frontend/config.json` with sensible development defaults:
+Create `apps/frontend/config.json5` with sensible development defaults:
 `server.port: 3000`, `express.baseUrl: "http://localhost:4000"`,
 `express.internalKey: "change-me-in-development"`, `upload.maxFileSizeMb: 50`,
 `upload.acceptedExtensions: [".pdf", ".tif", ".tiff", ".jpg", ".jpeg", ".png"]`.
 
-The config module must support an optional `config.override.json` file that is
-merged over `config.json` at startup (volume-mounted at runtime per the
+The config module must support an optional `config.override.json5` file that is
+merged over `config.json5` at startup (volume-mounted at runtime per the
 configuration-patterns skill).
 
 **Depends on**: Task 1

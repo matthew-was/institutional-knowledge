@@ -91,7 +91,14 @@ output.
 
 **Condition type**: manual
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-07):
+
+- Automated checks: none required — condition type is manual
+- Manual checks: all four criteria confirmed by the developer: (1) `pnpm install` completed without errors; (2) `pnpm --filter backend build` produced no TypeScript errors; (3) `biome check apps/backend/src` passed with no errors; (4) `src/index.ts` exists and exports a startable Express application via `createApp`.
+- User need: satisfied — the backend skeleton builds, lints, and starts without errors, providing the structural foundation for all subsequent backend tasks. Code review confirmed compliance with ADR-047 (ESM), ADR-044 (auth middleware), ADR-031 (Express sole DB writer), and the Infrastructure as Configuration principle.
+- Outcome: done
 
 ---
 
@@ -181,8 +188,8 @@ Specifically:
   1. CLI arguments
   2. Environment variables prefixed with `IK_` (using `__` as nested key separator, e.g.
      `IK_DB__HOST` maps to `db.host`)
-  3. `config.override.json` if present (volume-mounted Docker Compose override)
-  4. `config.json` (base config file, provides local development defaults)
+  3. `config.override.json5` if present (volume-mounted Docker Compose override)
+  4. `config.json5` (base config file, provides local development defaults)
   5. nconf defaults
 
 - Define Zod schema for all required config keys:
@@ -205,8 +212,8 @@ Specifically:
 - Export a `getConfig()` function that returns the validated config object, typed using the
   Zod inferred type.
 
-- Create `config.json` with sensible local development defaults (no secrets — those come from
-  env vars or `config.override.json`).
+- Create `config.json5` with sensible local development defaults (no secrets — those come from
+  env vars or `config.override.json5`).
 
 **Depends on**: Task 1
 

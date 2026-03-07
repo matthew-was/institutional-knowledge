@@ -54,8 +54,10 @@ services:
       - ../../apps/backend/src:/app/apps/backend/src
       # Shared package source — changes are visible without rebuilding shared
       - ../../packages/shared/src:/app/packages/shared/src
+      # Config files — mounted read-only so nconf can find them at startup
+      - ../../apps/backend/config.json5:/app/apps/backend/config.json5:ro
       # Optional local config overrides (file must exist to mount; create if needed)
-      # - ../../apps/backend/config.override.json:/app/apps/backend/config.override.json:ro
+      # - ../../apps/backend/config.override.json5:/app/apps/backend/config.override.json5:ro
     restart: unless-stopped
 
 volumes:

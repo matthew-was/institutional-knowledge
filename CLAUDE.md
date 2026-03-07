@@ -24,6 +24,17 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ---
 
+## Task Status Changes
+
+**CRITICAL: Never change a task status in `documentation/tasks/` without explicit user instruction.** This is a hard rule, not a preference.
+
+- Do not update `**Status**` fields in any task file unless the user explicitly says to update it
+- Do not set any task to `done` — only the Project Manager agent may do this, on explicit user instruction
+- Presenting completed work does not imply permission to update task status
+- If you believe a status change is warranted, say so and wait for the user to confirm
+
+---
+
 ## Git Commits
 
 **CRITICAL: Never commit to git without explicit user instruction.** This is a hard rule, not a preference.
@@ -47,9 +58,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation ready. All agents, skills, and task lists complete. Platform Engineer agent added 2026-03-05.
+- **Current phase**: Implementation in progress. Platform Engineer Phases 1 and 2 complete (2026-03-06).
 - **Design status**: All design documents approved (ADR-001 to ADR-047). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Invoke Platform Engineer Phase 1 (monorepo scaffolding) first, then Implementer (frontend + backend) and Pair Programmer (Python). Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Invoke Implementer (Frontend Task 1, Backend Task 1). Platform Engineer Phase 3 (GitHub Actions CI/CD) can run any time — defer until at least one service has runnable code. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -115,7 +126,7 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **All agents and skills written.** Design phase complete.
 
-**Current next step:** Invoke Platform Engineer Phase 1 (monorepo scaffolding), then Implementer (frontend + backend) and Pair Programmer (Python). Resolve OQ-3 (embedding model) before Python Task 15/22.
+**Current next step:** Invoke Implementer for Frontend Task 1 and Backend Task 1. Platform Engineer Phase 3 (GitHub Actions) deferred until code exists to lint and test. Resolve OQ-3 (embedding model) before Python Task 15/22.
 
 ### Key Output Locations
 
