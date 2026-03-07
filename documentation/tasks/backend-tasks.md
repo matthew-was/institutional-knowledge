@@ -173,7 +173,14 @@ column must exist (added by migration 006, not migration 003).
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-07):
+
+- Automated checks: confirmed. The integration test at `apps/backend/src/db/migrations/__tests__/migrations.integration.test.ts` contains eight test cases covering every item in the acceptance condition: (1) all ten expected tables verified via `information_schema.tables`; (2) `file_hash` partial unique index verified via `pg_indexes` — condition `status = 'finalized'` confirmed in index definition; (3) `embeddings.embedding` column type verified via `information_schema.columns` `udt_name = 'vector'`; (4) `documents.ingestion_run_id` nullable column verified via `information_schema.columns` `is_nullable = 'YES'`. Each test queries actual database state after a real migration run — no mocking. The developer confirmed all eight tests passed. Note: the task description states the embedding dimension is "read from `EMBEDDING_DIMENSION` env var, defaulting to 384"; the post-review fix hardcoded the value to 384 unconditionally (removing the env var approach to avoid a dual-config-surface risk identified in code review finding S-001). The acceptance condition tests only that the column type is `vector`, which is met. The dimension (384, matching e5-small) is consistent with ADR-024 and OQ-3.
+- Manual checks: none required — condition type is automated; developer confirmed all eight test cases passed against a live pgvector database.
+- User need: satisfied. The six migrations create the complete Phase 1 PostgreSQL schema. The documents table with its partial unique index on `file_hash WHERE status = 'finalized'` enables ADR-009 duplicate detection. The vocabulary tables (vocabulary_terms, vocabulary_relationships, rejected_terms, entity_document_occurrences) enable all vocabulary curation user stories. The chunks and embeddings tables with the pgvector extension enable semantic search. The ingestion_runs table and documents.ingestion_run_id column (added by migration 006, not 001) enable CLI bulk ingestion. Migration ordering is correct: all foreign key dependencies are respected, and all down() functions drop tables in reverse-dependency order.
+- Outcome: done
 
 ---
 
@@ -809,7 +816,7 @@ all rows are present across `documents`, `chunks`, `embeddings`, `vocabulary_ter
 `vocabulary_relationships`, `entity_document_occurrences`, `pipeline_steps`. Submit two
 payloads with overlapping entity names; verify a single `vocabulary_terms` row exists with
 updated `aliases`. Submit a payload with a deliberately invalid entity reference; verify the
-full transaction rolled back with no partial writes. All integration tests pass.
+full transaction rolled back with no partial writes in any table. All integration tests pass.
 
 **Condition type**: both
 

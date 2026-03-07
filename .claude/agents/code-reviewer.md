@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Code review agent for the Institutional Knowledge project. Invoke after an Implementer or developer marks a task code_complete. The caller specifies the service (frontend or backend) and the task number. Reviews code for quality, security, and plan compliance. Does not modify source code or task files — writes a review file to archive/code-reviews/[service]/.
+description: Code review agent for the Institutional Knowledge project. Invoke after an Implementer or developer marks a task code_complete. The caller specifies the service (frontend or backend) and the task number. Reviews code for quality, security, and plan compliance. Does not modify source code or task files — writes a review file to documentation/tasks/code-reviews/ (staging). Developer moves it to archive/code-reviews/[service]/ after confirming actions taken.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 skills: configuration-patterns, pipeline-testing-strategy
@@ -118,9 +118,11 @@ If the acceptance condition is not met, this is a **blocking** finding.
 
 Write the review to a timestamped file using the Write tool. Get the current date and time by running `date "+%Y-%m-%d %H%M"` before writing.
 
-**File path**: `documentation/tasks/code-review-[service]-[YYYY-MM-DD-HHMM].md`
+**File path**: `documentation/tasks/code-reviews/code-review-[service]-task-[N]-[YYYY-MM-DD-HHMM].md`
 
-Example: `documentation/tasks/code-review-frontend-2026-03-02-1430.md`
+Example: `documentation/tasks/code-reviews/code-review-backend-task-2-2026-03-07-0943.md`
+
+Reviews are written here (not to `archive/`) so they remain visible as pending action items. After the developer has read the review and confirmed any actions taken, they move the file to `archive/code-reviews/[service]/`.
 
 Structure:
 
