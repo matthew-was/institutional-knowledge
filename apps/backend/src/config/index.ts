@@ -111,11 +111,31 @@ const ConfigSchema = z.object({
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
 // ---------------------------------------------------------------------------
+// parseConfig — pure Zod validation against a plain object.
+//
+// Exported for use in tests only. Production code must import the `config`
+// singleton exported at the bottom of this file — that is the correct export
+// for all application use. Do not call parseConfig in application code: it
+// bypasses the nconf loading hierarchy and will produce an incomplete config
+// object.
+// ---------------------------------------------------------------------------
+
+export function parseConfig(raw: unknown): AppConfig {
+  const result = ConfigSchema.safeParse(raw);
+  if (!result.success) {
+    throw new Error(
+      `Invalid configuration:\n${result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n')}`,
+    );
+  }
+  return result.data;
+}
+
+// ---------------------------------------------------------------------------
 // Validated singleton — throws at startup if config is invalid
 // ---------------------------------------------------------------------------
 
 function loadConfig(): AppConfig {
-  const raw = {
+  return parseConfig({
     server: nconf.get('server'),
     db: nconf.get('db'),
     auth: nconf.get('auth'),
@@ -128,15 +148,7 @@ function loadConfig(): AppConfig {
     embedding: nconf.get('embedding'),
     ingestion: nconf.get('ingestion'),
     logger: nconf.get('logger'),
-  };
-
-  const result = ConfigSchema.safeParse(raw);
-  if (!result.success) {
-    throw new Error(
-      `Invalid configuration:\n${result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n')}`,
-    );
-  }
-  return result.data;
+  });
 }
 
 export const config: AppConfig = loadConfig();

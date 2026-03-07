@@ -216,8 +216,19 @@ Specifically:
   if any required key is missing or of the wrong type. This implements the fail-fast startup
   behaviour described in the backend plan.
 
-- Export a `getConfig()` function that returns the validated config object, typed using the
-  Zod inferred type.
+- Export the validated config as a `config` singleton constant, typed using the Zod inferred
+  type (`AppConfig`). This is the correct export for all application code. Do not export a
+  `getConfig()` function — a function would give future developers the impression they can call
+  it freely, including before nconf is initialised.
+
+- Also export a `parseConfig(raw: unknown): AppConfig` pure function for unit test use only.
+  This function runs Zod validation against a plain object without touching nconf. Mark it
+  clearly in a comment as test-only; production code must use the `config` singleton.
+
+- Export the `logger.level` config key as part of the Zod schema:
+  `logger.level` — union of Pino log-level literals (`fatal`, `error`, `warn`, `info`,
+  `debug`, `trace`). This was identified as a missed requirement during Task 4 planning
+  (the Pino logger middleware reads the log level from config).
 
 - Create `config.json5` with sensible local development defaults (no secrets — those come from
   env vars or `config.override.json5`).
@@ -233,7 +244,15 @@ application starts. Both tests pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-07):
+
+- Automated checks: confirmed. Two tests exist in `apps/backend/src/config/__tests__/config.test.ts`:
+  (1) `returns a correctly typed config object for valid input` — calls `parseConfig(validRaw)` with a complete object covering all schema keys and asserts every top-level and nested value specifically (e.g. `expect(cfg.server.port).toBe(4000)`, `expect(cfg.logger.level).toBe('info')`). The assertions are non-vacuous and cover all schema sections including `logger.level`. (2) `throws a descriptive error when a required key is missing` — omits `auth.frontendKey` and asserts `parseConfig()` throws matching `/auth\.frontendKey/`. The error format in `index.ts` (`i.path.join('.')`) produces `auth.frontendKey: Required`, which satisfies the regex. Both tests are correct and non-vacuous. Developer confirmed both tests passed (`pnpm --filter backend exec vitest run src/config/__tests__/config.test.ts` — 2 passed).
+- Manual checks: none required — condition type is automated.
+- User need: satisfied. The `config` singleton is evaluated at module import time, meaning the process throws before Express binds to any port if any required key is missing or of the wrong type. This implements the fail-fast startup behaviour the backend plan requires and satisfies US-019's requirement that misconfigured values (such as a zero or negative `upload.maxFileSizeMb`) are caught at startup with an actionable error. The `parseConfig` test-only export is clearly marked with a comment directing application code to use the `config` singleton instead. The nconf hierarchy (CLI args → env vars → config.override.json5 → config.json5) is correctly wired and commented. Code review confirmed no blocking findings.
+- Outcome: done
 
 ---
 
