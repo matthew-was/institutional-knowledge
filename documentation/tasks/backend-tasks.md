@@ -173,7 +173,7 @@ column must exist (added by migration 006, not migration 003).
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: code_complete
 
 ---
 
