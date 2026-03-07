@@ -7,7 +7,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "lint": "pnpm -r biome check"
+    "test:backend": "pnpm --filter backend test",
+    "lint": "pnpm -r biome check",
+    "lint:backend": "pnpm exec biome check apps/backend/src"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.6",
