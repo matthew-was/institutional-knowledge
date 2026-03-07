@@ -91,7 +91,14 @@ output.
 
 **Condition type**: manual
 
-**Status**: reviewed
+**Status**: done
+
+**Verification** (2026-03-07):
+
+- Automated checks: none required — condition type is manual
+- Manual checks: all four criteria confirmed by the developer: (1) `pnpm install` completed without errors; (2) `pnpm --filter backend build` produced no TypeScript errors; (3) `biome check apps/backend/src` passed with no errors; (4) `src/index.ts` exists and exports a startable Express application via `createApp`.
+- User need: satisfied — the backend skeleton builds, lints, and starts without errors, providing the structural foundation for all subsequent backend tasks. Code review confirmed compliance with ADR-047 (ESM), ADR-044 (auth middleware), ADR-031 (Express sole DB writer), and the Infrastructure as Configuration principle.
+- Outcome: done
 
 ---
 
