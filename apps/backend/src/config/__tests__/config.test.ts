@@ -25,7 +25,10 @@ const validRaw = {
   vectorStore: { provider: 'pgvector' },
   graph: { provider: 'postgresql' },
   embedding: { dimension: 384 },
-  ingestion: { partialAuditReport: false, reportOutputDirectory: './data/reports' },
+  ingestion: {
+    partialAuditReport: false,
+    reportOutputDirectory: './data/reports',
+  },
   logger: { level: 'info' },
 };
 
@@ -57,8 +60,6 @@ describe('parseConfig', () => {
     const { frontendKey: _omitted, ...authWithoutFrontendKey } = validRaw.auth;
     const withMissingKey = { ...validRaw, auth: authWithoutFrontendKey };
 
-    expect(() => parseConfig(withMissingKey)).toThrowError(
-      /auth\.frontendKey/,
-    );
+    expect(() => parseConfig(withMissingKey)).toThrowError(/auth\.frontendKey/);
   });
 });

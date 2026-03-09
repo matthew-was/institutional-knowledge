@@ -21,7 +21,7 @@ import type { KnexInstance } from './db/index.js';
 import type { GraphStore } from './graphstore/types.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { createErrorHandler } from './middleware/errorHandler.js';
-import { logger, requestLogger } from './middleware/logger.js';
+import { createRequestLogger, type Logger } from './middleware/logger.js';
 import { createRouter } from './routes/index.js';
 import type { StorageService } from './storage/types.js';
 import type { VectorStore } from './vectorstore/types.js';
@@ -32,31 +32,34 @@ export interface AppDependencies {
   storage: StorageService;
   vectorStore: VectorStore;
   graphStore: GraphStore;
+  log: Logger;
 }
 
 export function createApp(deps: AppDependencies): express.Application {
   const app = express();
 
   // 1. Pino request logger
-  app.use(requestLogger);
+  app.use(createRequestLogger(deps.log));
 
   // 2. JSON body parser
   app.use(express.json());
 
-  // 3. Health check route — must be registered BEFORE auth middleware
-  //    so the /api/health endpoint does not require a shared-key header
+  // 3. Health check route — registered BEFORE auth middleware intentionally.
+  //    This is how the auth bypass is implemented: the route is matched and
+  //    responded to before the auth middleware ever runs. Do not move this
+  //    registration after app.use(createAuthMiddleware(...)).
   app.get('/api/health', (_req, res): void => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
   // 4. Shared-key auth for all other routes
-  app.use(createAuthMiddleware(deps.config.auth));
+  app.use(createAuthMiddleware(deps.config.auth, deps.log));
 
   // 5. API routes
   app.use('/api', createRouter());
 
   // 6. Error handler (must be last)
-  app.use(createErrorHandler(logger));
+  app.use(createErrorHandler(deps.log));
 
   return app;
 }

@@ -8,8 +8,12 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:backend": "pnpm --filter backend test",
+    "typecheck": "pnpm -r typecheck",
+    "typecheck:backend": "pnpm --filter backend typecheck",
     "lint": "pnpm -r biome check",
-    "lint:backend": "pnpm exec biome check apps/backend/src"
+    "lint:backend": "pnpm exec biome check apps/backend/src",
+    "testAll": "pnpm lint && pnpm typecheck && pnpm test",
+    "testAll:backend": "pnpm lint:backend && pnpm typecheck:backend && pnpm test:backend"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.6",
