@@ -50,18 +50,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint backend (Biome)
-        run: pnpm --filter backend exec biome check
-
-      - name: Lint shared package (Biome)
-        run: pnpm --filter @institutional-knowledge/shared exec biome check
-
-      # frontend lint step — uncomment when apps/frontend/ is scaffolded
-      # - name: Lint frontend (Biome)
-      #   run: pnpm --filter frontend exec biome check
+      - name: Lint (Biome)
+        run: pnpm lint
 
       - name: Typecheck all workspaces
-        run: pnpm -r typecheck
+        run: pnpm typecheck
 
   # ---------------------------------------------------------------------------
   # Backend tests
