@@ -1,0 +1,147 @@
+# Dependency audit — runs weekly on Monday at 09:00 UTC.
+#
+# Checks all npm and Python dependencies for known vulnerabilities and
+# outdated packages. Produces a GitHub Actions summary report for the
+# developer to review. Does not open issues or pull requests automatically.
+#
+# To review the latest audit output:
+#   Actions → dependency-audit → select the most recent run → Summary
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  # Allow manual trigger for ad-hoc audits
+  workflow_dispatch:
+
+jobs:
+  audit-npm:
+    name: npm dependency audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit
+        # pnpm audit exits non-zero when vulnerabilities are found.
+        # We capture the output and write it to the summary rather than
+        # failing the job — the developer reviews the report and decides
+        # on next steps.
+        run: |
+          echo "## npm / pnpm dependency audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run date: $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if pnpm audit --json 2>/dev/null | python3 -c "
+          import sys, json
+
+          data = json.load(sys.stdin)
+          advisories = data.get('advisories', {})
+
+          if not advisories:
+              print('No vulnerabilities found.')
+          else:
+              print(f'**{len(advisories)} advisories found:**')
+              print('')
+              for adv_id, adv in advisories.items():
+                  severity = adv.get('severity', 'unknown').upper()
+                  title = adv.get('title', 'No title')
+                  module = adv.get('module_name', 'unknown')
+                  url = adv.get('url', '')
+                  print(f'- **[{severity}]** {module}: {title}')
+                  if url:
+                      print(f'  {url}')
+          "; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "pnpm audit returned a non-zero exit code (vulnerabilities found or audit unavailable)." >> "$GITHUB_STEP_SUMMARY"
+            pnpm audit --parseable 2>&1 >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+        continue-on-error: true
+
+      - name: Write npm outdated summary
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Outdated packages" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          pnpm outdated --recursive 2>&1 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        continue-on-error: true
+
+  audit-python:
+    name: Python dependency audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Python version is read from services/processing/.python-version.
+          # Do not hardcode the version here — update .python-version to change it.
+          python-version-file: services/processing/.python-version
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Check for Python requirements file
+        id: check-requirements
+        run: |
+          if [ -f services/processing/requirements.txt ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "source=requirements.txt" >> "$GITHUB_OUTPUT"
+          elif [ -f services/processing/pyproject.toml ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "source=pyproject.toml" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run pip-audit (requirements.txt)
+        if: steps.check-requirements.outputs.found == 'true' && steps.check-requirements.outputs.source == 'requirements.txt'
+        run: |
+          echo "## Python dependency audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run date: $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          pip-audit -r services/processing/requirements.txt 2>&1 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        continue-on-error: true
+
+      - name: Run pip-audit (pyproject.toml)
+        if: steps.check-requirements.outputs.found == 'true' && steps.check-requirements.outputs.source == 'pyproject.toml'
+        run: |
+          echo "## Python dependency audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run date: $(date -u '+%Y-%m-%d %H:%M UTC')" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          pip-audit --project services/processing 2>&1 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        continue-on-error: true
+
+      - name: No Python requirements found
+        if: steps.check-requirements.outputs.found == 'false'
+        run: |
+          echo "## Python dependency audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "No requirements.txt or pyproject.toml found in services/processing/." >> "$GITHUB_STEP_SUMMARY"
+          echo "This job will produce results once the Python service is scaffolded." >> "$GITHUB_STEP_SUMMARY"
