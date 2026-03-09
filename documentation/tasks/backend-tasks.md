@@ -315,7 +315,14 @@ missing; passes and attaches parsed values when the body is valid.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-09):
+
+- Automated checks: confirmed. All three sub-conditions verified by reading `apps/backend/src/middleware/__tests__/middleware.test.ts` against the implementations. (a) Auth middleware — four unit tests cover absent header (401), wrong key (401), `frontendKey` match (`next()` called), and `pythonKey` match (`next()` called). Health-route bypass confirmed by two `supertest` integration tests: GET `/api/health` with no key returns 200; another route with no key returns 401. Bypass is structural — health route registered in `src/index.ts` before `app.use(createAuthMiddleware(...))`, with an explanatory comment. All five behaviours confirmed. (b) Validation middleware — two tests: missing `age` field returns 400 with `error: 'validation_error'` and a `details` array containing path `'age'`; valid body calls `next()` and `req.body` is updated with parsed values. Confirmed. (c) Error handler — three tests: unknown `Error` returns 500 with `error: 'internal_error'` and message `'An unexpected error occurred'`; `JSON.stringify` of the response body does not contain `'stack'`; `NotFoundError` returns 404 with `error: 'not_found'`; `ConflictError` returns 409 with `error: 'conflict'`. Confirmed. Code review round 3 (2026-03-09) confirms all 21 backend tests pass, Biome lint passes, TypeScript typecheck passes.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied — US-096 (provider abstraction): logger, auth, and error handler are factory functions accepting injected dependencies; `AppDependencies` in `src/index.ts` carries `log: Logger` so all middleware receives the same logger instance; no provider hardcoded in any middleware module. US-097 (operational values from config): logger level read from `config.logger.level` (nconf-backed) in `server.ts`, passed through `createLogger`; no hardcoded log level. US-098 (actionable error messages): 4xx responses include `message` and `details` (Zod issue paths) sufficient for programmatic callers; 500 response omits stack trace from body (correct security practice). US-003/US-003b (server-side validation): `validate` factory delivers the mechanism; end-to-end enforcement verified per handler task. No gap between acceptance conditions and user need.
+- Outcome: done
 
 ---
 

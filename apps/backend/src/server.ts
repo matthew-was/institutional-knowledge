@@ -18,12 +18,13 @@ import { config } from './config/index.js';
 import { createKnex } from './db/index.js';
 import { createGraphStore } from './graphstore/PostgresGraphStore.js';
 import { createApp } from './index.js';
-import { logger } from './middleware/logger.js';
+import { createLogger } from './middleware/logger.js';
 import { createStorageService } from './storage/LocalStorageService.js';
 import { createVectorStore } from './vectorstore/PgVectorStore.js';
 
 async function start(): Promise<void> {
-  logger.info('Starting institutional-knowledge backend');
+  const log = createLogger(config.logger);
+  log.info('Starting institutional-knowledge backend');
 
   // ── 1. Config is already validated at module load time (config/index.ts) ──
 
@@ -31,9 +32,9 @@ async function start(): Promise<void> {
   const knex = createKnex(config.db);
   try {
     await knex.raw('SELECT 1');
-    logger.info('Database connection confirmed');
+    log.info('Database connection confirmed');
   } catch (err) {
-    logger.error({ err }, 'Failed to connect to database — exiting');
+    log.error({ err }, 'Failed to connect to database — exiting');
     process.exit(1);
   }
 
@@ -41,12 +42,12 @@ async function start(): Promise<void> {
   try {
     const [batchNo, migrations] = await knex.migrate.latest();
     if (migrations.length > 0) {
-      logger.info({ batchNo, migrations }, 'Migrations applied');
+      log.info({ batchNo, migrations }, 'Migrations applied');
     } else {
-      logger.info('Database schema is up to date');
+      log.info('Database schema is up to date');
     }
   } catch (err) {
-    logger.error({ err }, 'Migration failed — exiting');
+    log.error({ err }, 'Migration failed — exiting');
     await knex.destroy();
     process.exit(1);
   }
@@ -55,17 +56,17 @@ async function start(): Promise<void> {
   // Stub — implemented in Task 8.
   // On startup, any documents with status initiated/uploaded/stored that are
   // not finalized are cleaned up (staging files deleted, records removed).
-  logger.info('Upload cleanup sweep: stub (implemented in Task 8)');
+  log.info('Upload cleanup sweep: stub (implemented in Task 8)');
 
   // ── 5. Ingestion run sweep (ADR-018) ──────────────────────────────────────
   // Stub — implemented in Task 8.
   // On startup, any incomplete ingestion runs are cleaned up.
-  logger.info('Ingestion run sweep: stub (implemented in Task 8)');
+  log.info('Ingestion run sweep: stub (implemented in Task 8)');
 
   // ── 6. Seed data ───────────────────────────────────────────────────────────
   // Stub — implemented in Task 7.
   // Run seeds only if vocabulary_terms contains zero rows.
-  logger.info('Seed data check: stub (implemented in Task 7)');
+  log.info('Seed data check: stub (implemented in Task 7)');
 
   // ── 7. Start HTTP server ───────────────────────────────────────────────────
   const storage = createStorageService(config.storage);
@@ -76,23 +77,30 @@ async function start(): Promise<void> {
   );
   const graphStore = createGraphStore(config.graph.provider, knex);
 
-  const app = createApp({ config, knex, storage, vectorStore, graphStore });
+  const app = createApp({
+    config,
+    knex,
+    storage,
+    vectorStore,
+    graphStore,
+    log,
+  });
 
   const server = app.listen(config.server.port, () => {
-    logger.info({ port: config.server.port }, 'Server listening');
+    log.info({ port: config.server.port }, 'Server listening');
   });
 
   // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {
-    logger.info({ signal }, 'Shutdown signal received');
+    log.info({ signal }, 'Shutdown signal received');
     server.close(async () => {
       await knex.destroy();
-      logger.info('Server shut down cleanly');
+      log.info('Server shut down cleanly');
       process.exit(0);
     });
 
     setTimeout(() => {
-      logger.warn('Could not close connections in 2000ms, force closing.');
+      log.warn('Could not close connections in 2000ms, force closing.');
       server.closeAllConnections();
     }, 2000).unref();
   };
@@ -102,6 +110,10 @@ async function start(): Promise<void> {
 }
 
 start().catch((err: unknown) => {
-  logger.error({ err }, 'Unhandled error during startup — exiting');
+  // log is scoped to start() — use a minimal fallback logger for this catch
+  createLogger(config.logger).error(
+    { err },
+    'Unhandled error during startup — exiting',
+  );
   process.exit(1);
 });

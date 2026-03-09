@@ -133,11 +133,10 @@ The developer says something like "Append commits abc1234 def5678".
    **What was done**
 
    Render each block as a unit, in order:
-   - If the block has a `note`, output it as a line of text.
-   - For each commit in the block, output a sub-bullet:
+   - Output the block's `timestamp` as a heading (e.g. `## HH:MM UTC`).
+   - If the block has a `note`, output it as a line of text under the heading.
+   - For each commit in the block, output a bullet:
      `[sha](url) — message` (omit the link brackets if `url` is null, plain text only).
-   - If a block has no note and only commits, render the commits as top-level bullets
-     (not sub-bullets).
 
    **Next steps**
 

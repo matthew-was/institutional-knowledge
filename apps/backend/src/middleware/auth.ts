@@ -11,9 +11,13 @@
  */
 
 import type { NextFunction, Request, Response } from 'express';
+import type { Logger } from 'pino';
 import type { AppConfig } from '../config/index.js';
 
-export function createAuthMiddleware(authConfig: AppConfig['auth']) {
+export function createAuthMiddleware(
+  authConfig: AppConfig['auth'],
+  log: Logger,
+) {
   const validKeys = new Set([authConfig.frontendKey, authConfig.pythonKey]);
 
   return function authMiddleware(
@@ -23,6 +27,10 @@ export function createAuthMiddleware(authConfig: AppConfig['auth']) {
   ): void {
     const key = req.headers['x-internal-key'];
     if (typeof key !== 'string' || !validKeys.has(key)) {
+      log.warn(
+        { reqId: req.id, method: req.method, url: req.url },
+        'Auth failure: missing or invalid x-internal-key',
+      );
       res.status(401).json({
         error: 'unauthorized',
         message: 'Missing or invalid x-internal-key header',
