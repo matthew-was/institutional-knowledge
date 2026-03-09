@@ -8,6 +8,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:backend": "pnpm --filter backend test",
+    "test:backend:coverage": "pnpm --filter backend test:coverage",
     "typecheck": "pnpm -r typecheck",
     "typecheck:backend": "pnpm --filter backend typecheck",
     "lint": "pnpm -r exec biome check",
