@@ -58,9 +58,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Backend Tasks 1–3 done (merged to main / pending PR merge). Task 4 (middleware) is next.
+- **Current phase**: Implementation in progress. Backend Tasks 1–4 done (merged to main). Platform Engineer Phase 3 (GitHub Actions CI/CD) done (merged to main).
 - **Design status**: All design documents approved (ADR-001 to ADR-047). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Merge Backend Task 3 branch to main (PR). Begin Backend Task 4 (middleware) and/or Frontend Task 1 in parallel. Platform Engineer Phase 3 (GitHub Actions CI/CD) unblocked. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Begin Backend Task 5 and/or Frontend Task 1 in parallel. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -126,7 +126,7 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **All agents and skills written.** Design phase complete.
 
-**Current next step:** Begin Backend Task 4 (middleware) and/or Frontend Task 1. Platform Engineer Phase 3 (GitHub Actions) now unblocked. Resolve OQ-3 (embedding model) before Python Task 15/22.
+**Current next step:** Begin Backend Task 5 and/or Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
 
 ### Key Output Locations
 
