@@ -360,8 +360,10 @@ interface StorageService {
 - `deleteStagingDirectory`: recursively delete `{stagingPath}/{runId}/`; no error if not present
 - `fileExists`: return true if the path exists and is readable
 
-**Factory** (`src/storage/index.ts`): export `createStorageService(config)` that reads
-`storage.provider` and returns a `LocalStorageService` for `"local"`.
+**Factory** (`src/storage/index.ts`): export `createStorageService(storageConfig, log)` that reads
+`storage.provider` and returns a `LocalStorageService` for `"local"`. The `Logger` instance is
+injected so that `LocalStorageService` can emit structured debug and error logs — consistent with
+the factory pattern used in `createAuthMiddleware` and `createErrorHandler`.
 
 **Depends on**: Task 3
 
@@ -379,7 +381,14 @@ All tests pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-10):
+
+- Automated checks: confirmed — all five sub-conditions covered by Vitest tests in `apps/backend/src/storage/__tests__/LocalStorageService.test.ts`. (a) Two cases: file content written correctly; parent directory auto-created. (b) Two cases: destination path returned correctly; file absent from staging after move; destination parent directory auto-created. (c) Three cases: file removed; no throw on non-existent file; no throw on double delete. (d) Three cases: file removed; no throw on non-existent path; no throw on double delete. (e) `createStagingDirectory`: returns absolute path and creates directory. `deleteStagingDirectory`: three cases — removes directory and inner contents; no throw on non-existent directory; no throw on double delete. Tests use a real `os.tmpdir()` directory, consistent with the project testing strategy. All five sub-conditions test the exact stated behaviour — no weaker approximations detected.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied — the `StorageService` interface correctly isolates all file I/O behind an abstract boundary per ADR-008 (Infrastructure as Configuration). The factory reads `storage.provider` from config and returns the appropriate implementation; adding an S3 provider in Phase 2 requires only a new branch in the factory, with no changes to callers. Idempotent delete methods satisfy cleanup-on-failure paths without requiring callers to handle file-not-found errors. Logger injection is consistent with the established factory pattern. Code review (two rounds) raised no blocking findings; all three suggestions (S-001/S-002 ENOENT log-level distinction, S-003 `deleteStagingDirectory` catch block consistency) were actioned and confirmed in the follow-up review.
+- Outcome: done
 
 ---
 
