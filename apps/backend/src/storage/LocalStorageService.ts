@@ -48,7 +48,10 @@ export class LocalStorageService implements StorageService {
     const src = path.join(this.stagingPath, uploadId, filename);
     const destDir = path.join(this.basePath, uploadId);
     const dest = path.join(destDir, filename);
-    this.log.debug({ uploadId, filename, src, dest }, 'moving staging file to permanent storage');
+    this.log.debug(
+      { uploadId, filename, src, dest },
+      'moving staging file to permanent storage',
+    );
     await fs.mkdir(destDir, { recursive: true });
     await fs.rename(src, dest);
     return dest;
@@ -58,11 +61,20 @@ export class LocalStorageService implements StorageService {
     const fullPath = path.join(this.stagingPath, uploadId, filename);
     this.log.debug({ uploadId, filename, fullPath }, 'deleting staging file');
     await fs.unlink(fullPath).catch((err: unknown) => {
-      const code = err instanceof Error && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
+      const code =
+        err instanceof Error && 'code' in err
+          ? (err as NodeJS.ErrnoException).code
+          : undefined;
       if (code === 'ENOENT') {
-        this.log.debug({ uploadId, filename, fullPath }, 'delete staging file: file already absent');
+        this.log.debug(
+          { uploadId, filename, fullPath },
+          'delete staging file: file already absent',
+        );
       } else {
-        this.log.error({ uploadId, filename, fullPath, err }, 'delete staging file: unexpected error');
+        this.log.error(
+          { uploadId, filename, fullPath, err },
+          'delete staging file: unexpected error',
+        );
       }
     });
   }
@@ -70,11 +82,20 @@ export class LocalStorageService implements StorageService {
   async deletePermanentFile(storagePath: string): Promise<void> {
     this.log.debug({ storagePath }, 'deleting permanent file');
     await fs.unlink(storagePath).catch((err: unknown) => {
-      const code = err instanceof Error && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
+      const code =
+        err instanceof Error && 'code' in err
+          ? (err as NodeJS.ErrnoException).code
+          : undefined;
       if (code === 'ENOENT') {
-        this.log.debug({ storagePath }, 'delete permanent file: file already absent');
+        this.log.debug(
+          { storagePath },
+          'delete permanent file: file already absent',
+        );
       } else {
-        this.log.error({ storagePath, err }, 'delete permanent file: unexpected error');
+        this.log.error(
+          { storagePath, err },
+          'delete permanent file: unexpected error',
+        );
       }
     });
   }
@@ -90,9 +111,14 @@ export class LocalStorageService implements StorageService {
     const fullPath = path.join(this.stagingPath, runId);
     this.log.debug({ runId, fullPath }, 'deleting staging directory');
     // force: true suppresses ENOENT — idempotent when directory does not exist
-    await fs.rm(fullPath, { recursive: true, force: true }).catch((err: unknown) => {
-      this.log.error({ runId, fullPath, err }, 'delete staging directory: unexpected error');
-    });
+    await fs
+      .rm(fullPath, { recursive: true, force: true })
+      .catch((err: unknown) => {
+        this.log.error(
+          { runId, fullPath, err },
+          'delete staging directory: unexpected error',
+        );
+      });
   }
 
   async fileExists(filePath: string): Promise<boolean> {
