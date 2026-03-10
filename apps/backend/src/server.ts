@@ -19,7 +19,7 @@ import { createKnex } from './db/index.js';
 import { createGraphStore } from './graphstore/PostgresGraphStore.js';
 import { createApp } from './index.js';
 import { createLogger } from './middleware/logger.js';
-import { createStorageService } from './storage/LocalStorageService.js';
+import { createStorageService } from './storage/index.js';
 import { createVectorStore } from './vectorstore/PgVectorStore.js';
 
 async function start(): Promise<void> {
@@ -69,7 +69,7 @@ async function start(): Promise<void> {
   log.info('Seed data check: stub (implemented in Task 7)');
 
   // ── 7. Start HTTP server ───────────────────────────────────────────────────
-  const storage = createStorageService(config.storage);
+  const storage = createStorageService(config.storage, log);
   const vectorStore = createVectorStore(
     config.vectorStore.provider,
     knex,

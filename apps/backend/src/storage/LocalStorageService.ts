@@ -2,89 +2,129 @@
  * LocalStorageService — Phase 1 filesystem-backed StorageService implementation.
  *
  * Stores files on the local filesystem using two root directories:
- *   - stagingPath: temporary staging area for uploads in progress
- *   - basePath: permanent storage for finalized documents
+ *   - basePath:    permanent storage for finalised documents
+ *   - stagingPath: temporary area for uploads in progress
  *
- * Both paths are resolved relative to the working directory of the Node process
- * unless absolute paths are provided in config.
+ * Both paths are resolved to absolute paths in the constructor. Relative paths
+ * are resolved against the working directory of the Node process.
+ *
+ * deleteStagingFile, deletePermanentFile, and deleteStagingDirectory are all
+ * idempotent — they do not throw if the target does not exist.
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { StorageService } from './types.js';
+import type { Logger } from 'pino';
+import type { StorageService } from './StorageService.js';
 
 export class LocalStorageService implements StorageService {
   private readonly basePath: string;
   private readonly stagingPath: string;
+  private readonly log: Logger;
 
-  constructor(basePath: string, stagingPath: string) {
+  constructor(basePath: string, stagingPath: string, log: Logger) {
     this.basePath = path.resolve(basePath);
     this.stagingPath = path.resolve(stagingPath);
+    this.log = log.child({ component: 'LocalStorageService' });
   }
 
-  async writeStaging(key: string, buffer: Buffer): Promise<string> {
-    const fullPath = path.join(this.stagingPath, key);
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, buffer);
-    return key;
-  }
-
-  async moveToStorage(
-    stagingKey: string,
-    permanentKey: string,
+  async writeStagingFile(
+    uploadId: string,
+    fileBuffer: Buffer,
+    filename: string,
   ): Promise<string> {
-    const srcPath = path.join(this.stagingPath, stagingKey);
-    const destPath = path.join(this.basePath, permanentKey);
-    await fs.mkdir(path.dirname(destPath), { recursive: true });
-    await fs.rename(srcPath, destPath);
-    return permanentKey;
+    const dir = path.join(this.stagingPath, uploadId);
+    const fullPath = path.join(dir, filename);
+    this.log.debug({ uploadId, filename, fullPath }, 'writing staging file');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(fullPath, fileBuffer);
+    return fullPath;
   }
 
-  async deleteStaging(key: string): Promise<void> {
-    const fullPath = path.join(this.stagingPath, key);
-    await fs.unlink(fullPath).catch(() => {
-      // Silently ignore if the file does not exist — cleanup is best-effort
+  async moveStagingToPermanent(
+    uploadId: string,
+    filename: string,
+  ): Promise<string> {
+    const src = path.join(this.stagingPath, uploadId, filename);
+    const destDir = path.join(this.basePath, uploadId);
+    const dest = path.join(destDir, filename);
+    this.log.debug(
+      { uploadId, filename, src, dest },
+      'moving staging file to permanent storage',
+    );
+    await fs.mkdir(destDir, { recursive: true });
+    await fs.rename(src, dest);
+    return dest;
+  }
+
+  async deleteStagingFile(uploadId: string, filename: string): Promise<void> {
+    const fullPath = path.join(this.stagingPath, uploadId, filename);
+    this.log.debug({ uploadId, filename, fullPath }, 'deleting staging file');
+    await fs.unlink(fullPath).catch((err: unknown) => {
+      const code =
+        err instanceof Error && 'code' in err
+          ? (err as NodeJS.ErrnoException).code
+          : undefined;
+      if (code === 'ENOENT') {
+        this.log.debug(
+          { uploadId, filename, fullPath },
+          'delete staging file: file already absent',
+        );
+      } else {
+        this.log.error(
+          { uploadId, filename, fullPath, err },
+          'delete staging file: unexpected error',
+        );
+      }
     });
   }
 
-  async deleteStorage(key: string): Promise<void> {
-    const fullPath = path.join(this.basePath, key);
-    await fs.unlink(fullPath).catch(() => {
-      // Silently ignore if the file does not exist — cleanup is best-effort
+  async deletePermanentFile(storagePath: string): Promise<void> {
+    this.log.debug({ storagePath }, 'deleting permanent file');
+    await fs.unlink(storagePath).catch((err: unknown) => {
+      const code =
+        err instanceof Error && 'code' in err
+          ? (err as NodeJS.ErrnoException).code
+          : undefined;
+      if (code === 'ENOENT') {
+        this.log.debug(
+          { storagePath },
+          'delete permanent file: file already absent',
+        );
+      } else {
+        this.log.error(
+          { storagePath, err },
+          'delete permanent file: unexpected error',
+        );
+      }
     });
   }
 
-  async readStaging(key: string): Promise<Buffer> {
-    const fullPath = path.join(this.stagingPath, key);
-    return fs.readFile(fullPath);
+  async createStagingDirectory(runId: string): Promise<string> {
+    const fullPath = path.join(this.stagingPath, runId);
+    this.log.debug({ runId, fullPath }, 'creating staging directory');
+    await fs.mkdir(fullPath, { recursive: true });
+    return fullPath;
   }
 
-  async stagingExists(key: string): Promise<boolean> {
-    const fullPath = path.join(this.stagingPath, key);
-    return fs.access(fullPath).then(
+  async deleteStagingDirectory(runId: string): Promise<void> {
+    const fullPath = path.join(this.stagingPath, runId);
+    this.log.debug({ runId, fullPath }, 'deleting staging directory');
+    // force: true suppresses ENOENT — idempotent when directory does not exist
+    await fs
+      .rm(fullPath, { recursive: true, force: true })
+      .catch((err: unknown) => {
+        this.log.error(
+          { runId, fullPath, err },
+          'delete staging directory: unexpected error',
+        );
+      });
+  }
+
+  async fileExists(filePath: string): Promise<boolean> {
+    return fs.access(filePath).then(
       () => true,
       () => false,
     );
   }
-
-  async createStagingDir(dirKey: string): Promise<void> {
-    const fullPath = path.join(this.stagingPath, dirKey);
-    await fs.mkdir(fullPath, { recursive: true });
-  }
-}
-
-/**
- * Factory: create a StorageService from the storage config block.
- */
-export function createStorageService(storageConfig: {
-  provider: string;
-  local: { basePath: string; stagingPath: string };
-}): StorageService {
-  if (storageConfig.provider === 'local') {
-    return new LocalStorageService(
-      storageConfig.local.basePath,
-      storageConfig.local.stagingPath,
-    );
-  }
-  throw new Error(`Unknown storage provider: ${storageConfig.provider}`);
 }

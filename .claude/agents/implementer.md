@@ -82,7 +82,10 @@ For each task:
 2. Read the relevant section of the plan document to understand the design intent
 3. Check that all dependency tasks are `code_complete` or later — if any dependency is `not_started` or `in_progress`, inform the developer and stop
 4. Update the task status to `in_progress` in the task file using the Edit tool before writing any code
-5. Implement the task: write code, write tests, ensure the code compiles and tests pass
+5. Implement the task: write code, write tests, then verify all of the following before marking complete:
+   - `pnpm lint` passes with no errors (Biome check across the whole monorepo)
+   - `pnpm typecheck` (or equivalent tsc) passes with no errors for the service
+   - The full test suite for the service passes — not just the new tests; run all tests to catch regressions
 6. Update the task status to `code_complete` in the task file using the Edit tool
 7. Inform the developer that the task is ready for Code Review; provide the list of files changed
 
@@ -144,8 +147,10 @@ A task is implementation-complete (ready to set `code_complete`) when:
 
 1. All code required by the task description is written
 2. All tests required by the acceptance condition are written and passing
-3. No TypeScript compilation errors
-4. Task status updated to `code_complete` in the task file
+3. The full test suite for the service passes — run all tests, not just the new ones, to confirm no regressions
+4. `pnpm lint` passes with no errors (Biome format and lint across the whole monorepo)
+5. No TypeScript compilation errors (`pnpm typecheck` or equivalent)
+6. Task status updated to `code_complete` in the task file
 
 The Implementer phase for a service is complete when all tasks in the task list are `done` (set by the Project Manager after verification).
 

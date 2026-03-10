@@ -23,7 +23,7 @@ import { createAuthMiddleware } from './middleware/auth.js';
 import { createErrorHandler } from './middleware/errorHandler.js';
 import { createRequestLogger, type Logger } from './middleware/logger.js';
 import { createRouter } from './routes/index.js';
-import type { StorageService } from './storage/types.js';
+import type { StorageService } from './storage/index.js';
 import type { VectorStore } from './vectorstore/types.js';
 
 export interface AppDependencies {
