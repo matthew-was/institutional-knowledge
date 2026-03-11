@@ -5,7 +5,9 @@
  * the application compiles in Task 1.
  */
 
-import type { KnexInstance } from '../db/index.js';
+import type { Logger } from 'pino';
+import type { AppConfig } from '../config/index.js';
+import type { DbInstance } from '../db/index.js';
 import type {
   DocumentReference,
   GraphEntity,
@@ -15,8 +17,12 @@ import type {
 } from './types.js';
 
 export class PostgresGraphStore implements GraphStore {
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — used in Task 6
-  constructor(private readonly knex: KnexInstance) {}
+  constructor(
+    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — implemented in Task 6
+    private readonly _db: DbInstance,
+    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — implemented in Task 6
+    private readonly _log: Logger,
+  ) {}
 
   async writeEntity(_entity: GraphEntity): Promise<void> {
     throw new Error(
@@ -70,13 +76,16 @@ export class PostgresGraphStore implements GraphStore {
 
 /**
  * Factory: create a GraphStore from the graph config block.
+ * Accepts the AppConfig['graph'] slice and a Logger, consistent with the
+ * factory pattern established by createStorageService and createVectorStore.
  */
 export function createGraphStore(
-  provider: string,
-  knex: KnexInstance,
+  graphConfig: AppConfig['graph'],
+  db: DbInstance,
+  log: Logger,
 ): GraphStore {
-  if (provider === 'postgresql') {
-    return new PostgresGraphStore(knex);
+  if (graphConfig.provider === 'postgresql') {
+    return new PostgresGraphStore(db, log);
   }
-  throw new Error(`Unknown graph provider: ${provider}`);
+  throw new Error(`Unknown graph provider: ${graphConfig.provider}`);
 }

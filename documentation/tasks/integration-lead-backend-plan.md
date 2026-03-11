@@ -454,8 +454,12 @@ runtime to determine N. This is non-standard for Knex migrations but necessary b
 dimension is config-driven (ADR-024). An alternative is to accept the dimension as a
 migration-time environment variable (`EMBEDDING_DIMENSION`).
 
-**Factory**: `createVectorStore(config, knex)` reads `vectorStore.provider` and returns a
-`PgVectorStore` instance for `"pgvector"`.
+**Factory**: `createVectorStore(vectorStoreConfig, embeddingConfig, knex, log)` reads
+`vectorStoreConfig.provider` and returns a `PgVectorStore` instance for `"pgvector"`.
+The factory accepts typed config slices (`AppConfig['vectorStore']` and
+`AppConfig['embedding']`) and a `Logger` rather than a raw provider string, matching the
+`createStorageService(storageConfig, log)` pattern from Task 5. All future factory functions
+should follow this same pattern: accept the relevant config slice(s) and a `Logger`.
 
 ---
 
@@ -549,8 +553,10 @@ at least one `entity_document_occurrences` row.
 **findDocumentsByEntity()**: Joins `entity_document_occurrences` to `documents` for a given
 entity ID. Returns document references (ID, description, date).
 
-**Factory**: `createGraphStore(config, knex)` reads `graph.provider` and returns a
-`PostgresGraphStore` instance for `"postgresql"`.
+**Factory**: `createGraphStore(graphConfig, knex, log)` reads `graphConfig.provider` and
+returns a `PostgresGraphStore` instance for `"postgresql"`. Accepts the `AppConfig['graph']`
+config slice and a `Logger`, consistent with the factory pattern established by
+`createStorageService` and `createVectorStore`.
 
 ---
 

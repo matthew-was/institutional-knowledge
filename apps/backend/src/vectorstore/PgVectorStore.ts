@@ -1,48 +1,87 @@
 /**
- * PgVectorStore — Phase 1 pgvector implementation of VectorStore.
+ * PgVectorStore — Phase 1 pgvector implementation of VectorStore (ADR-033).
  *
- * Implemented in Task 5. This stub satisfies the interface contract so that
- * the application compiles in Task 1.
+ * Uses the pgvector <=> cosine distance operator for similarity search.
+ * The embedding dimension is validated at both write and search time against
+ * the configured value to catch dimension mismatches before a database round-trip.
+ *
+ * All database access is delegated to the embeddings and chunks repositories.
+ * No SQL is written in this file.
+ *
+ * write() inserts a row into the embeddings table. The corresponding chunks row
+ * must already exist before write() is called (inserted by the handler).
+ *
+ * search() executes a cosine similarity query joining embeddings and chunks,
+ * ordered by similarity (highest first), limited to topK results.
  */
 
-import type { KnexInstance } from '../db/index.js';
-import type { SearchResult, VectorStore } from './types.js';
+import { randomUUID } from 'node:crypto';
+import type { Logger } from 'pino';
+import type { DbInstance } from '../db/index.js';
+import type { SearchResult, VectorStore } from './VectorStore.js';
 
 export class PgVectorStore implements VectorStore {
-  constructor(
-    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — used in Task 5
-    private readonly knex: KnexInstance,
-    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — used in Task 5
-    private readonly embeddingDimension: number,
-  ) {}
+  private readonly db: DbInstance;
+  private readonly embeddingDimension: number;
+  private readonly log: Logger;
 
-  async write(
-    _documentId: string,
-    _chunkId: string,
-    _embedding: number[],
-  ): Promise<void> {
-    throw new Error('PgVectorStore.write: not yet implemented (Task 5)');
+  constructor(db: DbInstance, embeddingDimension: number, log: Logger) {
+    this.db = db;
+    this.embeddingDimension = embeddingDimension;
+    this.log = log.child({ component: 'PgVectorStore' });
   }
 
+  /**
+   * Insert an embedding into the embeddings table.
+   * The chunk row (chunkId) must already exist before this is called.
+   * Throws if embedding.length does not match the configured dimension.
+   */
+  async write(
+    documentId: string,
+    chunkId: string,
+    embedding: number[],
+  ): Promise<void> {
+    if (embedding.length !== this.embeddingDimension) {
+      throw new Error(
+        `PgVectorStore.write: embedding dimension mismatch — expected ${this.embeddingDimension}, received ${embedding.length}`,
+      );
+    }
+
+    this.log.debug({ documentId, chunkId }, 'write: inserting embedding');
+
+    const id = randomUUID();
+    await this.db.embeddings.insert({ id, chunkId, documentId, embedding });
+
+    this.log.debug({ documentId, chunkId, embeddingId: id }, 'write: complete');
+  }
+
+  /**
+   * Search for the topK most similar chunks to the given query embedding.
+   * Throws if queryEmbedding.length does not match the configured dimension.
+   * Phase 1: no filters, no similarity threshold.
+   */
   async search(
-    _queryEmbedding: number[],
-    _topK: number,
+    queryEmbedding: number[],
+    topK: number,
     _filters?: Record<string, unknown>,
   ): Promise<SearchResult[]> {
-    throw new Error('PgVectorStore.search: not yet implemented (Task 5)');
-  }
-}
+    if (queryEmbedding.length !== this.embeddingDimension) {
+      throw new Error(
+        `PgVectorStore.search: embedding dimension mismatch — expected ${this.embeddingDimension}, received ${queryEmbedding.length}`,
+      );
+    }
 
-/**
- * Factory: create a VectorStore from the vectorStore and embedding config blocks.
- */
-export function createVectorStore(
-  provider: string,
-  knex: KnexInstance,
-  embeddingDimension: number,
-): VectorStore {
-  if (provider === 'pgvector') {
-    return new PgVectorStore(knex, embeddingDimension);
+    this.log.debug(
+      { topK, dimension: queryEmbedding.length },
+      'search: executing',
+    );
+
+    const results = await this.db.embeddings.search(
+      JSON.stringify(queryEmbedding),
+      topK,
+    );
+
+    this.log.debug({ topK, resultCount: results.length }, 'search: complete');
+    return results;
   }
-  throw new Error(`Unknown vectorStore provider: ${provider}`);
 }
