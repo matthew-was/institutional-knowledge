@@ -84,26 +84,6 @@ function createKnexInstance(
   });
 }
 
-export async function createDb(dbConfig: AppConfig['db']) {
-  const knex = createKnexInstance(
-    dbConfig,
-    {
-      directory: path.join(__dirname, 'migrations'),
-      // Knex uses commonjs extension detection; extension must match compiled output
-      extension: 'js',
-    },
-    {
-      directory: path.join(__dirname, 'seeds'),
-      extension: 'js',
-    },
-  );
-
-  await knex.raw('SELECT 1');
-  await knex.migrate.latest();
-
-  return buildDbInstance(knex);
-}
-
 function buildDbInstance(knex: ReturnType<typeof Knex>) {
   return {
     /**
@@ -123,6 +103,26 @@ function buildDbInstance(knex: ReturnType<typeof Knex>) {
       await knex.destroy();
     },
   };
+}
+
+export async function createDb(dbConfig: AppConfig['db']) {
+  const knex = createKnexInstance(
+    dbConfig,
+    {
+      directory: path.join(__dirname, 'migrations'),
+      // Knex uses commonjs extension detection; extension must match compiled output
+      extension: 'js',
+    },
+    {
+      directory: path.join(__dirname, 'seeds'),
+      extension: 'js',
+    },
+  );
+
+  await knex.raw('SELECT 1');
+  await knex.migrate.latest();
+
+  return buildDbInstance(knex);
 }
 
 /**
