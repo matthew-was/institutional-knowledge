@@ -15,7 +15,7 @@
  */
 
 import { config } from './config/index.js';
-import { createKnex } from './db/index.js';
+import { createDb, type DbInstance } from './db/index.js';
 import { createGraphStore } from './graphstore/PostgresGraphStore.js';
 import { createApp } from './index.js';
 import { createLogger } from './middleware/logger.js';
@@ -28,27 +28,13 @@ async function start(): Promise<void> {
 
   // ── 1. Config is already validated at module load time (config/index.ts) ──
 
-  // ── 2. Initialise Knex + confirm connectivity ─────────────────────────────
-  const knex = createKnex(config.db);
+  // ── 2. Initialise database — confirms connectivity and runs migrations ──────
+  let db: DbInstance;
   try {
-    await knex.raw('SELECT 1');
-    log.info('Database connection confirmed');
+    db = await createDb(config.db);
+    log.info('Database ready');
   } catch (err) {
-    log.error({ err }, 'Failed to connect to database — exiting');
-    process.exit(1);
-  }
-
-  // ── 3. Run migrations ──────────────────────────────────────────────────────
-  try {
-    const [batchNo, migrations] = await knex.migrate.latest();
-    if (migrations.length > 0) {
-      log.info({ batchNo, migrations }, 'Migrations applied');
-    } else {
-      log.info('Database schema is up to date');
-    }
-  } catch (err) {
-    log.error({ err }, 'Migration failed — exiting');
-    await knex.destroy();
+    log.error({ err }, 'Database initialisation failed — exiting');
     process.exit(1);
   }
 
@@ -73,14 +59,14 @@ async function start(): Promise<void> {
   const vectorStore = createVectorStore(
     config.vectorStore,
     config.embedding,
-    knex,
+    db,
     log,
   );
-  const graphStore = createGraphStore(config.graph.provider, knex);
+  const graphStore = createGraphStore(config.graph.provider, db);
 
   const app = createApp({
     config,
-    knex,
+    db,
     storage,
     vectorStore,
     graphStore,
@@ -95,7 +81,7 @@ async function start(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     log.info({ signal }, 'Shutdown signal received');
     server.close(async () => {
-      await knex.destroy();
+      await db.destroy();
       log.info('Server shut down cleanly');
       process.exit(0);
     });

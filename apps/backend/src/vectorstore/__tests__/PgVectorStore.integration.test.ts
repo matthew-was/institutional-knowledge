@@ -1,6 +1,14 @@
-import knex, { type Knex } from 'knex';
 import { pino } from 'pino';
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
+import { createDb, type DbInstance } from '../../db/index.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
 import { PgVectorStore } from '../PgVectorStore.js';
 
@@ -42,9 +50,16 @@ function unitVector(pos: number): number[] {
 // Shared database connection — schema managed by globalSetup.ts
 // ---------------------------------------------------------------------------
 
-const db: Knex = knex({
-  client: 'pg',
-  connection: 'postgresql://ik_test:ik_test@localhost:5433/ik_test',
+let db: DbInstance;
+
+beforeAll(async () => {
+  db = await createDb({
+    host: 'localhost',
+    port: 5433,
+    database: 'ik_test',
+    user: 'ik_test',
+    password: 'ik_test',
+  });
 });
 
 afterAll(async () => {
@@ -52,7 +67,7 @@ afterAll(async () => {
 });
 
 afterEach(async () => {
-  await cleanAllTables(db);
+  await cleanAllTables(db._knex);
 });
 
 // ---------------------------------------------------------------------------
@@ -60,7 +75,7 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 
 async function insertDocument(id: string): Promise<void> {
-  await db('documents').insert({
+  await db._knex('documents').insert({
     id,
     status: 'finalized',
     filename: 'test.pdf',
@@ -76,7 +91,7 @@ async function insertChunk(
   chunkIndex: number,
   text: string,
 ): Promise<void> {
-  await db('chunks').insert({
+  await db._knex('chunks').insert({
     id,
     document_id: documentId,
     chunk_index: chunkIndex,

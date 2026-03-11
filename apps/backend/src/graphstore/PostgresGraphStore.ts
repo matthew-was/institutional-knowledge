@@ -5,7 +5,7 @@
  * the application compiles in Task 1.
  */
 
-import type { KnexInstance } from '../db/index.js';
+import type { DbInstance } from '../db/index.js';
 import type {
   DocumentReference,
   GraphEntity,
@@ -16,7 +16,7 @@ import type {
 
 export class PostgresGraphStore implements GraphStore {
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — used in Task 6
-  constructor(private readonly knex: KnexInstance) {}
+  constructor(private readonly db: DbInstance) {}
 
   async writeEntity(_entity: GraphEntity): Promise<void> {
     throw new Error(
@@ -71,12 +71,9 @@ export class PostgresGraphStore implements GraphStore {
 /**
  * Factory: create a GraphStore from the graph config block.
  */
-export function createGraphStore(
-  provider: string,
-  knex: KnexInstance,
-): GraphStore {
+export function createGraphStore(provider: string, db: DbInstance): GraphStore {
   if (provider === 'postgresql') {
-    return new PostgresGraphStore(knex);
+    return new PostgresGraphStore(db);
   }
   throw new Error(`Unknown graph provider: ${provider}`);
 }

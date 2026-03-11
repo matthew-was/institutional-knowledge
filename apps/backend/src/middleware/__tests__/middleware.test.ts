@@ -155,7 +155,7 @@ const stubDeps = {
     },
     logger: { level: 'error' as const },
   },
-  knex: {} as never,
+  db: {} as never,
   storage: {} as never,
   vectorStore: {} as never,
   graphStore: {} as never,

@@ -17,7 +17,7 @@
 
 import express from 'express';
 import type { AppConfig } from './config/index.js';
-import type { KnexInstance } from './db/index.js';
+import type { DbInstance } from './db/index.js';
 import type { GraphStore } from './graphstore/types.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { createErrorHandler } from './middleware/errorHandler.js';
@@ -28,7 +28,7 @@ import type { VectorStore } from './vectorstore/index.js';
 
 export interface AppDependencies {
   config: AppConfig;
-  knex: KnexInstance;
+  db: DbInstance;
   storage: StorageService;
   vectorStore: VectorStore;
   graphStore: GraphStore;
