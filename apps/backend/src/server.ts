@@ -62,7 +62,7 @@ async function start(): Promise<void> {
     db,
     log,
   );
-  const graphStore = createGraphStore(config.graph.provider, db);
+  const graphStore = createGraphStore(config.graph, db, log);
 
   const app = createApp({
     config,

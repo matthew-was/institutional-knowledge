@@ -1,14 +1,6 @@
 import { pino } from 'pino';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from 'vitest';
-import { createDb, type DbInstance } from '../../db/index.js';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createTestDb, type DbInstance } from '../../db/index.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
 import { PgVectorStore } from '../PgVectorStore.js';
 
@@ -50,16 +42,12 @@ function unitVector(pos: number): number[] {
 // Shared database connection — schema managed by globalSetup.ts
 // ---------------------------------------------------------------------------
 
-let db: DbInstance;
-
-beforeAll(async () => {
-  db = await createDb({
-    host: 'localhost',
-    port: 5433,
-    database: 'ik_test',
-    user: 'ik_test',
-    password: 'ik_test',
-  });
+const db: DbInstance = createTestDb({
+  host: 'localhost',
+  port: 5433,
+  database: 'ik_test',
+  user: 'ik_test',
+  password: 'ik_test',
 });
 
 afterAll(async () => {

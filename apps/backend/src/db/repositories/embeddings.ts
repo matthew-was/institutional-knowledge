@@ -20,7 +20,6 @@
 import type { Knex } from 'knex';
 import type { SearchResult } from '../../vectorstore/VectorStore.js';
 import type { EmbeddingInsert, EmbeddingRow } from '../tables.js';
-import { camelCase } from '../utils.js';
 
 export function createEmbeddingsRepository(db: Knex) {
   return {
@@ -50,8 +49,9 @@ export function createEmbeddingsRepository(db: Knex) {
      * wrapIdentifier. postProcessResponse converts them to camelCase on return.
      */
     async search(vectorLiteral: string, topK: number): Promise<SearchResult[]> {
-      // knex.raw bypasses postProcessResponse for nested rows, so we apply
-      // camelCase conversion manually on the pg result rows here.
+      // knex.raw bypasses postProcessResponse for nested rows, so we map
+      // each row to an explicit object literal to satisfy the type checker
+      // and make the snake_case→camelCase correspondence visible.
       const result = await db.raw<{ rows: Record<string, unknown>[] }>(
         `SELECT
           e.chunk_id,
@@ -66,11 +66,14 @@ export function createEmbeddingsRepository(db: Knex) {
         LIMIT ?`,
         [vectorLiteral, vectorLiteral, topK],
       );
-      return result.rows.map((row) =>
-        Object.fromEntries(
-          Object.entries(row).map(([k, v]) => [camelCase(k), v]),
-        ),
-      ) as unknown as SearchResult[];
+      return result.rows.map((row) => ({
+        chunkId: row.chunk_id as string,
+        documentId: row.document_id as string,
+        text: row.text as string,
+        chunkIndex: row.chunk_index as number,
+        tokenCount: row.token_count as number,
+        similarityScore: row.similarity_score as number,
+      }));
     },
   };
 }

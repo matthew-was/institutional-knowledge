@@ -36,7 +36,5 @@ export function snakeCase(value: string): string {
  * @example camelCase('created_at')  // 'createdAt'
  */
 export function camelCase(value: string): string {
-  return value.replace(/_([a-z])/g, (_, char: string) =>
-    (char as string).toUpperCase(),
-  );
+  return value.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
 }
