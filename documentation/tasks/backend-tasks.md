@@ -449,7 +449,20 @@ All integration tests pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-10, completed 20:22):
+
+- Automated checks confirmed by reading implementation and tests:
+  - (a) write + search round-trip: `store.write()` inserts via `?::vector` cast; `store.search()` joins `embeddings` and `chunks`, orders by cosine distance ascending, returns `similarityScore` close to 1.0 for same-vector search. Test asserts exact field values and `similarityScore` within 5 decimal places.
+  - (b) Dimension mismatch on `search()`: guard fires before database round-trip; throws `"PgVectorStore.search: embedding dimension mismatch — expected 384, received 10"`. Test asserts exact error string.
+  - (c) topK limiting: 5 embeddings inserted; `search(vector, 3)` returns exactly 3 results. Confirmed by `toHaveLength(3)` assertion.
+  - (d) Empty database: `search()` on clean database returns `[]`. Confirmed by `toEqual([])` assertion.
+  - Beyond stated conditions: `write()` dimension guard added (S-004 from code review); test asserts exact error string `"PgVectorStore.write: embedding dimension mismatch — expected 384, received 10"`.
+- Test infrastructure: `globalSetup.ts` runs `migrate.latest()`/`migrate.rollback()` once per suite run; `dbCleanup.ts` provides `cleanAllTables()` via `TRUNCATE ... RESTART IDENTITY CASCADE`; `fileParallelism: false` prevents race conditions. All confirmed correct.
+- Factory pattern: `createVectorStore(vectorStoreConfig, embeddingConfig, knex, log)` accepts typed config slices consistent with `createStorageService` pattern. Backend plan updated.
+- User need: US-045 (embeddings written per chunk, retrievable by cosine similarity) and US-096 (provider abstraction — no pgvector-specific code outside `PgVectorStore.ts` and `index.ts`) both satisfied.
+- Manual checks: developer confirmed all tests pass against a live pgvector database (three rounds of code review, all Pass).
 
 ---
 

@@ -20,7 +20,7 @@ import { createGraphStore } from './graphstore/PostgresGraphStore.js';
 import { createApp } from './index.js';
 import { createLogger } from './middleware/logger.js';
 import { createStorageService } from './storage/index.js';
-import { createVectorStore } from './vectorstore/PgVectorStore.js';
+import { createVectorStore } from './vectorstore/index.js';
 
 async function start(): Promise<void> {
   const log = createLogger(config.logger);
@@ -71,9 +71,10 @@ async function start(): Promise<void> {
   // ── 7. Start HTTP server ───────────────────────────────────────────────────
   const storage = createStorageService(config.storage, log);
   const vectorStore = createVectorStore(
-    config.vectorStore.provider,
+    config.vectorStore,
+    config.embedding,
     knex,
-    config.embedding.dimension,
+    log,
   );
   const graphStore = createGraphStore(config.graph.provider, knex);
 

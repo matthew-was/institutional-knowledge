@@ -1,16 +1,17 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import knex from 'knex';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 /**
  * Integration test: migration correctness.
  *
- * Runs all six migrations against a real PostgreSQL instance and verifies:
+ * Verifies that migrations applied by globalSetup produced the expected schema:
  * - All expected tables exist
  * - Key columns are present with correct types
  * - The file_hash partial unique index exists
  * - ingestion_run_id is added by migration 006 (not earlier)
+ *
+ * Schema lifecycle (migrate.latest / rollback) is managed by
+ * src/testing/globalSetup.ts — this file does not need its own beforeAll/afterAll.
  *
  * Requires the test database container to be running:
  *   docker compose -f apps/backend/docker-compose.test.yml up -d
@@ -18,32 +19,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
  *   docker compose -f apps/backend/docker-compose.test.yml down -v
  */
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Migrations directory is two levels up from __tests__/
-const migrationsDir = path.resolve(__dirname, '..');
-
 describe('Knex migrations — integration', () => {
   const db = knex({
     client: 'pg',
     connection: 'postgresql://ik_test:ik_test@localhost:5433/ik_test',
-    migrations: {
-      directory: migrationsDir,
-      // Tests run under Vitest/tsx against TypeScript source. Knex uses dynamic
-      // import() to load migration files; tsx intercepts those calls for .ts files.
-      extension: 'ts',
-      loadExtensions: ['.ts'],
-    },
-  });
-
-  beforeAll(async () => {
-    await db.migrate.latest();
   });
 
   afterAll(async () => {
-    // Roll back all migrations to leave the test database clean
-    await db.migrate.rollback(undefined, true);
     await db.destroy();
   });
 
