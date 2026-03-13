@@ -22,6 +22,7 @@ import type { GraphStore } from './graphstore/index.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { createErrorHandler } from './middleware/errorHandler.js';
 import { createRequestLogger, type Logger } from './middleware/logger.js';
+import { generateOpenApiSpec } from './openapi.js';
 import { createRouter } from './routes/index.js';
 import type { StorageService } from './storage/index.js';
 import type { VectorStore } from './vectorstore/index.js';
@@ -44,12 +45,19 @@ export function createApp(deps: AppDependencies): express.Application {
   // 2. JSON body parser
   app.use(express.json());
 
-  // 3. Health check route — registered BEFORE auth middleware intentionally.
-  //    This is how the auth bypass is implemented: the route is matched and
-  //    responded to before the auth middleware ever runs. Do not move this
-  //    registration after app.use(createAuthMiddleware(...)).
+  // 3. Unauthenticated routes — registered BEFORE auth middleware intentionally.
+  //    Routes here are matched and responded to before auth middleware runs.
+  //    Do not move these registrations after app.use(createAuthMiddleware(...)).
+
   app.get('/api/health', (_req, res): void => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // OpenAPI spec endpoint (ADR-048). Unauthenticated by the same pattern as
+  // /api/health — registered before auth middleware so the Python code-gen
+  // step and developer tooling can fetch the spec without a shared key.
+  app.get('/openapi.json', (_req, res): void => {
+    res.json(generateOpenApiSpec());
   });
 
   // 4. Shared-key auth for all other routes

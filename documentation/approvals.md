@@ -20,8 +20,8 @@ The table below lists approved documents in precedence order. In case of contrad
 | `documentation/project/overview.md` | Approved | 2026/02/17 |
 | `documentation/requirements/user-requirements.md` | Approved | 2026/02/17 |
 | `documentation/requirements/phase-1-user-stories.md` | Approved | 2026/02/17 |
-| `documentation/decisions/architecture-decisions.md` | Approved | 2026/03/04 |
-| `documentation/project/architecture.md` | Approved | 2026/03/02 |
+| `documentation/decisions/architecture-decisions.md` | Approved | 2026/03/13 |
+| `documentation/project/architecture.md` | Approved | 2026/03/13 |
 | `documentation/project/system-diagrams.md` | Approved | 2026/03/02 |
 | `documentation/tasks/senior-developer-frontend-plan.md` | Approved | 2026/03/03 |
 | `documentation/tasks/senior-developer-python-plan.md` | Approved | 2026/03/03 |
@@ -80,4 +80,8 @@ The table below lists approved documents in precedence order. In case of contrad
 2026/03/03 - integration-lead-backend-plan.md approved - Developer - review complete; all 10 self-review issues resolved; final consistency review passed; all 16 Express contracts covered; all 20 handlers described
 2026/03/04 - architecture-decisions.md unapproved - Developer - ADR-047 added (ESM module format for TypeScript services); requires re-approval
 2026/03/04 - architecture-decisions.md approved - Developer - ADR-047 is additive; no impact on existing ADRs, runtime architecture, or data flows; re-approved immediately
+2026/03/13 - architecture-decisions.md unapproved - Head of Development - ADR-048 added (Zod-to-OpenAPI contract pipeline for Express-Python API boundary); requires re-approval
+2026/03/13 - architecture-decisions.md approved - Head of Development - ADR-048 is additive; no contradictions with existing ADRs (ADR-001 to ADR-047); closes ADR-032 contract validation risk; re-approved immediately
+2026/03/13 - architecture.md unapproved - Head of Development - upstream cascade from ADR-048; architecture.md updated to reflect ADR-048 (ADR range, technology stack row, monorepo comment, cross-cutting table row)
+2026/03/13 - architecture.md approved - Head of Development - ADR-048 is a contract tooling decision; no component boundaries, data flows, or ownership rules affected; minor additive updates only; re-approved immediately
 ```

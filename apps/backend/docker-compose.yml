@@ -36,13 +36,14 @@ services:
     restart: unless-stopped
 
   # ── Express backend (hot-reload) ───────────────────────────────────────────
-  # Builds only up to the deps stage (dependencies installed, no compiled output).
-  # Source is bind-mounted so tsx watch picks up changes without a rebuild.
+  # Builds up to the devdeps stage: dependencies installed and packages/shared
+  # pre-compiled so tsx can resolve sub-path exports (e.g. /schemas) at runtime.
+  # Backend source is bind-mounted so tsx watch picks up changes without a rebuild.
   backend:
     build:
       context: ../..
       dockerfile: apps/backend/Dockerfile
-      target: deps
+      target: devdeps
     command: ["pnpm", "--filter", "backend", "dev"]
     depends_on:
       postgres:

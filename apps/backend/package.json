@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.4.3",
     "@institutional-knowledge/shared": "workspace:*",
     "express": "^5.0.0",
     "json5": "^2.2.3",

@@ -4,6 +4,11 @@
 
 Approved — 2026-03-03
 
+**Schema source of truth (ADR-048)**: All request and response schemas defined in this
+document are implemented as Zod schemas in `packages/shared/src/schemas/`. The backend
+auto-generates an OpenAPI 3.x spec from these schemas at `/openapi.json`. Contract IDs
+(DOC-001 etc.) and HTTP paths are unchanged.
+
 Both Senior Developer plans reviewed for data access compliance:
 
 - `documentation/tasks/senior-developer-frontend-plan.md` (Approved 2026-03-03) -- all 12 API

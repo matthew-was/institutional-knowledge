@@ -2,7 +2,7 @@
 
 This document is a synthesis of all decisions recorded in
 [decisions/architecture-decisions.md](../decisions/architecture-decisions.md) (ADR-001 through
-ADR-046). It describes the confirmed system architecture for the Institutional Knowledge project.
+ADR-048). It describes the confirmed system architecture for the Institutional Knowledge project.
 
 ---
 
@@ -43,6 +43,7 @@ ADR-042).
 | Backend API | Express (Node.js) | ADR-003, ADR-031 |
 | Processing service | Python (Docker container) | ADR-015 |
 | Database | PostgreSQL 16 + pgvector | ADR-004 |
+| API contract | Zod schemas in `packages/shared/` → OpenAPI 3.x spec (`/openapi.json`) → Pydantic v2 (Python) | ADR-048 |
 | OCR | Docling (primary), Tesseract (fallback) | ADR-011 |
 | Semantic chunking + entity extraction | LLM-based combined pass (local via Ollama or API) | ADR-025, ADR-038 |
 | Embeddings | Local model (interface-driven, model chosen at implementation) | ADR-024 |
@@ -66,7 +67,7 @@ institutional-knowledge/
     frontend/              # Next.js — structural boundary (ADR-003)
     backend/               # Express — sole database writer (ADR-031)
   packages/
-    shared/                # Shared TypeScript types, Zod schemas, utility functions
+    shared/                # Shared TypeScript types, Zod API schemas (src/schemas/), utility functions
   services/
     processing/            # Python processing service (own virtualenv, Dockerfile)
       pipeline/            # C2 — text extraction, processing, embedding (ADR-042)
@@ -453,6 +454,7 @@ is session-based and graph-aware querying is not a real-time requirement (ADR-03
 | C3 query orchestration | ~~Express thin proxy~~ (superseded); Next.js proxies web UI queries to Python; CLI calls Python directly (direct network access — no boundary layer needed); Python callbacks to Express for VectorStore/GraphStore | ADR-043 (superseded), ADR-045 |
 | Next.js custom server | Next.js runs a custom server (not static export); sole internet-facing entry point; auth in Phase 2+ | ADR-044 |
 | Internal service trust | Shared-key header auth on all internal boundaries: Next.js → Express, Next.js → Python, Express → Python, CLI → Python; per-pair keys for independent rotation | ADR-044 |
+| API contract pipeline | Zod schemas in `packages/shared/` as single source of truth; OpenAPI spec auto-generated at `/openapi.json`; Python Pydantic models generated from spec | ADR-048 |
 
 **Note**: ADR-006 (Human-in-the-Loop Development with Claude Agents) is a process decision and not included in this architecture summary; see [documentation/decisions/architecture-decisions.md](../decisions/architecture-decisions.md) for full ADR list.
 

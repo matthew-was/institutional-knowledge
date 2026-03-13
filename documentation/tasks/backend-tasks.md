@@ -37,6 +37,14 @@ time the backend Implementer reaches Task 8 (document upload handlers), `archive
 is already available as `@institutional-knowledge/shared`. No pre-work is required from the
 Implementer.
 
+**F-004 — API contract schemas (resolved by ADR-048)**
+
+Request and response schemas for all route handlers (Tasks 8–19) must be defined in
+`packages/shared/src/schemas/` using `@asteasolutions/zod-to-openapi` before the handler
+is written. Handlers import types from `@institutional-knowledge/shared/schemas/[domain]`.
+The backend serves an OpenAPI spec at `/openapi.json` (unauthenticated). Python generates
+Pydantic models from this spec via `datamodel-codegen`.
+
 ---
 
 ## Tasks

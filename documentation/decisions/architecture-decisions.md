@@ -1567,3 +1567,26 @@ The shared-key pattern applies to all internal service boundaries:
 - ESM — selected; native Node.js standard; supported by all chosen tooling; no CJS-only blockers identified that cannot be shimmed
 
 **Source**: Resolved 2026-03-04, implementation planning phase. Cross-references ADR-002 (pnpm workspaces), ADR-015 (monorepo layout), ADR-046 (Biome).
+
+---
+
+### ADR-048: Zod-to-OpenAPI Contract Pipeline for Express-Python API Boundary
+
+**Decision**: Zod schemas in `packages/shared/src/schemas/` are the single source of truth for all API request and response contracts. The Express backend auto-generates an OpenAPI 3.x specification from these schemas via `@asteasolutions/zod-to-openapi` and serves it at `/openapi.json` (unauthenticated, same pattern as `/api/health`). The Python processing service generates Pydantic v2 models and an httpx client from this specification via `datamodel-codegen`; generated output is committed to `services/processing/shared/generated/`. Route handlers in Express import request and response types from `packages/shared/src/schemas/` and use Zod `safeParse` for validation. The handler shape, middleware stack, error handler, auth middleware, and multer file upload are all unchanged.
+
+**Context**: ADR-031 established HTTP as the Express-Python transport. ADR-032 noted (in its "What is not adopted" and Tradeoffs sections) that the lack of automated contract validation at the Express-Python boundary is an accepted risk for a single-developer project. As the implementation phase reaches route handler tasks (Task 8 onwards), establishing a machine-readable contract now — before any route handlers are written — eliminates the need for a retrofit later and closes the ADR-032 risk. `packages/shared/` is already the home for shared TypeScript types and Zod schemas (ADR-002, ADR-015).
+
+**Rationale**: The Zod-first approach preserves the existing Express stack entirely — no routing framework change, no middleware changes, no error handler changes. Python's realistic type safety ceiling is Pydantic runtime validation; the generated Pydantic models reach this ceiling directly from the same source schema. The timing is optimal: the Express router is currently a stub with no route handlers; adding schemas before Task 8 means every handler is written against generated types from the start, with no retrofit required.
+
+**Options considered**:
+
+- oRPC — stronger TypeScript client ergonomics via end-to-end type inference, but replaces the Express routing layer with a pre-1.0 framework dependency; active rough edge with multer multipart file upload; error handling diverges from the existing error handler conventions; Python outcome is identical (both approaches generate Pydantic from OpenAPI). Rejected: the pre-1.0 routing layer risk and multer friction outweigh the TypeScript client ergonomic advantage.
+- gRPC / Protocol Buffers — strongest possible contract with code generation in both languages, but requires a major transport change from HTTP REST to gRPC; overkill for the project scale and single-developer context. Rejected.
+- Hand-maintained types (status quo) — no single source of truth; runtime mismatch risk at the Express-Python boundary noted in ADR-032 as an accepted risk. Rejected: this risk can now be closed at low cost before handlers are written.
+- OpenAPI-first (hand-maintained YAML) — framework-agnostic but requires manual schema maintenance separate from Zod; weaker TypeScript-side typing than a schema-first approach where Zod schemas are the source. Rejected.
+
+**Risk accepted**: Generated Python models must be re-generated when schemas change. This is managed by documenting the generation step as part of the build process and committing generated output to `services/processing/shared/generated/` so that the Python service does not depend on the Express backend being available at build time. `@asteasolutions/zod-to-openapi` is a third-party library; the risk is low because it is a build-time tool on the shared package, not a runtime dependency on the routing layer — if the library is abandoned, the OpenAPI spec can be produced by any alternative Zod-to-OpenAPI tool or maintained manually.
+
+**Tradeoffs**: The schema definitions in `packages/shared/src/schemas/` must be maintained alongside any route handler changes — adding or changing a route requires updating the corresponding schema first. This is a deliberate inversion of the current (nonexistent) contract workflow: the schema is the source of truth, not the handler. For a single-developer project this is low overhead; for a team it would be a coordination requirement.
+
+**Source**: Resolved 2026-03-13, implementation phase. Closes the Express-Python contract validation risk noted in ADR-032 Tradeoffs. Cross-references ADR-002 (packages/shared placement), ADR-015 (Python service boundary), ADR-031 (Express sole DB writer, RPC-style contract), ADR-032 (Python testing — contract gap closed), ADR-044 (shared-key auth — `/openapi.json` unauthenticated like `/api/health`), ADR-047 (ESM module format).
