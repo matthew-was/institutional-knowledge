@@ -1,91 +1,219 @@
 /**
  * PostgresGraphStore — Phase 1 PostgreSQL implementation of GraphStore.
  *
- * Implemented in Task 6. This stub satisfies the interface contract so that
- * the application compiles in Task 1.
+ * All database access is delegated to db.graph (the graph repository).
+ * No SQL is written in this file.
+ *
+ * The GraphStore contains only document-evidenced entities (ADR-037). Any
+ * method that returns entities filters to those with at least one
+ * entity_document_occurrences row — enforced inside the repository.
  */
 
 import type { Logger } from 'pino';
-import type { AppConfig } from '../config/index.js';
+import { v7 as uuidv7 } from 'uuid';
 import type { DbInstance } from '../db/index.js';
+import { normaliseTermText } from '../utils/normalise.js';
 import type {
   DocumentReference,
   GraphEntity,
   GraphRelationship,
   GraphStore,
   TraversalResult,
-} from './types.js';
+} from './GraphStore.js';
 
 export class PostgresGraphStore implements GraphStore {
-  constructor(
-    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — implemented in Task 6
-    private readonly _db: DbInstance,
-    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: stub — implemented in Task 6
-    private readonly _log: Logger,
-  ) {}
+  private readonly db: DbInstance;
+  private readonly log: Logger;
 
-  async writeEntity(_entity: GraphEntity): Promise<void> {
-    throw new Error(
-      'PostgresGraphStore.writeEntity: not yet implemented (Task 6)',
+  constructor(db: DbInstance, log: Logger) {
+    this.db = db;
+    this.log = log.child({ component: 'PostgresGraphStore' });
+  }
+
+  async writeEntity(entity: GraphEntity): Promise<void> {
+    this.log.debug({ entityId: entity.entityId }, 'writeEntity: upserting');
+
+    await this.db.graph.upsertTerm({
+      id: entity.entityId,
+      term: entity.term,
+      normalisedTerm: normaliseTermText(entity.term),
+      category: entity.category,
+      description: null,
+      confidence: entity.confidence,
+      aliases: [],
+      source: 'llm_extracted',
+    });
+
+    this.log.debug({ entityId: entity.entityId }, 'writeEntity: complete');
+  }
+
+  async writeRelationship(relationship: GraphRelationship): Promise<void> {
+    this.log.debug(
+      {
+        sourceEntityId: relationship.sourceEntityId,
+        targetEntityId: relationship.targetEntityId,
+        relationshipType: relationship.relationshipType,
+      },
+      'writeRelationship: inserting',
+    );
+
+    await this.db.graph.insertRelationship({
+      id: uuidv7(),
+      sourceTermId: relationship.sourceEntityId,
+      targetTermId: relationship.targetEntityId,
+      relationshipType: relationship.relationshipType,
+      confidence: relationship.confidence,
+    });
+
+    this.log.debug(
+      {
+        sourceEntityId: relationship.sourceEntityId,
+        targetEntityId: relationship.targetEntityId,
+      },
+      'writeRelationship: complete',
     );
   }
 
-  async writeRelationship(_relationship: GraphRelationship): Promise<void> {
-    throw new Error(
-      'PostgresGraphStore.writeRelationship: not yet implemented (Task 6)',
-    );
-  }
+  async getEntity(entityId: string): Promise<GraphEntity | null> {
+    this.log.debug({ entityId }, 'getEntity: querying');
 
-  async getEntity(_entityId: string): Promise<GraphEntity | null> {
-    throw new Error(
-      'PostgresGraphStore.getEntity: not yet implemented (Task 6)',
-    );
+    const row = await this.db.graph.findTermById(entityId);
+
+    if (!row) {
+      this.log.debug({ entityId }, 'getEntity: not found or no occurrences');
+      return null;
+    }
+
+    return {
+      entityId: row.id,
+      term: row.term,
+      category: row.category,
+      confidence: row.confidence,
+    };
   }
 
   async getRelationships(
-    _entityId: string,
-    _direction?: 'outgoing' | 'incoming' | 'both',
+    entityId: string,
+    direction: 'outgoing' | 'incoming' | 'both' = 'both',
   ): Promise<GraphRelationship[]> {
-    throw new Error(
-      'PostgresGraphStore.getRelationships: not yet implemented (Task 6)',
+    this.log.debug({ entityId, direction }, 'getRelationships: querying');
+
+    const rows = await this.db.graph.findRelationships(entityId, direction);
+
+    this.log.debug(
+      { entityId, direction, count: rows.length },
+      'getRelationships: complete',
     );
+
+    return rows.map((r) => ({
+      sourceEntityId: r.sourceTermId,
+      targetEntityId: r.targetTermId,
+      relationshipType: r.relationshipType,
+      confidence: r.confidence,
+    }));
   }
 
   async traverse(
-    _startEntityId: string,
-    _maxDepth: number,
-    _relationshipTypes?: string[],
+    startEntityId: string,
+    maxDepth: number,
+    relationshipTypes?: string[],
   ): Promise<TraversalResult> {
-    throw new Error(
-      'PostgresGraphStore.traverse: not yet implemented (Task 6)',
+    this.log.debug(
+      { startEntityId, maxDepth, relationshipTypes },
+      'traverse: starting',
     );
+
+    const rawRows = await this.db.graph.traverse(
+      startEntityId,
+      maxDepth,
+      relationshipTypes,
+    );
+
+    // knex.raw bypasses postProcessResponse — map snake_case columns explicitly.
+    // confidence is not projected by the CTE (only traversal topology is returned);
+    // callers that need relationship confidence should fetch via getRelationships().
+    const relationships: GraphRelationship[] = rawRows.map((r) => ({
+      sourceEntityId: r.source_term_id,
+      targetEntityId: r.target_term_id,
+      relationshipType: r.relationship_type,
+      confidence: null,
+    }));
+
+    const entityIds = new Set<string>();
+    for (const r of rawRows) {
+      entityIds.add(r.source_term_id);
+      entityIds.add(r.target_term_id);
+    }
+
+    // ADR-037 document-evidenced filter is intentionally NOT applied here.
+    // traverse() follows relationship edges — filtering mid-traversal would
+    // produce incoherent results (relationships pointing to entity IDs absent
+    // from the entities list). The filter applies at entry-point queries
+    // (getEntity, findEntitiesByType) where callers ask "what entities exist?".
+    // Future hardening: enforce evidenced constraint at write time in
+    // writeRelationship so non-evidenced entities never acquire relationships.
+    let entities: GraphEntity[] = [];
+    if (entityIds.size > 0) {
+      const entityRows = await this.db.graph.findTermsByIds(
+        Array.from(entityIds),
+      );
+      entities = entityRows.map((r) => ({
+        entityId: r.id,
+        term: r.term,
+        category: r.category,
+        confidence: r.confidence,
+      }));
+    }
+
+    const actualDepth =
+      rawRows.length > 0 ? Math.max(...rawRows.map((r) => r.depth)) : 0;
+
+    this.log.debug(
+      {
+        startEntityId,
+        maxDepth,
+        actualDepth,
+        entityCount: entities.length,
+        relationshipCount: relationships.length,
+      },
+      'traverse: complete',
+    );
+
+    return { entities, relationships, depth: actualDepth };
   }
 
-  async findEntitiesByType(_entityType: string): Promise<GraphEntity[]> {
-    throw new Error(
-      'PostgresGraphStore.findEntitiesByType: not yet implemented (Task 6)',
+  async findEntitiesByType(entityType: string): Promise<GraphEntity[]> {
+    this.log.debug({ entityType }, 'findEntitiesByType: querying');
+
+    const rows = await this.db.graph.findTermsByCategory(entityType);
+
+    this.log.debug(
+      { entityType, count: rows.length },
+      'findEntitiesByType: complete',
     );
+
+    return rows.map((r) => ({
+      entityId: r.id,
+      term: r.term,
+      category: r.category,
+      confidence: r.confidence,
+    }));
   }
 
-  async findDocumentsByEntity(_entityId: string): Promise<DocumentReference[]> {
-    throw new Error(
-      'PostgresGraphStore.findDocumentsByEntity: not yet implemented (Task 6)',
-    );
-  }
-}
+  async findDocumentsByEntity(entityId: string): Promise<DocumentReference[]> {
+    this.log.debug({ entityId }, 'findDocumentsByEntity: querying');
 
-/**
- * Factory: create a GraphStore from the graph config block.
- * Accepts the AppConfig['graph'] slice and a Logger, consistent with the
- * factory pattern established by createStorageService and createVectorStore.
- */
-export function createGraphStore(
-  graphConfig: AppConfig['graph'],
-  db: DbInstance,
-  log: Logger,
-): GraphStore {
-  if (graphConfig.provider === 'postgresql') {
-    return new PostgresGraphStore(db, log);
+    const rows = await this.db.graph.findDocumentsByTermId(entityId);
+
+    this.log.debug(
+      { entityId, count: rows.length },
+      'findDocumentsByEntity: complete',
+    );
+
+    return rows.map((r) => ({
+      documentId: r.id,
+      description: r.description,
+      date: r.date ?? '',
+    }));
   }
-  throw new Error(`Unknown graph provider: ${graphConfig.provider}`);
 }

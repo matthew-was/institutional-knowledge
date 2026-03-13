@@ -15,8 +15,8 @@
  * ordered by similarity (highest first), limited to topK results.
  */
 
-import { randomUUID } from 'node:crypto';
 import type { Logger } from 'pino';
+import { v7 as uuidv7 } from 'uuid';
 import type { DbInstance } from '../db/index.js';
 import type { SearchResult, VectorStore } from './VectorStore.js';
 
@@ -49,7 +49,7 @@ export class PgVectorStore implements VectorStore {
 
     this.log.debug({ documentId, chunkId }, 'write: inserting embedding');
 
-    const id = randomUUID();
+    const id = uuidv7();
     await this.db.embeddings.insert({ id, chunkId, documentId, embedding });
 
     this.log.debug({ documentId, chunkId, embeddingId: id }, 'write: complete');

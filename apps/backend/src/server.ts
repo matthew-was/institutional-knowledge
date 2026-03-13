@@ -16,7 +16,7 @@
 
 import { config } from './config/index.js';
 import { createDb, type DbInstance } from './db/index.js';
-import { createGraphStore } from './graphstore/PostgresGraphStore.js';
+import { createGraphStore } from './graphstore/index.js';
 import { createApp } from './index.js';
 import { createLogger } from './middleware/logger.js';
 import { createStorageService } from './storage/index.js';
