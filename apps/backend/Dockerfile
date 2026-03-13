@@ -26,12 +26,20 @@ COPY apps/backend/package.json ./apps/backend/package.json
 
 RUN pnpm install --frozen-lockfile
 
-# ── build stage ───────────────────────────────────────────────────────────────
-FROM deps AS builder
+# ── dev-deps stage ────────────────────────────────────────────────────────────
+# Extends deps with a built packages/shared so tsx can resolve sub-path exports
+# (e.g. @institutional-knowledge/shared/schemas) during hot-reload development.
+# The backend source is bind-mounted at runtime; only shared needs to be compiled.
+FROM deps AS devdeps
 
-# Copy shared package source and build it first
+COPY tsconfig.json ./
 COPY packages/shared/ ./packages/shared/
 RUN pnpm --filter @institutional-knowledge/shared build
+
+# ── build stage ───────────────────────────────────────────────────────────────
+# Extends devdeps (shared already compiled) so the shared build step is not
+# duplicated between stages.
+FROM devdeps AS builder
 
 # Copy backend source and build
 COPY apps/backend/ ./apps/backend/

@@ -35,6 +35,55 @@ Ollama instance and Docling installation. These are external dependencies outsid
 service. The developer must confirm the local environment has these available before Task 22
 can be started.
 
+**FLAG-04 — OpenAPI code generation step (resolved by ADR-048)**
+
+Before any Python task that calls Express, the Pydantic models in
+`services/processing/shared/generated/` must be generated from the backend `/openapi.json`
+spec. Run `datamodel-codegen` against the live spec and commit the output. Re-run whenever
+`packages/shared/src/schemas/` changes. See the code-gen task below (Task 0).
+
+---
+
+### Task 0: Generate Pydantic models from Express OpenAPI spec
+
+**Description**: Generate typed Pydantic v2 models for all Express API request and response
+schemas. This is a one-time setup step that must complete before any Python task that calls
+Express.
+
+- Start the Express backend locally (`pnpm --filter backend dev` or Docker Compose)
+- Run `datamodel-codegen` against the spec endpoint:
+
+```bash
+datamodel-codegen \
+  --url http://localhost:3001/openapi.json \
+  --output services/processing/shared/generated/ \
+  --output-model-type pydantic_v2.BaseModel \
+  --use-annotated \
+  --target-python-version 3.11
+```
+
+- Review the generated files in `services/processing/shared/generated/`
+- Add `__init__.py` to `services/processing/shared/generated/` if not created automatically
+- Commit the generated output — the Python service must not depend on the Express backend
+  being available at build or test time
+- Add `datamodel-codegen` to `requirements.txt` as a dev dependency
+
+**When to re-run**: whenever `packages/shared/src/schemas/` changes in the backend. The
+generated output is committed, so CI does not require the Express backend to be running.
+
+**Depends on**: Express backend `/openapi.json` endpoint live (Backend Task 5 in the
+implementation plan — Implementer scaffold step)
+
+**Complexity**: S
+
+**Acceptance condition**: `services/processing/shared/generated/` contains generated Pydantic
+v2 model files. Importing `from shared.generated.models import InitiateUploadRequest` (or
+equivalent) succeeds in a Python REPL. Confirmed by manual inspection.
+
+**Condition type**: manual
+
+**Status**: not_started
+
 ---
 
 ## Tasks
