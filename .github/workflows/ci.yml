@@ -50,6 +50,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared package
+        run: pnpm --filter @institutional-knowledge/shared build
+
       - name: Lint (Biome)
         run: pnpm lint
 
@@ -106,6 +109,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @institutional-knowledge/shared build
 
       - name: Run backend tests
         run: pnpm --filter backend test
