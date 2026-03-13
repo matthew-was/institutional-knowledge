@@ -12,6 +12,7 @@
  * createDb returns a DbInstance containing:
  *   - embeddings:  embeddings repository
  *   - chunks:      chunks repository
+ *   - graph:       graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences)
  *   - _knex:       raw Knex instance (for transactions; prefer repositories)
  *   - destroy():   releases the connection pool on graceful shutdown
  *
@@ -37,6 +38,7 @@ import type { AppConfig } from '../config/index.js';
 import {
   createChunksRepository,
   createEmbeddingsRepository,
+  createGraphRepository,
 } from './repositories/index.js';
 import { camelCase, snakeCase } from './utils.js';
 
@@ -97,6 +99,9 @@ function buildDbInstance(knex: ReturnType<typeof Knex>) {
 
     /** Chunks table repository. */
     chunks: createChunksRepository(knex),
+
+    /** Graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences). */
+    graph: createGraphRepository(knex),
 
     /** Release the connection pool. Call on graceful shutdown. */
     async destroy(): Promise<void> {

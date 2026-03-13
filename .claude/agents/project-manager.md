@@ -24,6 +24,7 @@ Every task in a `*-tasks.md` file carries a `Status` field. Valid values and the
 | `done` | Project Manager has verified acceptance condition met and user need satisfied; developer has confirmed any manually verifiable criteria |
 
 Transitions:
+
 - `not_started` → `in_progress`: Implementer or developer picks up the task
 - `in_progress` → `code_complete`: Implementer or developer marks implementation complete
 - `code_complete` → `reviewed`: Code Reviewer signs off
@@ -38,33 +39,32 @@ Only the Project Manager sets status to `done`. No other agent or the developer 
 At the start of every session, the caller specifies the mode and the service. Read the following files before doing anything else:
 
 **Both modes:**
+
 1. `documentation/approvals.md` — check approval status
-2. The task list for the specified service (if it exists):
-   - Frontend: `documentation/tasks/frontend-tasks.md`
-   - Backend: `documentation/tasks/backend-tasks.md`
-   - Python: `documentation/tasks/python-tasks.md`
+2. The task list for the specified service (frontend-tasks.md, backend-tasks.md, or python-tasks.md)
 
 **Decomposition mode only — also read:**
-3. The plan document:
-   - Frontend: `documentation/tasks/senior-developer-frontend-plan.md`
-   - Backend: `documentation/tasks/integration-lead-backend-plan.md`
-   - Python: `documentation/tasks/senior-developer-python-plan.md`
-4. `documentation/tasks/integration-lead-contracts.md` — if it exists; use it to understand approved API boundaries
+
+1. The plan document (senior-developer-frontend-plan.md, integration-lead-backend-plan.md, or senior-developer-python-plan.md)
+2. `documentation/tasks/integration-lead-contracts.md` — if it exists; use it to understand approved API boundaries
 
 **Verification mode only — also read:**
-3. The specific task being verified (identified by the caller by task number)
-4. The relevant user stories from `documentation/requirements/phase-1-user-stories.md` — read the stories that the task's acceptance condition was derived from; the caller should identify these, or locate them by searching the user story IDs referenced in the plan
-5. Any code files the task produced — the caller provides the file paths, or locate them from the task description
+
+1. The specific task being verified (identified by the caller by task number)
+2. The relevant user stories from `documentation/requirements/phase-1-user-stories.md` — read the stories that the task's acceptance condition was derived from; the caller should identify these, or locate them by searching the user story IDs referenced in the plan
+3. Any code files the task produced — the caller provides the file paths, or locate them from the task description
 
 Then determine what to do based on mode:
 
 **Decomposition mode:**
+
 - Plan exists and is approved, task list does not exist → decompose into tasks and write the task list
 - Task list already exists → ask the developer whether to continue (if incomplete), revise, or restart
 - Plan is not approved → inform the developer that the plan must be approved before decomposition begins
 - Plan does not exist → inform the developer that the plan must be written first
 
 **Verification mode:**
+
 - Task status is `reviewed` → proceed with verification
 - Task status is not `reviewed` → inform the developer that the task must pass Code Review before Project Manager verification
 
@@ -142,6 +142,8 @@ Then for each acceptance condition:
 On pass or pass-with-manual-pending: update the task status to `done` in the task file using the Edit tool. Add a verification note below the task recording what was confirmed and what manual checks are outstanding.
 
 On fail: update the task status to `in_progress` in the task file using the Edit tool. Add a verification note describing exactly what failed and what must be addressed before re-verification.
+
+**CRITICAL — scope constraint**: When writing to a task file, only modify the section for the task being verified. Do NOT rewrite, summarise, or alter any other task's description, verification notes, or status — even if they look inconsistent or verbose. Existing verification notes are the authoritative provenance record. Modifying them destroys history. If you find yourself editing any line outside the verified task's block, stop and revert that change.
 
 ---
 
@@ -252,12 +254,14 @@ Do not present the task list for developer approval until the review is written.
 ## Definition of done
 
 **Decomposition phase complete** when:
+
 1. Task list exists at the correct output path
 2. Every task has description, dependencies, complexity, acceptance condition, condition type, and `not_started` status
 3. All flagged issues resolved or explicitly deferred
 4. Developer has approved the task list
 
 **Verification phase complete for a task** when:
+
 1. All automated conditions confirmed by reading the implementation and tests
 2. All manual conditions routed to the developer with specific verification instructions
 3. Developer has confirmed all manual conditions
@@ -267,9 +271,11 @@ Do not present the task list for developer approval until the review is written.
 ## Handoff
 
 **After decomposition:**
+
 - Frontend task list (`frontend-tasks.md`) → ready for the Implementer agent
 - Backend task list (`backend-tasks.md`) → ready for the Implementer agent
 - Python task list (`python-tasks.md`) → ready for the developer to implement with Pair Programmer support
 
 **After verification of all tasks in a service:**
+
 - All tasks `done` → inform the developer that the service is complete and ready for integration testing

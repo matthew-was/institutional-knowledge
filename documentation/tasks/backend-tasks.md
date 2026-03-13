@@ -526,7 +526,14 @@ All integration tests pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-13):
+
+- Automated checks: confirmed. 13 integration tests in `apps/backend/src/graphstore/__tests__/PostgresGraphStore.integration.test.ts` cover all five acceptance conditions against a real PostgreSQL instance. (a) Three tests: round-trip with occurrence returns entity with correct fields; entity with no occurrences returns null (ADR-037 filter enforced via `whereExists` subquery in `findTermById`); upsert on ID conflict updates term and category. (b) Three tests: outgoing relationships returned with correct fields; incoming direction filter works; duplicate insert on same composite key does not throw and produces exactly one row. (c) `it.each` parametrised test at depths 1, 2, and 3 against a three-hop chain built by `buildChain()`: relationship count equals depth; `result.depth` equals actual depth reached (derived from `MAX(depth)` in recursive CTE); expected source IDs present. (d) Two tests: category filter returns only matching entities; entities without occurrences excluded. (e) Two tests: correct `DocumentReference` fields returned; empty array when no occurrences. Additionally 28 `normaliseTermText` unit tests covering Unicode-aware punctuation stripping, lowercasing, whitespace normalisation, and ADR-028 deduplication consistency.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied. GraphStore interface (ADR-037) provides the data access layer for vocabulary management (US-059, US-061, US-065) and graph-RAG traversal. Document-evidenced filter enforced in `getEntity`/`findEntitiesByType`; `traverse()` intentionally omits filter mid-traversal (incoherent results otherwise) with documented rationale. `normaliseTermText` implements ADR-028 in a single location. Factory `createGraphStore(graphConfig, db, log)` consistent with established pattern.
+- Outcome: done
 
 ---
 
