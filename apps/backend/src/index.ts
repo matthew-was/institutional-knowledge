@@ -24,6 +24,7 @@ import { createErrorHandler } from './middleware/errorHandler.js';
 import { createRequestLogger, type Logger } from './middleware/logger.js';
 import { generateOpenApiSpec } from './openapi.js';
 import { createRouter } from './routes/index.js';
+import type { DocumentService } from './services/documents.js';
 import type { StorageService } from './storage/index.js';
 import type { VectorStore } from './vectorstore/index.js';
 
@@ -33,6 +34,7 @@ export interface AppDependencies {
   storage: StorageService;
   vectorStore: VectorStore;
   graphStore: GraphStore;
+  documentService: DocumentService;
   log: Logger;
 }
 
@@ -64,7 +66,7 @@ export function createApp(deps: AppDependencies): express.Application {
   app.use(createAuthMiddleware(deps.config.auth, deps.log));
 
   // 5. API routes
-  app.use('/api', createRouter());
+  app.use('/api', createRouter(deps));
 
   // 6. Error handler (must be last)
   app.use(createErrorHandler(deps.log));

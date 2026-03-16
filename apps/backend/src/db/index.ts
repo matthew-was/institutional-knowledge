@@ -37,6 +37,7 @@ import Knex from 'knex';
 import type { AppConfig } from '../config/index.js';
 import {
   createChunksRepository,
+  createDocumentsRepository,
   createEmbeddingsRepository,
   createGraphRepository,
 } from './repositories/index.js';
@@ -93,6 +94,9 @@ function buildDbInstance(knex: ReturnType<typeof Knex>) {
      * by a repository. Prefer repository methods where available.
      */
     _knex: knex,
+
+    /** Documents table repository. */
+    documents: createDocumentsRepository(knex),
 
     /** Embeddings table repository. */
     embeddings: createEmbeddingsRepository(knex),
