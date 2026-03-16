@@ -10,6 +10,10 @@
  * chunk text data to satisfy this interface.
  */
 
+import type { ServiceResult } from '@institutional-knowledge/shared';
+
+export type VectorStoreErrorType = 'dimension_mismatch';
+
 export interface SearchResult {
   chunkId: string;
   documentId: string;
@@ -31,7 +35,7 @@ export interface VectorStore {
     documentId: string,
     chunkId: string,
     embedding: number[],
-  ): Promise<void>;
+  ): Promise<ServiceResult<void, VectorStoreErrorType>>;
 
   /**
    * Search for chunks similar to the given query embedding.
@@ -43,5 +47,5 @@ export interface VectorStore {
     queryEmbedding: number[],
     topK: number,
     filters?: Record<string, unknown>,
-  ): Promise<SearchResult[]>;
+  ): Promise<ServiceResult<SearchResult[], VectorStoreErrorType>>;
 }

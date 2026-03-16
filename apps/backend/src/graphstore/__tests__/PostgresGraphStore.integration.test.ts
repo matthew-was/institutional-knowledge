@@ -3,6 +3,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { createTestDb, type DbInstance } from '../../db/index.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
+import { TEST_DB_CONFIG } from '../../testing/testDb.js';
 import { PostgresGraphStore } from '../PostgresGraphStore.js';
 
 /**
@@ -31,13 +32,7 @@ const silentLog = pino({ level: 'silent' });
 // Shared database connection — schema managed by globalSetup.ts
 // ---------------------------------------------------------------------------
 
-const db: DbInstance = createTestDb({
-  host: 'localhost',
-  port: 5433,
-  database: 'ik_test',
-  user: 'ik_test',
-  password: 'ik_test',
-});
+const db: DbInstance = createTestDb(TEST_DB_CONFIG);
 
 afterAll(async () => {
   await db.destroy();
@@ -354,6 +349,13 @@ describe('PostgresGraphStore — traverse', () => {
     const relSources = result.relationships.map((r) => r.sourceEntityId);
     for (const src of expectedSources(ids)) {
       expect(relSources).toContain(src);
+    }
+
+    // Assert all raw SQL columns are mapped (guards against silent column remapping errors)
+    for (const rel of result.relationships) {
+      expect(rel.sourceEntityId).toBeDefined();
+      expect(rel.targetEntityId).toBeDefined();
+      expect(rel.relationshipType).toBeDefined();
     }
   });
 });

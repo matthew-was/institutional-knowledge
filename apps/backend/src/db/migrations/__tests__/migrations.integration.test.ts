@@ -1,5 +1,6 @@
 import knex from 'knex';
 import { afterAll, describe, expect, it } from 'vitest';
+import { TEST_DB_CONFIG } from '../../../testing/testDb.js';
 
 /**
  * Integration test: migration correctness.
@@ -22,7 +23,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 describe('Knex migrations — integration', () => {
   const db = knex({
     client: 'pg',
-    connection: 'postgresql://ik_test:ik_test@localhost:5433/ik_test',
+    connection: TEST_DB_CONFIG,
   });
 
   afterAll(async () => {

@@ -73,6 +73,9 @@ function createKnexInstance(
     // The '*' wildcard is passed through unchanged.
     wrapIdentifier: (value, wrap) => wrap(snakeCase(value)),
     // Convert snake_case column names from PostgreSQL results to camelCase.
+    // Only top-level keys are converted — this is intentional. The schema is flat
+    // (no nested row types). JSONB columns are not used in Phase 1; text[] arrays
+    // come back from pg as JS arrays and do not need key conversion.
     postProcessResponse: (result: unknown) => {
       const toCamel = (row: Record<string, unknown>) =>
         Object.fromEntries(

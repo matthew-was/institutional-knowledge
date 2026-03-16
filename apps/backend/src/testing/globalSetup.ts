@@ -12,6 +12,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import knex, { type Knex } from 'knex';
+import { createTestKnexConfig } from './testDb.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,8 +23,7 @@ let db: Knex;
 
 export async function setup(): Promise<void> {
   db = knex({
-    client: 'pg',
-    connection: 'postgresql://ik_test:ik_test@localhost:5433/ik_test',
+    ...createTestKnexConfig(),
     migrations: {
       directory: migrationsDir,
       extension: 'ts',

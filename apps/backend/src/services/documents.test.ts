@@ -16,48 +16,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { makeConfig, makeLog } from '../testing/testHelpers.js';
 import type { DocumentServiceDeps } from './documents.js';
 import { createDocumentService } from './documents.js';
-
-// ---------------------------------------------------------------------------
-// Mock helpers
-// ---------------------------------------------------------------------------
-
-function makeLog() {
-  return { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
-}
-
-function makeConfig(
-  overrides?: Partial<DocumentServiceDeps['config']['upload']>,
-): DocumentServiceDeps['config'] {
-  return {
-    server: { port: 4000 },
-    db: {
-      host: 'localhost',
-      port: 5432,
-      database: 'ik',
-      user: 'ik',
-      password: 'ik',
-    },
-    auth: { frontendKey: 'fk', pythonKey: 'pk', pythonServiceKey: 'psk' },
-    storage: {
-      provider: 'local',
-      local: { basePath: '/base', stagingPath: '/staging' },
-    },
-    upload: {
-      maxFileSizeMb: 10,
-      acceptedExtensions: ['.jpg', '.pdf', '.png'],
-      ...overrides,
-    },
-    pipeline: { runningStepTimeoutMinutes: 30, maxRetries: 3 },
-    python: { baseUrl: 'http://localhost:5000' },
-    vectorStore: { provider: 'pgvector' },
-    graph: { provider: 'postgresql' },
-    embedding: { dimension: 384 },
-    ingestion: { partialAuditReport: false, reportOutputDirectory: '/reports' },
-    logger: { level: 'info' as const },
-  };
-}
 
 function makeDocumentsRepo(
   overrides?: Partial<DocumentServiceDeps['db']['documents']>,

@@ -141,6 +141,11 @@ export function createGraphRepository(db: Knex) {
       let rawSql: string;
       let bindings: unknown[];
 
+      // The filtered and unfiltered branches below duplicate the CTE structure
+      // intentionally. Knex uses positional bindings (?), so merging them via a
+      // conditional clause would require fragile conditional binding arrays where
+      // a miscount produces a silent wrong query. The duplication keeps each
+      // variant self-contained and independently testable.
       if (hasTypeFilter) {
         rawSql = `
           WITH RECURSIVE graph AS (

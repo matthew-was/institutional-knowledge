@@ -1,5 +1,5 @@
 /**
- * PgVectorStore — Phase 1 pgvector implementation of VectorStore (ADR-033).
+ * PgVectorStore — Phase 1 pgvector implementation of VectorStore (implements ADR-033).
  *
  * Uses the pgvector <=> cosine distance operator for similarity search.
  * The embedding dimension is validated at both write and search time against
@@ -15,10 +15,15 @@
  * ordered by similarity (highest first), limited to topK results.
  */
 
-import type { Logger } from 'pino';
+import type { ServiceResult } from '@institutional-knowledge/shared';
 import { v7 as uuidv7 } from 'uuid';
 import type { DbInstance } from '../db/index.js';
-import type { SearchResult, VectorStore } from './VectorStore.js';
+import type { Logger } from '../middleware/logger.js';
+import type {
+  SearchResult,
+  VectorStore,
+  VectorStoreErrorType,
+} from './VectorStore.js';
 
 export class PgVectorStore implements VectorStore {
   private readonly db: DbInstance;
@@ -34,17 +39,19 @@ export class PgVectorStore implements VectorStore {
   /**
    * Insert an embedding into the embeddings table.
    * The chunk row (chunkId) must already exist before this is called.
-   * Throws if embedding.length does not match the configured dimension.
+   * Returns dimension_mismatch if embedding.length does not match the configured dimension.
    */
   async write(
     documentId: string,
     chunkId: string,
     embedding: number[],
-  ): Promise<void> {
+  ): Promise<ServiceResult<void, VectorStoreErrorType>> {
     if (embedding.length !== this.embeddingDimension) {
-      throw new Error(
-        `PgVectorStore.write: embedding dimension mismatch — expected ${this.embeddingDimension}, received ${embedding.length}`,
-      );
+      return {
+        outcome: 'error',
+        errorType: 'dimension_mismatch',
+        errorMessage: `PgVectorStore.write: embedding dimension mismatch — expected ${this.embeddingDimension}, received ${embedding.length}`,
+      };
     }
 
     this.log.debug({ documentId, chunkId }, 'write: inserting embedding');
@@ -53,22 +60,25 @@ export class PgVectorStore implements VectorStore {
     await this.db.embeddings.insert({ id, chunkId, documentId, embedding });
 
     this.log.debug({ documentId, chunkId, embeddingId: id }, 'write: complete');
+    return { outcome: 'success', data: undefined };
   }
 
   /**
    * Search for the topK most similar chunks to the given query embedding.
-   * Throws if queryEmbedding.length does not match the configured dimension.
+   * Returns dimension_mismatch if queryEmbedding.length does not match the configured dimension.
    * Phase 1: no filters, no similarity threshold.
    */
   async search(
     queryEmbedding: number[],
     topK: number,
     _filters?: Record<string, unknown>,
-  ): Promise<SearchResult[]> {
+  ): Promise<ServiceResult<SearchResult[], VectorStoreErrorType>> {
     if (queryEmbedding.length !== this.embeddingDimension) {
-      throw new Error(
-        `PgVectorStore.search: embedding dimension mismatch — expected ${this.embeddingDimension}, received ${queryEmbedding.length}`,
-      );
+      return {
+        outcome: 'error',
+        errorType: 'dimension_mismatch',
+        errorMessage: `PgVectorStore.search: embedding dimension mismatch — expected ${this.embeddingDimension}, received ${queryEmbedding.length}`,
+      };
     }
 
     this.log.debug(
@@ -82,6 +92,6 @@ export class PgVectorStore implements VectorStore {
     );
 
     this.log.debug({ topK, resultCount: results.length }, 'search: complete');
-    return results;
+    return { outcome: 'success', data: results };
   }
 }
