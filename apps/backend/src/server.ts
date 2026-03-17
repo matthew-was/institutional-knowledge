@@ -19,6 +19,7 @@ import { createDb, type DbInstance } from './db/index.js';
 import { createGraphStore } from './graphstore/index.js';
 import { createApp } from './index.js';
 import { createLogger } from './middleware/logger.js';
+import { createDocumentService } from './services/documents.js';
 import { createStorageService } from './storage/index.js';
 import { createVectorStore } from './vectorstore/index.js';
 
@@ -63,6 +64,7 @@ async function start(): Promise<void> {
     log,
   );
   const graphStore = createGraphStore(config.graph, db, log);
+  const documentService = createDocumentService({ db, storage, config, log });
 
   const app = createApp({
     config,
@@ -70,6 +72,7 @@ async function start(): Promise<void> {
     storage,
     vectorStore,
     graphStore,
+    documentService,
     log,
   });
 

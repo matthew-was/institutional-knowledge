@@ -1,5 +1,7 @@
 export type { ChunksRepository } from './chunks.js';
 export { createChunksRepository } from './chunks.js';
+export type { DocumentsRepository } from './documents.js';
+export { createDocumentsRepository } from './documents.js';
 export type { EmbeddingsRepository } from './embeddings.js';
 export { createEmbeddingsRepository } from './embeddings.js';
 export type { GraphRepository } from './graph.js';

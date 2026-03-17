@@ -624,7 +624,63 @@ permanent file exists at `storage_path`. Test passes.
 
 **Condition type**: both
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-16):
+
+- Automated checks (unit tests): confirmed. All acceptance condition sub-conditions covered by
+  `apps/backend/src/services/documents.test.ts`. (a) `initiateUpload` — four cases: `.exe`
+  extension returns `unsupported_extension`; 11 MB file returns `file_too_large`; `'   '`
+  description returns `whitespace_description`; valid input returns `outcome: 'success'` with
+  a non-empty `uploadId` string and `status: 'initiated'`. The "returns 400 for invalid date
+  format" condition is met structurally: the Zod `InitiateUploadRequest` schema validates the
+  date regex and the `validate` middleware returns HTTP 400 before the service is called —
+  confirmed by code review round 2. (b) `uploadFile` — four cases: undefined row returns
+  `not_found`; non-`initiated` status returns `not_found`; `findFinalizedByHash` returning a
+  match returns `duplicate_detected` with correct `DuplicateConflictResponse` shape including
+  `archiveReference: '1987-06-15 — Wedding photo'`; no duplicate returns `outcome: 'success'`
+  with 32-char MD5 hex `fileHash`. (c) `finalizeUpload` — two cases plus additional: non-
+  `uploaded` status returns `not_found`; valid `uploaded` doc returns success with
+  `archiveReference: '1987-06-15 — Wedding photo'`; additional test confirms
+  `[undated] — Undated photo` form when `date` is null. (d) `cleanupUpload` — five cases:
+  undefined row returns `not_found`; `finalized` status returns `finalized_document`; `uploaded`
+  status returns `deleted: true` and `deleteStagingFile` called (verified via spy); `initiated`
+  status calls `deleteStagingFile`; `stored` status calls `deletePermanentFile`. HTTP status
+  mapping confirmed correct via exhaustive `ERROR_STATUS` record in
+  `apps/backend/src/routes/documents.ts` (`unsupported_extension` → 422, `file_too_large` →
+  422, `whitespace_description` → 400, `not_found` → 404, `duplicate_detected` → 409,
+  `finalized_document` → 409).
+- Automated checks (integration test): confirmed.
+  `apps/backend/src/services/__tests__/documents.integration.test.ts` covers the full
+  initiate → upload → finalize lifecycle against a real PostgreSQL instance and
+  `LocalStorageService` with temp directories. Verifies: DB row at `initiated` after
+  `initiateUpload`; staging file exists after `uploadFile`; DB row at `uploaded` with correct
+  `fileHash` after `uploadFile`; DB row at `finalized` with `storagePath` set after
+  `finalizeUpload`; staging file absent after `finalizeUpload`; permanent file exists at
+  `storagePath`. A second test covers `cleanupUpload` deleting an `initiated` record and
+  confirming the row is gone via `db.documents.getById`. Uses `createTestDb`,
+  `cleanAllTables` in `afterEach`, and `globalSetup` for schema — consistent with the
+  established integration test pattern.
+- Manual checks: confirmed by developer (2026-03-16). All three commands passed: (1)
+  `pnpm --filter backend build` — no TypeScript errors; (2) `pnpm --filter backend exec biome
+  check src` — clean lint; (3) `pnpm --filter backend test` — 113 tests pass.
+- User need: satisfied. The four handlers implement the complete server-side document upload
+  protocol. US-003/US-003b (server-side validation): date format validated by Zod schema before
+  service is called; whitespace description validated in service. Both enforced server-side.
+  US-005 (format restriction): extension check reads `upload.acceptedExtensions` from config;
+  error message names the rejected extension and the accepted list — actionable. US-006
+  (atomicity): `cleanupUpload` (DOC-005) handles abandoned uploads; staging file cleaned up
+  immediately on duplicate detection (S-001 fix confirmed in code review round 2). US-019 (max
+  file size): reads `upload.maxFileSizeMb` from config at runtime; error message states received
+  size and configured limit. US-020 (duplicate detection): MD5 hash checked against finalized
+  documents only (partial unique index per ADR-009); `DuplicateConflictResponse` includes
+  `archiveReference` of the existing document so the caller can inform the user exactly which
+  document already exists; rejected duplicate staging file deleted immediately. All key
+  architectural constraints respected: zero Express imports in `services/documents.ts`;
+  exhaustive `ERROR_STATUS` record in route layer; `next(err)` reserved for unexpected errors
+  only; `duplicate_detected` uses custom `errorData` body shape; all DB access via
+  `db.documents.*`; no document content in logs.
+- Outcome: done
 
 ---
 

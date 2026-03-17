@@ -159,6 +159,7 @@ const stubDeps = {
   storage: {} as never,
   vectorStore: {} as never,
   graphStore: {} as never,
+  documentService: {} as never,
   log: createLogger({ level: 'error' }),
 };
 
