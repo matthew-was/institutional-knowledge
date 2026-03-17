@@ -26,6 +26,7 @@ Schema:
 {
   "started_at": "2026-02-19T09:30:00",
   "date": "2026-02-19",
+  "tags": ["institutional-knowledge"],
   "blocks": [
     {
       "timestamp": "2026-02-19T09:45:00",
@@ -38,6 +39,7 @@ Schema:
 }
 ```
 
+`tags` is a JSON array of strings matching the multi-select options in the Lab Entries database.
 Each block has a `note` (string or null) and a `commits` array (may be empty).
 
 ---
@@ -50,11 +52,18 @@ Each block has a `note` (string or null) and a `commits` array (may be empty).
      overwrite unless they confirm discard.
    - If it does not exist: proceed.
 2. Get the current date and time using `date -u +"%Y-%m-%dT%H:%M:%S"` (UTC).
-3. Write `~/.claude/lab-entry-draft.json` with:
+3. Determine the repo tag:
+   - Run `git remote get-url origin` in the current working directory.
+   - Extract the repository name (the last path segment, without `.git`), e.g. `institutional-knowledge`.
+   - Check whether that name matches an existing Tags option in the Lab Entries database. Known options: `institutional-knowledge`, `ai-council`.
+   - If it matches, set `tags` to `["<repo-name>"]`.
+   - If it does not match, ask the developer: "The repo name `<repo-name>` is not a known tag — would you like to create it, use an existing tag, or leave Tags empty?" Wait for their answer before proceeding.
+4. Write `~/.claude/lab-entry-draft.json` with:
    - `started_at`: set to the output of the `date` command
    - `date`: set to today's date (YYYY-MM-DD format)
+   - `tags`: set as determined above
    - `blocks`: empty array
-4. Confirm to the developer: "Lab entry started at [time from date command]."
+5. Confirm to the developer: "Lab entry started at [time from date command]."
 
 ---
 
@@ -150,6 +159,7 @@ The developer says something like "Append commits abc1234 def5678".
    | `Name` | Entry title |
    | `Type` | Inferred |
    | `Outcome` | Inferred |
+   | `Tags` | JSON array from `tags` field in draft (e.g. `["institutional-knowledge"]`). Omit if empty. |
    | `date:Date:start` | Value of `date` from draft (YYYY-MM-DD) |
    | `date:Date:is_datetime` | 0 |
    | `date:Start:start` | Value of `started_at` from draft (ISO-8601 with time) |
