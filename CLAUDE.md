@@ -60,9 +60,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Backend Tasks 1–7 done (merged to main). ADR-048 (Zod-to-OpenAPI pipeline) implemented and merged (PR #12). Platform Engineer Phase 3 (GitHub Actions CI/CD) done (merged to main).
+- **Current phase**: Implementation in progress. Backend Tasks 1–8 done (merged to main). ADR-048 (Zod-to-OpenAPI pipeline) implemented and merged (PR #12). Platform Engineer Phase 3 (GitHub Actions CI/CD) done (merged to main).
 - **Design status**: All design documents approved (ADR-001 to ADR-048). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Begin Backend Task 8 and/or Frontend Task 1 in parallel. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Begin Backend Task 9 (document curation handlers) and/or Frontend Task 1 in parallel. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)

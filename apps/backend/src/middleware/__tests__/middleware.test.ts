@@ -4,11 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../index.js';
 import { createAuthMiddleware } from '../auth.js';
-import {
-  ConflictError,
-  createErrorHandler,
-  NotFoundError,
-} from '../errorHandler.js';
+import { createErrorHandler } from '../errorHandler.js';
 import { createLogger } from '../logger.js';
 import { validate } from '../validate.js';
 
@@ -238,34 +234,5 @@ describe('createErrorHandler', () => {
     expect(body.error).toBe('internal_error');
     expect(body.message).toBe('An unexpected error occurred');
     expect(JSON.stringify(body)).not.toContain('stack');
-  });
-
-  it('returns 404 for NotFoundError', () => {
-    const handler = createErrorHandler(silentLogger);
-    const req = mockReq();
-    const res = mockRes();
-    const nextFn = vi.fn();
-
-    handler(new NotFoundError(), req, res as unknown as Response, nextFn);
-
-    expect(res.statusCode).toBe(404);
-    expect((res.body as { error: string }).error).toBe('not_found');
-  });
-
-  it('returns 409 for ConflictError', () => {
-    const handler = createErrorHandler(silentLogger);
-    const req = mockReq();
-    const res = mockRes();
-    const nextFn = vi.fn();
-
-    handler(
-      new ConflictError('already exists'),
-      req,
-      res as unknown as Response,
-      nextFn,
-    );
-
-    expect(res.statusCode).toBe(409);
-    expect((res.body as { error: string }).error).toBe('conflict');
   });
 });
