@@ -136,16 +136,13 @@ async function insertDocument(
 
 describe('POST /api/documents/initiate', () => {
   it('returns 422 for unsupported file extension', async () => {
-    const res = await request
-      .post('/api/documents/initiate')
-      .set(AUTH)
-      .send({
-        filename: 'malware.exe',
-        contentType: 'application/octet-stream',
-        fileSizeBytes: 1024,
-        date: '',
-        description: 'Some document',
-      });
+    const res = await request.post('/api/documents/initiate').set(AUTH).send({
+      filename: 'malware.exe',
+      contentType: 'application/octet-stream',
+      fileSizeBytes: 1024,
+      date: '',
+      description: 'Some document',
+    });
 
     expect(res.status).toBe(422);
     expect(res.body.error).toBe('unsupported_extension');
@@ -168,68 +165,57 @@ describe('POST /api/documents/initiate', () => {
   });
 
   it('returns 400 for invalid date format', async () => {
-    const res = await request
-      .post('/api/documents/initiate')
-      .set(AUTH)
-      .send({
-        filename: 'photo.jpg',
-        contentType: 'image/jpeg',
-        fileSizeBytes: 1024,
-        date: 'not-a-date',
-        description: 'A document',
-      });
+    const res = await request.post('/api/documents/initiate').set(AUTH).send({
+      filename: 'photo.jpg',
+      contentType: 'image/jpeg',
+      fileSizeBytes: 1024,
+      date: 'not-a-date',
+      description: 'A document',
+    });
 
     expect(res.status).toBe(400);
   });
 
   it('returns 400 for whitespace-only description', async () => {
-    const res = await request
-      .post('/api/documents/initiate')
-      .set(AUTH)
-      .send({
-        filename: 'photo.jpg',
-        contentType: 'image/jpeg',
-        fileSizeBytes: 1024,
-        date: '',
-        description: '   ',
-      });
+    const res = await request.post('/api/documents/initiate').set(AUTH).send({
+      filename: 'photo.jpg',
+      contentType: 'image/jpeg',
+      fileSizeBytes: 1024,
+      date: '',
+      description: '   ',
+    });
 
     expect(res.status).toBe(400);
   });
 
   it('returns 400 when a required field is missing', async () => {
-    const res = await request
-      .post('/api/documents/initiate')
-      .set(AUTH)
-      .send({
-        filename: 'photo.jpg',
-        contentType: 'image/jpeg',
-        fileSizeBytes: 1024,
-        date: '',
-        // description intentionally omitted
-      });
+    const res = await request.post('/api/documents/initiate').set(AUTH).send({
+      filename: 'photo.jpg',
+      contentType: 'image/jpeg',
+      fileSizeBytes: 1024,
+      date: '',
+      // description intentionally omitted
+    });
 
     expect(res.status).toBe(400);
   });
 
   it('returns 201 with uploadId on valid input; DB row is at initiated status', async () => {
-    const res = await request
-      .post('/api/documents/initiate')
-      .set(AUTH)
-      .send({
-        filename: 'photo.jpg',
-        contentType: 'image/jpeg',
-        fileSizeBytes: 1024,
-        date: '1987-06-15',
-        description: 'Wedding photograph',
-      });
+    const res = await request.post('/api/documents/initiate').set(AUTH).send({
+      filename: 'photo.jpg',
+      contentType: 'image/jpeg',
+      fileSizeBytes: 1024,
+      date: '1987-06-15',
+      description: 'Wedding photograph',
+    });
 
     expect(res.status).toBe(201);
     expect(typeof res.body.uploadId).toBe('string');
     expect(res.body.uploadId.length).toBeGreaterThan(0);
     expect(res.body.status).toBe('initiated');
 
-    const row = await db._knex('documents')
+    const row = await db
+      ._knex('documents')
       .where({ id: res.body.uploadId })
       .first();
     expect(row).toBeDefined();
@@ -292,9 +278,7 @@ describe('POST /api/documents/:uploadId/upload', () => {
         contentType: 'image/jpeg',
       });
 
-    await request
-      .post(`/api/documents/${uploadId1}/finalize`)
-      .set(AUTH);
+    await request.post(`/api/documents/${uploadId1}/finalize`).set(AUTH);
 
     // Initiate a second upload and send the same file bytes
     const initRes2 = await request

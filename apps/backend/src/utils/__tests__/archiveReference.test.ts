@@ -6,8 +6,8 @@
  * calling this function assert only a single happy-path output.
  */
 
-import { describe, expect, it } from 'vitest';
 import { archiveReference } from '@institutional-knowledge/shared';
+import { describe, expect, it } from 'vitest';
 
 describe('archiveReference', () => {
   describe('dated documents', () => {
@@ -38,9 +38,7 @@ describe('archiveReference', () => {
     });
 
     it('uses [undated] prefix when date is an empty string', () => {
-      expect(archiveReference('', 'A document')).toBe(
-        '[undated] — A document',
-      );
+      expect(archiveReference('', 'A document')).toBe('[undated] — A document');
     });
   });
 });
