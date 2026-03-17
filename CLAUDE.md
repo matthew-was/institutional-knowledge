@@ -123,7 +123,8 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `notion-lab-entry.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`
+- Global skills (in `~/.claude/skills/`): `lab-entry` — use `/lab-entry start|append|finish` across all projects
 - Agents: `product-owner.md`, `head-of-development.md`, `integration-lead.md`, `senior-developer-frontend.md`, `senior-developer-python.md`, `project-manager.md`, `implementer.md`, `pair-programmer.md`, `code-reviewer.md`, `platform-engineer.md`
 
 **All agents and skills written.** Design phase complete.
