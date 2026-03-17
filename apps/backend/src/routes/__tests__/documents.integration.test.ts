@@ -22,6 +22,7 @@ import supertest from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
+import type { DocumentInsert } from '../../db/tables.js';
 import { createGraphStore } from '../../graphstore/index.js';
 import { createApp } from '../../index.js';
 import type { Logger } from '../../middleware/logger.js';
@@ -41,6 +42,7 @@ let db: DbInstance;
 let app: ReturnType<typeof createApp>;
 let request: ReturnType<typeof supertest>;
 let tmpDir: string;
+let basePath: string;
 let stagingPath: string;
 
 const AUTH = { 'x-internal-key': 'fk' };
@@ -51,7 +53,7 @@ beforeAll(async () => {
   tmpDir = await fs.mkdtemp(
     path.join(os.tmpdir(), 'ik-documents-integration-'),
   );
-  const basePath = path.join(tmpDir, 'permanent');
+  basePath = path.join(tmpDir, 'permanent');
   stagingPath = path.join(tmpDir, 'staging');
   await fs.mkdir(basePath, { recursive: true });
   await fs.mkdir(stagingPath, { recursive: true });
@@ -93,36 +95,38 @@ afterEach(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Helper: seed a finalized document row directly for tests that need a
+// Helper: seed a document row via the repository for tests that need a
 // pre-existing doc without driving through the full upload lifecycle.
+// Uses db.documents.insert() so camelCase field names are enforced by the
+// DocumentInsert type. db._knex is reserved for cross-table operations
+// (transactions, TRUNCATE) and pipeline_steps seeding (no repository insert).
 // ---------------------------------------------------------------------------
 
-async function insertFinalizedDocument(
-  overrides: Record<string, unknown> = {},
+async function insertDocument(
+  overrides: Partial<DocumentInsert> = {},
 ): Promise<string> {
   const id = crypto.randomUUID();
-  await db._knex('documents').insert({
+  const row: DocumentInsert = {
     id,
     status: 'finalized',
     filename: 'photo.jpg',
-    content_type: 'image/jpeg',
-    file_size_bytes: '204800',
-    file_hash: `hash-${id}`,
-    storage_path: `/storage/${id}/photo.jpg`,
+    contentType: 'image/jpeg',
+    fileSizeBytes: '204800',
+    fileHash: `hash-${id}`,
+    storagePath: `/storage/${id}/photo.jpg`,
     date: '1987-06-15',
     description: 'Wedding photograph',
-    document_type: null,
+    documentType: null,
     people: null,
     organisations: null,
-    land_references: null,
-    flag_reason: null,
-    flagged_at: null,
-    submitter_identity: 'Primary Archivist',
-    ingestion_run_id: null,
-    created_at: new Date(),
-    updated_at: new Date(),
+    landReferences: null,
+    flagReason: null,
+    flaggedAt: null,
+    submitterIdentity: 'Primary Archivist',
+    ingestionRunId: null,
     ...overrides,
-  });
+  };
+  await db.documents.insert(row);
   return id;
 }
 
@@ -161,6 +165,21 @@ describe('POST /api/documents/initiate', () => {
 
     expect(res.status).toBe(422);
     expect(res.body.error).toBe('file_too_large');
+  });
+
+  it('returns 400 for invalid date format', async () => {
+    const res = await request
+      .post('/api/documents/initiate')
+      .set(AUTH)
+      .send({
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        fileSizeBytes: 1024,
+        date: 'not-a-date',
+        description: 'A document',
+      });
+
+    expect(res.status).toBe(400);
   });
 
   it('returns 400 for whitespace-only description', async () => {
@@ -457,7 +476,7 @@ describe('DELETE /api/documents/:uploadId', () => {
   });
 
   it('returns 409 for a finalized document', async () => {
-    const id = await insertFinalizedDocument();
+    const id = await insertDocument();
 
     const res = await request.delete(`/api/documents/${id}`).set(AUTH);
 
@@ -524,5 +543,33 @@ describe('DELETE /api/documents/:uploadId', () => {
     // Staging file is removed
     const stagingFile = path.join(stagingPath, uploadId, 'photo.jpg');
     await expect(fs.access(stagingFile)).rejects.toThrow();
+  });
+
+  it('returns 200 and deletes a stored document; permanent file is removed', async () => {
+    // 'stored' is a transitional status where the file has been moved to
+    // permanent storage but the document is not yet finalised. cleanupUpload
+    // must call deletePermanentFile for this status.
+    const id = crypto.randomUUID();
+    const permanentFile = path.join(basePath, id, 'photo.jpg');
+    await fs.mkdir(path.join(basePath, id), { recursive: true });
+    await fs.writeFile(permanentFile, 'stored-file-content');
+
+    await insertDocument({
+      id,
+      status: 'stored',
+      storagePath: permanentFile,
+    });
+
+    const res = await request.delete(`/api/documents/${id}`).set(AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.deleted).toBe(true);
+
+    // DB row is gone
+    const row = await db._knex('documents').where({ id }).first();
+    expect(row).toBeUndefined();
+
+    // Permanent file is removed
+    await expect(fs.access(permanentFile)).rejects.toThrow();
   });
 });

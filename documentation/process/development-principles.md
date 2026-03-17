@@ -272,6 +272,7 @@ export type DbInstance = {
 | Repositories (`db/repositories/*.ts`) | Yes — they receive raw `Knex` and that is the appropriate layer for SQL |
 | Test cleanup (`testing/dbCleanup.ts`) | Yes — `cleanAllTables` needs direct `Knex` access to issue a cross-table `TRUNCATE` |
 | Multi-table transactions | Yes — pass `db._knex` to `knex.transaction()` when atomicity spans multiple repositories |
+| Integration test seed helpers | Prefer `db.documents.insert()` (or equivalent repository method) when one exists. Use `db._knex` only for tables that have no repository insert method (e.g. `pipeline_steps`) or when verifying raw DB state after a test |
 
 `knex.raw()` is permitted inside repositories for queries that cannot be expressed in the Knex query builder (pgvector cosine distance, recursive CTEs). When using `knex.raw()`, column names must be written in snake\_case because `wrapIdentifier` does not apply; result rows must be mapped to camelCase explicitly.
 
