@@ -192,7 +192,7 @@ export function createDocumentService(deps: DocumentServiceDeps): DocumentServic
 
 **Rules**:
 
-- Methods return `ServiceResult<T, ErrorType>` for all expected outcomes — never throw for domain errors such as "not found" or "file too large". Throwing is reserved for genuinely unexpected failures (DB unreachable, programming error) that should propagate to the Express error handler via `next(err)`.
+- Methods return `ServiceResult<T, K, E>` for all expected outcomes — never throw for domain errors such as "not found" or "file too large". Throwing is reserved for genuinely unexpected failures (DB unreachable, programming error) that should propagate to the Express error handler via `next(err)`. `T` is the success data type; `K extends string` is the union of valid `errorType` strings (defaults to `string`); `E` is the type of `errorData` for structured error payloads (defaults to `never` for methods whose error cases carry only a message).
 - Services have no knowledge of Express (`Request`, `Response`, `NextFunction` are route-layer concerns).
 - The exported interface type is what callers depend on; the factory implementation is an internal detail.
 
