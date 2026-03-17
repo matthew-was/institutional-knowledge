@@ -16,9 +16,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeConfig, makeLog } from '../testing/testHelpers.js';
-import type { DocumentServiceDeps } from './documents.js';
-import { createDocumentService } from './documents.js';
+import { makeConfig, makeLog } from '../../testing/testHelpers.js';
+import type { DocumentServiceDeps } from '../documents.js';
+import { createDocumentService } from '../documents.js';
 
 function makeDocumentsRepo(
   overrides?: Partial<DocumentServiceDeps['db']['documents']>,

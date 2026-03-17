@@ -10,11 +10,13 @@
  * database lifecycle logic; it simply awaits a ready DbInstance.
  *
  * createDb returns a DbInstance containing:
- *   - embeddings:  embeddings repository
- *   - chunks:      chunks repository
- *   - graph:       graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences)
- *   - _knex:       raw Knex instance (for transactions; prefer repositories)
- *   - destroy():   releases the connection pool on graceful shutdown
+ *   - documents:       documents repository
+ *   - embeddings:      embeddings repository
+ *   - chunks:          chunks repository
+ *   - graph:           graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences)
+ *   - pipelineSteps:   pipeline steps repository (read-only; writes owned by Python service)
+ *   - _knex:           raw Knex instance (for transactions; prefer repositories)
+ *   - destroy():       releases the connection pool on graceful shutdown
  *
  * The Knex instance is configured with wrapIdentifier and postProcessResponse
  * so that all query-builder calls use camelCase field names throughout the
@@ -40,6 +42,7 @@ import {
   createDocumentsRepository,
   createEmbeddingsRepository,
   createGraphRepository,
+  createPipelineStepsRepository,
 } from './repositories/index.js';
 import { camelCase, snakeCase } from './utils.js';
 
@@ -109,6 +112,9 @@ function buildDbInstance(knex: ReturnType<typeof Knex>) {
 
     /** Graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences). */
     graph: createGraphRepository(knex),
+
+    /** Pipeline steps repository (read-only; write access owned by Python service — ADR-031). */
+    pipelineSteps: createPipelineStepsRepository(knex),
 
     /** Release the connection pool. Call on graceful shutdown. */
     async destroy(): Promise<void> {

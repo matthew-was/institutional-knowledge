@@ -82,7 +82,32 @@ TypeScript strict mode in all TypeScript packages. Zod validation at every exter
 
 ### 8. Test Early
 
-Tests written alongside code, not deferred to "after the feature works." Real PostgreSQL for integration tests (separate `estate_archive_test` database), not mocked database clients. See `pipeline-testing-strategy.md` skill for patterns.
+Tests written alongside code, not deferred to "after the feature works." See `pipeline-testing-strategy.md` skill for patterns.
+
+**Testing strategy — two tiers only:**
+
+- **Unit tests**: cover logic that can be extracted to a pure function — data transformations,
+  format derivations, computations that take inputs and return outputs with no I/O. The
+  canonical test: could this logic live in a standalone `function f(input): output`? If yes,
+  test it as a unit test. No database, no HTTP, no mocked `db` needed.
+
+- **Integration tests**: cover everything else. These tests start from a real HTTP request via
+  supertest, proceed through the `validate` middleware, the service layer, and the repository
+  layer, and assert on the HTTP response and the resulting database state. A real PostgreSQL
+  instance is required. This is the correct tier for all paths that involve I/O: `not_found`
+  lookups, success paths that write to the database, and any acceptance condition that can be
+  described as "calling the API returns X".
+
+**There is no middle tier.** Calling a service method directly against a real database without
+going through the HTTP layer bypasses the `validate` middleware and the route layer entirely,
+leaving those paths untested. The only exception is tests that verify coordination between the
+service and a non-database external dependency (e.g. file storage + database together in a
+lifecycle test), where mounting a full HTTP stack adds no additional coverage.
+
+**Corollary — keep Zod schemas tight**: if a validation rule can be expressed in the Zod
+schema (e.g. `.refine(s => s.trim().length > 0)` for non-whitespace strings), it belongs
+there — not in the service. Service-level guards that duplicate schema constraints are dead
+code once the middleware enforces them.
 
 ### 9. Document During Build
 
@@ -136,6 +161,7 @@ The following are explicitly prohibited:
 | Single-file components without defined I/O contracts | Creates integration surprises | Clear Boundaries |
 | Secrets or document content in logs | Security boundary violation | Production-Ready Patterns |
 | Mocked database clients for integration tests | Masks real database behaviour | Test Early |
+| Calling service methods directly against a real database as an integration test | Bypasses validate middleware and route layer; leaves HTTP boundary untested | Test Early |
 
 ---
 
