@@ -45,6 +45,7 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 - If you have staged changes and complete a task, stop and ask the user for permission before committing
 - Committing without permission breaks the user's workflow and will require manual git history management
 - User controls all commits to maintain clean, intentional git history with proper batch grouping
+- **Permission does not carry forward.** If the user said "commit" earlier in the session, that applies to that specific batch only. Each subsequent commit requires a fresh explicit instruction. Do not infer standing permission from a prior commit instruction.
 
 **When work is complete:**
 
@@ -60,7 +61,7 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Backend Tasks 1–9 done (Tasks 1–8 merged to main; Task 9 on PR #16). ADR-048 (Zod-to-OpenAPI pipeline) implemented and merged (PR #12). Platform Engineer Phase 3 (GitHub Actions CI/CD) done (merged to main).
+- **Current phase**: Implementation in progress. Backend Tasks 1–9 done (Tasks 1–8 merged to main; Task 9 on PR #16). Test refactor (two-tier enforcement) on branch `chore/test-refactor`. ADR-048 (Zod-to-OpenAPI pipeline) implemented and merged (PR #12). Platform Engineer Phase 3 (GitHub Actions CI/CD) done (merged to main).
 - **Design status**: All design documents approved (ADR-001 to ADR-048). See [documentation/approvals.md](documentation/approvals.md).
 - **Next actionable step**: Begin Backend Task 10 and/or Frontend Task 1 in parallel. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
@@ -129,7 +130,7 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **All agents and skills written.** Design phase complete.
 
-**Current next step:** Begin Backend Task 10 and/or Frontend Task 1 in parallel. Resolve OQ-3 (embedding model) before Python Task 15/22.
+**Current next step:** Merge test refactor branch, then begin Backend Task 10 and/or Frontend Task 1 in parallel. Resolve OQ-3 (embedding model) before Python Task 15/22.
 
 ### Key Output Locations
 
