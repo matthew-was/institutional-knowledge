@@ -129,7 +129,156 @@ The following are explicitly prohibited:
 | Code branching on environment name (`if (env === 'production')`) | Prevents seamless migration; different code paths in different environments | Infrastructure as Configuration |
 | Hardcoded provider names or file paths | Prevents runtime swapping | Infrastructure as Configuration |
 | Ad-hoc SQL queries from application components | Creates coupling that breaks on schema changes | Integration Lead authority |
+| Accessing `db._knex` outside tests or transactions | Bypasses the repository layer; SQL leaks into service/route code | Repository Pattern |
+| Passing `AppDependencies` to a route or service that only needs one dep | Hides actual dependencies; makes tests harder to write | Dependency Composition |
+| Throwing from a service for an expected domain error | Forces callers to catch rather than handle typed results | ServiceResult Pattern |
 | Deferred testing ("I'll add tests later") | Tests deferred become tests never written | Test Early |
 | Single-file components without defined I/O contracts | Creates integration surprises | Clear Boundaries |
 | Secrets or document content in logs | Security boundary violation | Production-Ready Patterns |
 | Mocked database clients for integration tests | Masks real database behaviour | Test Early |
+
+---
+
+## Dependency Composition Pattern
+
+Dependencies are composed at the top of the call chain (`server.ts`) and then narrowed as they are passed down. Each factory receives only the interface it actually uses.
+
+**Startup sequence** (`server.ts`):
+
+```typescript
+const log     = createLogger(config);
+const db      = await createDb(config.db);
+const storage = createStorageService(config.storage, log);
+const vector  = createVectorStore(config.vectorStore, config.embedding, db, log);
+const graph   = createGraphStore(config.graph, db, log);
+const docs    = createDocumentService({ db, storage, config, log });
+const app     = createApp({ config, db, storage, vectorStore: vector, graphStore: graph, documentService: docs, log });
+```
+
+**Narrowing rule**: route factories receive one service, not `AppDependencies`.
+
+```typescript
+// Correct — routes/documents.ts receives only what it needs
+export function createDocumentsRouter(service: DocumentService): Router { ... }
+
+// Wrong — do not pass the full dep bag to a router
+export function createDocumentsRouter(deps: AppDependencies): Router { ... }
+```
+
+The same rule applies to services: a service that only needs `db`, `storage`, and `config` should declare exactly those three parameters, not an opaque "deps" object that happens to contain them. Keeping the surface area minimal makes mock injection in tests trivial and makes dependencies self-documenting.
+
+---
+
+## Service Pattern
+
+Services are **factory functions**, not classes. Methods are closures over the dependency arguments.
+
+```typescript
+export interface DocumentService {
+  initiateUpload(input: InitiateUploadInput): Promise<ServiceResult<InitiateUploadData, DocumentErrorType>>;
+  uploadFile(input: UploadFileInput): Promise<ServiceResult<UploadFileData, DocumentErrorType, DuplicateConflictResponse>>;
+}
+
+export function createDocumentService(deps: DocumentServiceDeps): DocumentService {
+  const { db, storage, config, log } = deps;
+
+  async function initiateUpload(input: InitiateUploadInput) {
+    // uses db, storage, config, log from the outer closure
+  }
+
+  return { initiateUpload, uploadFile, finalizeUpload, cleanupUpload };
+}
+```
+
+**Rules**:
+
+- Methods return `ServiceResult<T, K, E>` for all expected outcomes — never throw for domain errors such as "not found" or "file too large". Throwing is reserved for genuinely unexpected failures (DB unreachable, programming error) that should propagate to the Express error handler via `next(err)`. `T` is the success data type; `K extends string` is the union of valid `errorType` strings (defaults to `string`); `E` is the type of `errorData` for structured error payloads (defaults to `never` for methods whose error cases carry only a message).
+- Services have no knowledge of Express (`Request`, `Response`, `NextFunction` are route-layer concerns).
+- The exported interface type is what callers depend on; the factory implementation is an internal detail.
+
+---
+
+## Repository Pattern
+
+All SQL lives in `apps/backend/src/db/repositories/`. One repository file per database table. Services call `db.documents.insert(...)`, `db.embeddings.search(...)` — they never write SQL directly.
+
+**Repository factory signature**:
+
+```typescript
+export function createDocumentsRepository(db: Knex) {
+  return {
+    async insert(row: DocumentInsert): Promise<void> { ... },
+    async getById(id: string): Promise<Document | undefined> { ... },
+  };
+}
+export type DocumentsRepository = ReturnType<typeof createDocumentsRepository>;
+```
+
+`DbInstance` exposes each repository as a named property:
+
+```typescript
+export type DbInstance = {
+  _knex: Knex;
+  documents: DocumentsRepository;
+  embeddings: EmbeddingsRepository;
+  chunks: ChunksRepository;
+  graph: GraphRepository;
+  destroy(): Promise<void>;
+};
+```
+
+**`_knex` access rules**:
+
+| Caller | May use `db._knex`? |
+| --- | --- |
+| Services (`services/*.ts`) | No — call `db.documents.*` etc. |
+| Route handlers (`routes/*.ts`) | No |
+| Implementation classes (`PgVectorStore`, `PostgresGraphStore`) | No — they receive `DbInstance` and call `db.embeddings.*` etc. |
+| Repositories (`db/repositories/*.ts`) | Yes — they receive raw `Knex` and that is the appropriate layer for SQL |
+| Test cleanup (`testing/dbCleanup.ts`) | Yes — `cleanAllTables` needs direct `Knex` access to issue a cross-table `TRUNCATE` |
+| Multi-table transactions | Yes — pass `db._knex` to `knex.transaction()` when atomicity spans multiple repositories |
+
+`knex.raw()` is permitted inside repositories for queries that cannot be expressed in the Knex query builder (pgvector cosine distance, recursive CTEs). When using `knex.raw()`, column names must be written in snake\_case because `wrapIdentifier` does not apply; result rows must be mapped to camelCase explicitly.
+
+---
+
+## Logging Standard
+
+Use Pino's four log levels consistently across all backend services:
+
+| Level | When to use | Examples |
+| --- | --- | --- |
+| `info` | State changes meaningful to operators | Document finalised, upload initiated, cleanup completed |
+| `debug` | Entry/exit of internal operations that aid debugging but add noise in production | Writing a file, inserting a row, executing a search |
+| `warn` | Recoverable unexpected conditions — execution continues but something is wrong | Cleanup failed but returning success, fallback taken |
+| `error` | Non-recoverable unexpected conditions that require attention | Unhandled exception, DB unreachable, corrupted state |
+
+Never log document content, file content, or user-provided text at any level. Log only identifiers (uploadId, documentId, chunkId) and status values. This is a security boundary — see `Production-Ready Patterns Applied From Day One` above.
+
+---
+
+## ADR Citation Standard
+
+Every source file in `apps/backend/src/` should include a one-sentence ADR citation in its file-level JSDoc. The format varies by file type:
+
+- **Interface files** (`StorageService.ts`, `VectorStore.ts`, `GraphStore.ts`): cite the ADR that defines the abstraction.
+
+  ```typescript
+  /**
+   * StorageService interface (ADR-008).
+   * ...
+   */
+  ```
+
+- **Concrete implementations** (`LocalStorageService.ts`, `PgVectorStore.ts`, `PostgresGraphStore.ts`): cite as "implements ADR-XXX".
+
+  ```typescript
+  /**
+   * LocalStorageService — Phase 1 filesystem-backed StorageService (implements ADR-008).
+   * ...
+   */
+  ```
+
+- **Repository files**: cite only if there is a non-obvious design decision documented in an ADR (e.g. the graph repository cites ADR-037 for the document-evidenced filter). Omit the citation if there is no relevant ADR.
+
+This gives one sentence of context per file without cluttering every method.

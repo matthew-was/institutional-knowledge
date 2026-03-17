@@ -1,5 +1,5 @@
 /**
- * PostgresGraphStore — Phase 1 PostgreSQL implementation of GraphStore.
+ * PostgresGraphStore — Phase 1 PostgreSQL implementation of GraphStore (implements ADR-037).
  *
  * All database access is delegated to db.graph (the graph repository).
  * No SQL is written in this file.
@@ -9,9 +9,9 @@
  * entity_document_occurrences row — enforced inside the repository.
  */
 
-import type { Logger } from 'pino';
 import { v7 as uuidv7 } from 'uuid';
 import type { DbInstance } from '../db/index.js';
+import type { Logger } from '../middleware/logger.js';
 import { normaliseTermText } from '../utils/normalise.js';
 import type {
   DocumentReference,

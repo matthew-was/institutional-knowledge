@@ -5,7 +5,7 @@
  * and the cleanup operation (DOC-005) as pure domain methods. No Express imports —
  * all HTTP concerns (status codes, response serialisation) belong to the route layer.
  *
- * Each method returns ServiceResult<T, E>. The route layer checks result.outcome and
+ * Each method returns ServiceResult<T, K, E>. The route layer checks result.outcome and
  * maps errorType to the appropriate HTTP response directly via res.json(). next(err)
  * is reserved for truly unexpected errors (DB failures, bugs).
  *
@@ -227,6 +227,18 @@ export function createDocumentService(
       };
     }
 
+    // Defence-in-depth: validate fileSize against config limit for non-Express callers.
+    // The route layer enforces this via multipart size limits, but the service checks
+    // independently so future callers cannot bypass it.
+    const maxBytes = config.upload.maxFileSizeMb * 1024 * 1024;
+    if (fileSize > maxBytes) {
+      return {
+        outcome: 'error',
+        errorType: 'file_too_large',
+        errorMessage: `File size ${fileSize} bytes exceeds maximum of ${config.upload.maxFileSizeMb} MB`,
+      };
+    }
+
     // Write to staging before hash computation so the file is available even
     // if the duplicate check triggers cleanup
     await storage.writeStagingFile(uploadId, fileBuffer, doc.filename);
@@ -239,8 +251,16 @@ export function createDocumentService(
 
     if (existing !== undefined) {
       // Remove the staging file immediately — startup sweep is a safety fallback,
-      // not the primary cleanup mechanism
-      await storage.deleteStagingFile(uploadId, doc.filename);
+      // not the primary cleanup mechanism. Log a warning if cleanup fails so the
+      // orphaned file is visible in structured logs.
+      try {
+        await storage.deleteStagingFile(uploadId, doc.filename);
+      } catch (cleanupErr) {
+        log.warn(
+          { uploadId, err: cleanupErr },
+          'uploadFile: staging cleanup failed after duplicate detection',
+        );
+      }
 
       const errorData: DuplicateConflictResponse = {
         error: 'duplicate_detected',

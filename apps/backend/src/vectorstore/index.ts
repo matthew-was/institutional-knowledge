@@ -7,13 +7,17 @@
  * implementation class — no other files need to change.
  */
 
-import type { Logger } from 'pino';
 import type { AppConfig } from '../config/index.js';
 import type { DbInstance } from '../db/index.js';
+import type { Logger } from '../middleware/logger.js';
 import { PgVectorStore } from './PgVectorStore.js';
 import type { VectorStore } from './VectorStore.js';
 
-export type { SearchResult, VectorStore } from './VectorStore.js';
+export type {
+  SearchResult,
+  VectorStore,
+  VectorStoreErrorType,
+} from './VectorStore.js';
 
 export function createVectorStore(
   vectorStoreConfig: AppConfig['vectorStore'],

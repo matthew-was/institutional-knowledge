@@ -15,18 +15,24 @@
  * bugs) — createErrorHandler is never invoked for business logic failures.
  *
  * Auth is applied globally via createApp — not re-applied here.
- * Body validation middleware (validate) is applied at route level for DOC-001.
+ * Body validation (validate) is applied at route level; params are destructured
+ * at the top of each handler using z.infer<typeof Schema> to avoid per-call casts.
  * multer memory storage is applied at route level for DOC-002.
  */
 
 import { InitiateUploadRequest } from '@institutional-knowledge/shared/schemas/documents';
 import { Router } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import type {
   DocumentErrorType,
   DocumentService,
 } from '../services/documents.js';
+
+// Validates :uploadId route parameter as a UUID before reaching the handler.
+// Prevents service calls with structurally invalid IDs.
+const UploadIdParams = z.object({ uploadId: z.uuid() });
 
 // Memory storage — file bytes are passed to DocumentService for all disk I/O
 const upload = multer({ storage: multer.memoryStorage() });
@@ -59,8 +65,9 @@ export function createDocumentsRouter(service: DocumentService): Router {
     '/documents/initiate',
     validate({ body: InitiateUploadRequest }),
     async (req, res, next) => {
+      const body = req.body as z.infer<typeof InitiateUploadRequest>;
       try {
-        const result = await service.initiateUpload(req.body);
+        const result = await service.initiateUpload(body);
         if (result.outcome === 'error') {
           res
             .status(errorStatus(result.errorType))
@@ -80,8 +87,10 @@ export function createDocumentsRouter(service: DocumentService): Router {
 
   router.post(
     '/documents/:uploadId/upload',
+    validate({ params: UploadIdParams }),
     upload.single('file'),
     async (req, res, next) => {
+      const { uploadId } = req.params as z.infer<typeof UploadIdParams>;
       try {
         if (req.file === undefined) {
           res.status(400).json({
@@ -92,8 +101,7 @@ export function createDocumentsRouter(service: DocumentService): Router {
         }
 
         const result = await service.uploadFile({
-          // Express types params as Record<string, string> — cast is safe here
-          uploadId: req.params.uploadId as string,
+          uploadId,
           fileBuffer: req.file.buffer,
           fileSize: req.file.size,
         });
@@ -121,43 +129,49 @@ export function createDocumentsRouter(service: DocumentService): Router {
   // DOC-003: POST /documents/:uploadId/finalize
   // -------------------------------------------------------------------------
 
-  router.post('/documents/:uploadId/finalize', async (req, res, next) => {
-    try {
-      // Express types params as Record<string, string> — cast is safe here
-      const result = await service.finalizeUpload(
-        req.params.uploadId as string,
-      );
-      if (result.outcome === 'error') {
-        res
-          .status(errorStatus(result.errorType))
-          .json({ error: result.errorType, message: result.errorMessage });
-        return;
+  router.post(
+    '/documents/:uploadId/finalize',
+    validate({ params: UploadIdParams }),
+    async (req, res, next) => {
+      const { uploadId } = req.params as z.infer<typeof UploadIdParams>;
+      try {
+        const result = await service.finalizeUpload(uploadId);
+        if (result.outcome === 'error') {
+          res
+            .status(errorStatus(result.errorType))
+            .json({ error: result.errorType, message: result.errorMessage });
+          return;
+        }
+        res.status(200).json(result.data);
+      } catch (err) {
+        next(err);
       }
-      res.status(200).json(result.data);
-    } catch (err) {
-      next(err);
-    }
-  });
+    },
+  );
 
   // -------------------------------------------------------------------------
   // DOC-005: DELETE /documents/:uploadId
   // -------------------------------------------------------------------------
 
-  router.delete('/documents/:uploadId', async (req, res, next) => {
-    try {
-      // Express types params as Record<string, string> — cast is safe here
-      const result = await service.cleanupUpload(req.params.uploadId as string);
-      if (result.outcome === 'error') {
-        res
-          .status(errorStatus(result.errorType))
-          .json({ error: result.errorType, message: result.errorMessage });
-        return;
+  router.delete(
+    '/documents/:uploadId',
+    validate({ params: UploadIdParams }),
+    async (req, res, next) => {
+      const { uploadId } = req.params as z.infer<typeof UploadIdParams>;
+      try {
+        const result = await service.cleanupUpload(uploadId);
+        if (result.outcome === 'error') {
+          res
+            .status(errorStatus(result.errorType))
+            .json({ error: result.errorType, message: result.errorMessage });
+          return;
+        }
+        res.status(200).json(result.data);
+      } catch (err) {
+        next(err);
       }
-      res.status(200).json(result.data);
-    } catch (err) {
-      next(err);
-    }
-  });
+    },
+  );
 
   return router;
 }

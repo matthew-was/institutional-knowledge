@@ -2,6 +2,7 @@ import { pino } from 'pino';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb, type DbInstance } from '../../db/index.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
+import { TEST_DB_CONFIG } from '../../testing/testDb.js';
 import { PgVectorStore } from '../PgVectorStore.js';
 
 /**
@@ -42,13 +43,7 @@ function unitVector(pos: number): number[] {
 // Shared database connection — schema managed by globalSetup.ts
 // ---------------------------------------------------------------------------
 
-const db: DbInstance = createTestDb({
-  host: 'localhost',
-  port: 5433,
-  database: 'ik_test',
-  user: 'ik_test',
-  password: 'ik_test',
-});
+const db: DbInstance = createTestDb(TEST_DB_CONFIG);
 
 afterAll(async () => {
   await db.destroy();
@@ -95,8 +90,11 @@ async function insertChunk(
 describe('PgVectorStore.search — empty database', () => {
   it('returns an empty array when no embeddings exist', async () => {
     const store = new PgVectorStore(db, DIMENSION, silentLog);
-    const results = await store.search(unitVector(0), 10);
-    expect(results).toEqual([]);
+    const result = await store.search(unitVector(0), 10);
+    expect(result.outcome).toBe('success');
+    if (result.outcome === 'success') {
+      expect(result.data).toEqual([]);
+    }
   });
 });
 
@@ -118,10 +116,14 @@ describe('PgVectorStore — write and search round-trip', () => {
     const store = new PgVectorStore(db, DIMENSION, silentLog);
     const embedding = unitVector(1);
 
-    await store.write(docId, chunkId, embedding);
+    const writeResult = await store.write(docId, chunkId, embedding);
+    expect(writeResult.outcome).toBe('success');
 
-    const results = await store.search(embedding, 1);
+    const searchResult = await store.search(embedding, 1);
+    expect(searchResult.outcome).toBe('success');
+    if (searchResult.outcome !== 'success') return;
 
+    const results = searchResult.data;
     expect(results).toHaveLength(1);
     // biome-ignore lint/style/noNonNullAssertion: length asserted above
     const result = results[0]!;
@@ -136,32 +138,40 @@ describe('PgVectorStore — write and search round-trip', () => {
 });
 
 // ---------------------------------------------------------------------------
-// (b) Dimension mismatch throws a descriptive error
+// (b) Dimension mismatch returns dimension_mismatch ServiceResult error
 // ---------------------------------------------------------------------------
 
 describe('PgVectorStore — dimension mismatch', () => {
-  it('(b) search() throws a descriptive error when queryEmbedding.length does not match configured dimension', async () => {
+  it('(b) search() returns dimension_mismatch error when queryEmbedding.length does not match configured dimension', async () => {
     const store = new PgVectorStore(db, DIMENSION, silentLog);
     const wrongDimension = Array<number>(10).fill(0.1);
 
-    await expect(store.search(wrongDimension, 5)).rejects.toThrow(
-      `PgVectorStore.search: embedding dimension mismatch — expected ${DIMENSION}, received 10`,
-    );
+    const result = await store.search(wrongDimension, 5);
+    expect(result.outcome).toBe('error');
+    if (result.outcome === 'error') {
+      expect(result.errorType).toBe('dimension_mismatch');
+      expect(result.errorMessage).toContain(
+        `expected ${DIMENSION}, received 10`,
+      );
+    }
   });
 
-  it('write() throws a descriptive error when embedding.length does not match configured dimension', async () => {
+  it('write() returns dimension_mismatch error when embedding.length does not match configured dimension', async () => {
     const store = new PgVectorStore(db, DIMENSION, silentLog);
     const wrongDimension = Array<number>(10).fill(0.1);
 
-    await expect(
-      store.write(
-        '00000000-0000-0000-0000-000000000001',
-        '00000000-0000-0000-0000-000000000101',
-        wrongDimension,
-      ),
-    ).rejects.toThrow(
-      `PgVectorStore.write: embedding dimension mismatch — expected ${DIMENSION}, received 10`,
+    const result = await store.write(
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000101',
+      wrongDimension,
     );
+    expect(result.outcome).toBe('error');
+    if (result.outcome === 'error') {
+      expect(result.errorType).toBe('dimension_mismatch');
+      expect(result.errorMessage).toContain(
+        `expected ${DIMENSION}, received 10`,
+      );
+    }
   });
 });
 
@@ -200,13 +210,20 @@ describe('PgVectorStore — topK limiting', () => {
 
   it('(c) returns exactly topK results when more embeddings exist', async () => {
     const store = new PgVectorStore(db, DIMENSION, silentLog);
-    const results = await store.search(unitVector(10), 3);
-    expect(results).toHaveLength(3);
+    const result = await store.search(unitVector(10), 3);
+    expect(result.outcome).toBe('success');
+    if (result.outcome === 'success') {
+      expect(result.data).toHaveLength(3);
+    }
   });
 
   it('results are ordered by similarity (highest first)', async () => {
     const store = new PgVectorStore(db, DIMENSION, silentLog);
-    const results = await store.search(unitVector(10), 5);
+    const result = await store.search(unitVector(10), 5);
+    expect(result.outcome).toBe('success');
+    if (result.outcome !== 'success') return;
+
+    const results = result.data;
     expect(results).toHaveLength(5);
 
     for (let i = 0; i < results.length - 1; i++) {

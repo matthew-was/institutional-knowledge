@@ -30,6 +30,7 @@ The caller specifies a **service** (frontend or backend) and a **task number**. 
 
 1. `documentation/tasks/backend-tasks.md` — the approved task list; locate the specified task
 2. `documentation/tasks/integration-lead-backend-plan.md` — the implementation plan; use it to understand the intent behind the task
+3. `documentation/process/development-principles.md` — backend code structure rules; pay particular attention to the Dependency Composition Pattern, Service Pattern, and Repository Pattern sections
 
 Then determine what to do:
 
@@ -102,6 +103,7 @@ Do not implement multiple tasks in one session unless the developer explicitly a
 - Input sanitisation: validate all user-supplied values at the service boundary; do not pass raw request fields to database queries or file system operations
 - No direct database connections from frontend components — all data access via Express API
 - All handler functions accept injected services — no direct instantiation inside handlers (see dependency-composition-pattern skill)
+- Backend code structure: follow the Dependency Composition, Service, and Repository patterns in `documentation/process/development-principles.md` — route factories receive one service (not `AppDependencies`), services are factory functions returning closures, all SQL lives in `db/repositories/`, `db._knex` is never used outside repositories/test cleanup/transactions
 - Write for human readability: each file should have one clear responsibility; split a file when it becomes hard to follow at a glance, not based on a fixed line count
 
 ## Tests

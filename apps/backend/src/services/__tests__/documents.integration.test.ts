@@ -25,22 +25,11 @@ import { createTestDb } from '../../db/index.js';
 import type { Logger } from '../../middleware/logger.js';
 import { LocalStorageService } from '../../storage/LocalStorageService.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
+import { TEST_DB_CONFIG } from '../../testing/testDb.js';
 import {
   createDocumentService,
   type DocumentServiceDeps,
 } from '../documents.js';
-
-// ---------------------------------------------------------------------------
-// Test database connection (docker-compose.test.yml)
-// ---------------------------------------------------------------------------
-
-const TEST_DB_CONFIG: AppConfig['db'] = {
-  host: 'localhost',
-  port: 5433,
-  database: 'ik_test',
-  user: 'ik_test',
-  password: 'ik_test',
-};
 
 // ---------------------------------------------------------------------------
 // Test config

@@ -1,5 +1,5 @@
 /**
- * LocalStorageService — Phase 1 filesystem-backed StorageService implementation.
+ * LocalStorageService — Phase 1 filesystem-backed StorageService (implements ADR-008).
  *
  * Stores files on the local filesystem using two root directories:
  *   - basePath:    permanent storage for finalised documents
@@ -14,7 +14,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { Logger } from 'pino';
+import type { Logger } from '../middleware/logger.js';
 import type { StorageService } from './StorageService.js';
 
 export class LocalStorageService implements StorageService {
