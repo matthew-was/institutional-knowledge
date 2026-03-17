@@ -86,23 +86,31 @@ Tests written alongside code, not deferred to "after the feature works." See `pi
 
 **Testing strategy — two tiers only:**
 
-- **Unit tests**: cover logic that can be extracted to a pure function — data transformations,
-  format derivations, computations that take inputs and return outputs with no I/O. The
-  canonical test: could this logic live in a standalone `function f(input): output`? If yes,
-  test it as a unit test. No database, no HTTP, no mocked `db` needed.
+- **Unit tests**: cover standalone pure functions only — functions that take inputs and return
+  outputs with no I/O of any kind. The canonical examples are `normalise.test.ts`
+  (`utils/normalise.ts`) and `db/utils.test.ts` (`db/utils.ts`). The test must call the
+  function directly, not via a service factory. If reaching the logic under test requires
+  constructing a service or mocking a dependency (`db`, `storage`, `log`), it is not a unit
+  test — write an integration test instead.
 
-- **Integration tests**: cover everything else. These tests start from a real HTTP request via
-  supertest, proceed through the `validate` middleware, the service layer, and the repository
-  layer, and assert on the HTTP response and the resulting database state. A real PostgreSQL
-  instance is required. This is the correct tier for all paths that involve I/O: `not_found`
-  lookups, success paths that write to the database, and any acceptance condition that can be
-  described as "calling the API returns X".
+- **Integration tests (the default)**: cover everything else. When in doubt, write an
+  integration test. These tests start from a real HTTP request via supertest, proceed through
+  the `validate` middleware, the service layer, and the repository layer, and assert on the
+  HTTP response and the resulting database state. A real PostgreSQL instance is required. This
+  is the correct tier for all paths that involve I/O: `not_found` lookups, success paths that
+  write to the database, and any acceptance condition that can be described as "calling the API
+  returns X".
 
 **There is no middle tier.** Calling a service method directly against a real database without
 going through the HTTP layer bypasses the `validate` middleware and the route layer entirely,
-leaving those paths untested. The only exception is tests that verify coordination between the
-service and a non-database external dependency (e.g. file storage + database together in a
-lifecycle test), where mounting a full HTTP stack adds no additional coverage.
+leaving those paths untested. Calling a service method with mocked `db`/`storage` deps is also
+not a unit test — it exercises I/O paths through a mock, not pure logic.
+
+**Pure-function unit tests and integration test depth**: when a function is exported as a
+standalone utility with no I/O (e.g. `archiveReference`, `normaliseTermText`, `camelCase`),
+write a unit test that calls it directly with a range of inputs covering all edge cases.
+Integration tests that exercise code paths calling these functions need only confirm the
+happy-path output — exhaustive edge-case coverage belongs in the unit test.
 
 **Corollary — keep Zod schemas tight**: if a validation rule can be expressed in the Zod
 schema (e.g. `.refine(s => s.trim().length > 0)` for non-whitespace strings), it belongs
@@ -162,6 +170,7 @@ The following are explicitly prohibited:
 | Secrets or document content in logs | Security boundary violation | Production-Ready Patterns |
 | Mocked database clients for integration tests | Masks real database behaviour | Test Early |
 | Calling service methods directly against a real database as an integration test | Bypasses validate middleware and route layer; leaves HTTP boundary untested | Test Early |
+| Calling a service factory with mocked `db`/`storage` deps as a "unit test" | The mock bypasses real I/O, leaving the HTTP boundary and validate middleware untested; pure-function logic inside a service must be extracted before it can be unit-tested | Test Early |
 
 ---
 
