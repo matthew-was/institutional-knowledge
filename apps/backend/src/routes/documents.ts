@@ -29,6 +29,7 @@ import type {
   DocumentErrorType,
   DocumentService,
 } from '../services/documents.js';
+import { sendServiceError } from './routeUtils.js';
 
 // Validates :uploadId route parameter as a UUID before reaching the handler.
 // Prevents service calls with structurally invalid IDs.
@@ -50,10 +51,6 @@ const ERROR_STATUS: Record<DocumentErrorType, number> = {
   finalized_document: 409,
 };
 
-function errorStatus(errorType: string): number {
-  return ERROR_STATUS[errorType as DocumentErrorType] ?? 400;
-}
-
 export function createDocumentsRouter(service: DocumentService): Router {
   const router = Router();
 
@@ -69,9 +66,7 @@ export function createDocumentsRouter(service: DocumentService): Router {
       try {
         const result = await service.initiateUpload(body);
         if (result.outcome === 'error') {
-          res
-            .status(errorStatus(result.errorType))
-            .json({ error: result.errorType, message: result.errorMessage });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
         res.status(201).json(result.data);
@@ -107,14 +102,7 @@ export function createDocumentsRouter(service: DocumentService): Router {
         });
 
         if (result.outcome === 'error') {
-          if (result.errorType === 'duplicate_detected') {
-            // DuplicateConflictResponse has a custom body shape per OpenAPI spec
-            res.status(409).json(result.errorData);
-            return;
-          }
-          res
-            .status(errorStatus(result.errorType))
-            .json({ error: result.errorType, message: result.errorMessage });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
 
@@ -137,9 +125,7 @@ export function createDocumentsRouter(service: DocumentService): Router {
       try {
         const result = await service.finalizeUpload(uploadId);
         if (result.outcome === 'error') {
-          res
-            .status(errorStatus(result.errorType))
-            .json({ error: result.errorType, message: result.errorMessage });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
         res.status(200).json(result.data);
@@ -161,9 +147,7 @@ export function createDocumentsRouter(service: DocumentService): Router {
       try {
         const result = await service.cleanupUpload(uploadId);
         if (result.outcome === 'error') {
-          res
-            .status(errorStatus(result.errorType))
-            .json({ error: result.errorType, message: result.errorMessage });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
         res.status(200).json(result.data);

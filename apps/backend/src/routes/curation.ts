@@ -21,6 +21,7 @@ import type {
   CurationErrorType,
   CurationService,
 } from '../services/curation.js';
+import { sendServiceError } from './routeUtils.js';
 
 // ---------------------------------------------------------------------------
 // Route-layer param schema (not a contract schema — not exported to OpenAPI)
@@ -55,10 +56,7 @@ export function createCurationRouter(service: CurationService): Router {
         const pageSize = query.pageSize ?? 50;
         const result = await service.getDocumentQueue(page, pageSize);
         if (result.outcome === 'error') {
-          res.status(ERROR_STATUS[result.errorType]).json({
-            error: result.errorType,
-            message: result.errorMessage,
-          });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
         res.json(result.data);
@@ -77,10 +75,7 @@ export function createCurationRouter(service: CurationService): Router {
         const { id } = req.params as z.infer<typeof DocumentIdParams>;
         const result = await service.getDocument(id);
         if (result.outcome === 'error') {
-          res.status(ERROR_STATUS[result.errorType]).json({
-            error: result.errorType,
-            message: result.errorMessage,
-          });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
         res.json(result.data);
@@ -99,10 +94,7 @@ export function createCurationRouter(service: CurationService): Router {
         const { id } = req.params as z.infer<typeof DocumentIdParams>;
         const result = await service.clearFlag(id);
         if (result.outcome === 'error') {
-          res.status(ERROR_STATUS[result.errorType]).json({
-            error: result.errorType,
-            message: result.errorMessage,
-          });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
         res.json(result.data);
@@ -125,10 +117,7 @@ export function createCurationRouter(service: CurationService): Router {
         const body = req.body as UpdateDocumentMetadataRequest;
         const result = await service.updateDocumentMetadata(id, body);
         if (result.outcome === 'error') {
-          res.status(ERROR_STATUS[result.errorType]).json({
-            error: result.errorType,
-            message: result.errorMessage,
-          });
+          sendServiceError(res, ERROR_STATUS[result.errorType], result);
           return;
         }
         res.json(result.data);

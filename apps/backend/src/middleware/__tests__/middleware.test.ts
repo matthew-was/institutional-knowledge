@@ -157,6 +157,7 @@ const stubDeps = {
   graphStore: {} as never,
   documentService: {} as never,
   curationService: {} as never,
+  vocabularyService: {} as never,
   log: createLogger({ level: 'error' }),
 };
 

@@ -2,7 +2,8 @@
  * Pipeline steps repository.
  *
  * Encapsulates read access to the pipeline_steps table.
- * Write access is owned by the Python processing service (ADR-031).
+ * Express is the sole DB writer (ADR-031). Pipeline step records are written by Express
+ * handlers that receive processing outcomes from the Python service via HTTP.
  */
 
 import type { Knex } from 'knex';
