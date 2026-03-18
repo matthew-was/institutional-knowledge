@@ -16,6 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pino } from 'pino';
 import supertest from 'supertest';
+import { v4 as uuidv4 } from 'uuid';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
@@ -94,7 +95,7 @@ afterEach(async () => {
 async function insertFlaggedDocument(
   overrides: Partial<DocumentInsert> = {},
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = uuidv4();
   const row: DocumentInsert = {
     id,
     status: 'finalized',
@@ -192,9 +193,7 @@ describe('GET /api/curation/documents', () => {
 
 describe('GET /api/documents/:id', () => {
   it('returns 404 for unknown document ID', async () => {
-    const res = await request
-      .get(`/api/documents/${crypto.randomUUID()}`)
-      .set(AUTH);
+    const res = await request.get(`/api/documents/${uuidv4()}`).set(AUTH);
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('not_found');
@@ -227,7 +226,7 @@ describe('GET /api/documents/:id', () => {
 describe('POST /api/documents/:id/clear-flag', () => {
   it('returns 404 for unknown document ID', async () => {
     const res = await request
-      .post(`/api/documents/${crypto.randomUUID()}/clear-flag`)
+      .post(`/api/documents/${uuidv4()}/clear-flag`)
       .set(AUTH);
 
     expect(res.status).toBe(404);
@@ -263,7 +262,7 @@ describe('POST /api/documents/:id/clear-flag', () => {
 
     // Insert a pipeline_steps row so the assertion is meaningful
     await db._knex('pipeline_steps').insert({
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       document_id: id,
       step_name: 'ocr',
       status: 'failed',
@@ -288,7 +287,7 @@ describe('POST /api/documents/:id/clear-flag', () => {
 describe('PATCH /api/documents/:id/metadata', () => {
   it('returns 404 for unknown document ID', async () => {
     const res = await request
-      .patch(`/api/documents/${crypto.randomUUID()}/metadata`)
+      .patch(`/api/documents/${uuidv4()}/metadata`)
       .set(AUTH)
       .send({ description: 'Valid description' });
 

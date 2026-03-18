@@ -81,7 +81,7 @@ const ConfigSchema = z.object({
     maxRetries: z.coerce.number().int().nonnegative(),
   }),
   python: z.object({
-    baseUrl: z.string().url(),
+    baseUrl: z.url(),
   }),
   vectorStore: z.object({
     provider: z.string().min(1).default('pgvector'),

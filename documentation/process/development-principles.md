@@ -171,6 +171,8 @@ The following are explicitly prohibited:
 | Mocked database clients for integration tests | Masks real database behaviour | Test Early |
 | Calling service methods directly against a real database as an integration test | Bypasses validate middleware and route layer; leaves HTTP boundary untested | Test Early |
 | Calling a service factory with mocked `db`/`storage` deps as a "unit test" | The mock bypasses real I/O, leaving the HTTP boundary and validate middleware untested; pure-function logic inside a service must be extracted before it can be unit-tested | Test Early |
+| Zod v3 string-refinement format validators (`z.string().uuid()`, `z.string().url()`, `z.string().email()`, etc.) | Zod v4 promotes these to top-level primitives (`z.uuid()`, `z.url()`, `z.email()`); using the chained form is needlessly verbose and signals unfamiliarity with the installed version | Zod v4 |
+| `crypto.randomUUID()` for UUID generation | The `uuid` package (`v4 as uuidv4`) is the project standard; `crypto.randomUUID()` is a Node.js built-in with no consistent import and is not used elsewhere in the codebase | Consistency |
 
 ---
 

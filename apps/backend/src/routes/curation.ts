@@ -26,7 +26,7 @@ import type {
 // Route-layer param schema (not a contract schema — not exported to OpenAPI)
 // ---------------------------------------------------------------------------
 
-const DocumentIdParams = z.object({ id: z.string().uuid() });
+const DocumentIdParams = z.object({ id: z.uuid() });
 
 // ---------------------------------------------------------------------------
 // Error → HTTP status mapping
