@@ -35,7 +35,11 @@ export const InitiateUploadRequest = z
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .or(z.literal(''))
       .openapi({ example: '1987-06-15' }),
-    description: z.string().min(1).openapi({ example: 'Wedding photograph' }),
+    description: z
+      .string()
+      .trim()
+      .min(1)
+      .openapi({ example: 'Wedding photograph' }),
   })
   .openapi('InitiateUploadRequest');
 
@@ -235,6 +239,7 @@ export const UpdateDocumentMetadataRequest = z
       .openapi({ example: '1987-06-15' }),
     description: z
       .string()
+      .trim()
       .min(1)
       .optional()
       .openapi({ example: 'Wedding photograph (revised)' }),

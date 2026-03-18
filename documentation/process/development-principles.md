@@ -82,7 +82,40 @@ TypeScript strict mode in all TypeScript packages. Zod validation at every exter
 
 ### 8. Test Early
 
-Tests written alongside code, not deferred to "after the feature works." Real PostgreSQL for integration tests (separate `estate_archive_test` database), not mocked database clients. See `pipeline-testing-strategy.md` skill for patterns.
+Tests written alongside code, not deferred to "after the feature works." See `pipeline-testing-strategy.md` skill for patterns.
+
+**Testing strategy — two tiers only:**
+
+- **Unit tests**: cover standalone pure functions only — functions that take inputs and return
+  outputs with no I/O of any kind. The canonical examples are `normalise.test.ts`
+  (`utils/normalise.ts`) and `db/utils.test.ts` (`db/utils.ts`). The test must call the
+  function directly, not via a service factory. If reaching the logic under test requires
+  constructing a service or mocking a dependency (`db`, `storage`, `log`), it is not a unit
+  test — write an integration test instead.
+
+- **Integration tests (the default)**: cover everything else. When in doubt, write an
+  integration test. These tests start from a real HTTP request via supertest, proceed through
+  the `validate` middleware, the service layer, and the repository layer, and assert on the
+  HTTP response and the resulting database state. A real PostgreSQL instance is required. This
+  is the correct tier for all paths that involve I/O: `not_found` lookups, success paths that
+  write to the database, and any acceptance condition that can be described as "calling the API
+  returns X".
+
+**There is no middle tier.** Calling a service method directly against a real database without
+going through the HTTP layer bypasses the `validate` middleware and the route layer entirely,
+leaving those paths untested. Calling a service method with mocked `db`/`storage` deps is also
+not a unit test — it exercises I/O paths through a mock, not pure logic.
+
+**Pure-function unit tests and integration test depth**: when a function is exported as a
+standalone utility with no I/O (e.g. `archiveReference`, `normaliseTermText`, `camelCase`),
+write a unit test that calls it directly with a range of inputs covering all edge cases.
+Integration tests that exercise code paths calling these functions need only confirm the
+happy-path output — exhaustive edge-case coverage belongs in the unit test.
+
+**Corollary — keep Zod schemas tight**: if a validation rule can be expressed in the Zod
+schema (e.g. `.refine(s => s.trim().length > 0)` for non-whitespace strings), it belongs
+there — not in the service. Service-level guards that duplicate schema constraints are dead
+code once the middleware enforces them.
 
 ### 9. Document During Build
 
@@ -136,6 +169,10 @@ The following are explicitly prohibited:
 | Single-file components without defined I/O contracts | Creates integration surprises | Clear Boundaries |
 | Secrets or document content in logs | Security boundary violation | Production-Ready Patterns |
 | Mocked database clients for integration tests | Masks real database behaviour | Test Early |
+| Calling service methods directly against a real database as an integration test | Bypasses validate middleware and route layer; leaves HTTP boundary untested | Test Early |
+| Calling a service factory with mocked `db`/`storage` deps as a "unit test" | The mock bypasses real I/O, leaving the HTTP boundary and validate middleware untested; pure-function logic inside a service must be extracted before it can be unit-tested | Test Early |
+| Zod v3 string-refinement format validators (`z.string().uuid()`, `z.string().url()`, `z.string().email()`, etc.) | Zod v4 promotes these to top-level primitives (`z.uuid()`, `z.url()`, `z.email()`); using the chained form is needlessly verbose and signals unfamiliarity with the installed version | Zod v4 |
+| `crypto.randomUUID()` for UUID generation | The `uuid` package (`v4 as uuidv4`) is the project standard; `crypto.randomUUID()` is a Node.js built-in with no consistent import and is not used elsewhere in the codebase | Consistency |
 
 ---
 
@@ -237,6 +274,7 @@ export type DbInstance = {
 | Repositories (`db/repositories/*.ts`) | Yes — they receive raw `Knex` and that is the appropriate layer for SQL |
 | Test cleanup (`testing/dbCleanup.ts`) | Yes — `cleanAllTables` needs direct `Knex` access to issue a cross-table `TRUNCATE` |
 | Multi-table transactions | Yes — pass `db._knex` to `knex.transaction()` when atomicity spans multiple repositories |
+| Integration test seed helpers | Prefer `db.documents.insert()` (or equivalent repository method) when one exists. Use `db._knex` only for tables that have no repository insert method (e.g. `pipeline_steps`) or when verifying raw DB state after a test |
 
 `knex.raw()` is permitted inside repositories for queries that cannot be expressed in the Knex query builder (pgvector cosine distance, recursive CTEs). When using `knex.raw()`, column names must be written in snake\_case because `wrapIdentifier` does not apply; result rows must be mapped to camelCase explicitly.
 

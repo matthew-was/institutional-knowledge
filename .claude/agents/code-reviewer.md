@@ -30,7 +30,8 @@ The caller specifies a **service** (frontend, backend, or python) and a **task n
    - Backend: lines 719–1310 (schema and data access ADRs), lines 1466–1522 (ADR-044, ADR-045)
    - Python: lines 255–718 (C2 pipeline ADRs), lines 905–946 (ADR-032), lines 1205–1310 (ADR-038), lines 1343–1379 (ADR-040)
 5. `documentation/process/development-principles.md` — core quality standards
-6. The code files produced by the task (the caller should provide file paths; if not, locate them from the task description and plan)
+6. `documentation/process/code-review-principles.md` — numbered review principles (CR-001 to CR-005); consult these when assessing acceptance conditions and pattern compliance
+7. The code files produced by the task (the caller should provide file paths; if not, locate them from the task description and plan)
 
 Then confirm the task details before proceeding to the review.
 
@@ -179,6 +180,7 @@ The Code Reviewer does not modify the task file or any code file.
 ## Behaviour rules
 
 - ONLY review — do NOT modify code or task files
+- Do NOT proceed with a review if the task status is not `code_complete` — even if the caller provides file paths and the files exist. Status is set by the developer, not inferred from file existence. Stop and inform the developer.
 - Do NOT make architectural decisions; if a blocking issue requires an architectural change, flag it for the Head of Development before marking it as blocking
 - Do NOT approve code that bypasses the data access rules (ADR-031) — this is always blocking
 - Do NOT approve Python code that crosses the ADR-042 module boundary — this is always blocking

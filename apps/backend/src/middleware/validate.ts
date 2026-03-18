@@ -6,8 +6,20 @@
  *
  * Validates req.body, req.params, and req.query against the provided Zod
  * schemas (all optional). On failure, returns 400 with structured error
- * details. On success, attaches the parsed (type-safe, coerced) values back
- * to req.body, req.params, and req.query.
+ * details. On success, writes the parsed (coerced) values back to req.body,
+ * req.params, and req.query.
+ *
+ * Why write back? Route handlers cast the request fields directly
+ * (e.g. `req.query as DocumentQueueParams`). That cast is only safe if the
+ * field contains the Zod-parsed output — not the raw string values from the
+ * URL. For example, `z.coerce.number()` turns `"1"` into `1`; without
+ * write-back the handler would cast a string and the type would be a lie.
+ *
+ * Why Object.defineProperty for req.query? In some environments (supertest,
+ * raw IncomingMessage) req.query is a getter-only property on the prototype.
+ * Direct assignment throws a TypeError. Object.defineProperty creates an own
+ * property on the instance, shadowing the getter — the same mechanism Express
+ * uses internally during normal request setup.
  */
 
 import type { NextFunction, Request, Response } from 'express';
@@ -56,10 +68,13 @@ export function validate(schemas: ValidateSchemas) {
       if (!result.success) {
         errors.push(...result.error.issues);
       } else {
-        // Cast required: Zod returns `unknown`, but Express types req.query as
-        // ParsedQs (a recursive string/array type). Same responsibility as above.
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        req.query = result.data as typeof req.query;
+        // req.query is a getter-only property in some environments (e.g. supertest).
+        // Use Object.defineProperty to safely overwrite it with the parsed data.
+        Object.defineProperty(req, 'query', {
+          value: result.data,
+          writable: true,
+          configurable: true,
+        });
       }
     }
 

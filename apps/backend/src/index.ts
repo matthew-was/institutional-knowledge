@@ -24,6 +24,7 @@ import { createErrorHandler } from './middleware/errorHandler.js';
 import { createRequestLogger, type Logger } from './middleware/logger.js';
 import { generateOpenApiSpec } from './openapi.js';
 import { createRouter } from './routes/index.js';
+import type { CurationService } from './services/curation.js';
 import type { DocumentService } from './services/documents.js';
 import type { StorageService } from './storage/index.js';
 import type { VectorStore } from './vectorstore/index.js';
@@ -35,6 +36,7 @@ export interface AppDependencies {
   vectorStore: VectorStore;
   graphStore: GraphStore;
   documentService: DocumentService;
+  curationService: CurationService;
   log: Logger;
 }
 

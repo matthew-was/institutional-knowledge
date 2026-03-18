@@ -8,6 +8,19 @@
 import type { Knex } from 'knex';
 import type { DocumentInsert, DocumentRow } from '../tables.js';
 
+/**
+ * Fields that may be updated via DOC-009 (updateDocumentMetadata).
+ * All fields are optional — only provided fields are written to the DB.
+ */
+export interface DocumentMetadataFields {
+  date?: string;
+  description?: string;
+  documentType?: string | null;
+  people?: string[];
+  organisations?: string[];
+  landReferences?: string[];
+}
+
 export function createDocumentsRepository(db: Knex) {
   return {
     /**
@@ -71,6 +84,64 @@ export function createDocumentsRepository(db: Knex) {
      */
     async delete(id: string): Promise<void> {
       await db<DocumentRow>('documents').where({ id }).delete();
+    },
+
+    /**
+     * Return a paginated list of documents with an active flag, ordered by
+     * flaggedAt ASC. Also returns the total count of flagged documents.
+     * Used by DOC-006 (getDocumentQueue).
+     */
+    async getFlagged(
+      page: number,
+      pageSize: number,
+    ): Promise<{ rows: DocumentRow[]; total: number }> {
+      const [countResult, rows] = await Promise.all([
+        db<DocumentRow>('documents')
+          .whereNotNull('flagReason')
+          .count<{ count: string }>('* as count')
+          .first(),
+        db<DocumentRow>('documents')
+          .whereNotNull('flagReason')
+          .orderBy('flaggedAt', 'asc')
+          .limit(pageSize)
+          .offset((page - 1) * pageSize),
+      ]);
+      return { rows, total: Number(countResult?.count ?? 0) };
+    },
+
+    /**
+     * Clear the flag on a document by setting flagReason and flaggedAt to null.
+     * Used by DOC-008 (clearFlag).
+     */
+    async clearFlag(id: string): Promise<void> {
+      await db<DocumentRow>('documents')
+        .where({ id })
+        .update({ flagReason: null, flaggedAt: null });
+    },
+
+    /**
+     * Partially update metadata fields on a document. Only provided (non-undefined)
+     * fields are written. Always updates updatedAt. Returns the updated row.
+     * Used by DOC-009 (updateDocumentMetadata).
+     */
+    async updateMetadata(
+      id: string,
+      fields: DocumentMetadataFields,
+    ): Promise<DocumentRow | undefined> {
+      const update: Record<string, unknown> = { updatedAt: new Date() };
+      if (fields.date !== undefined) update.date = fields.date;
+      if (fields.description !== undefined)
+        update.description = fields.description;
+      if (fields.documentType !== undefined)
+        update.documentType = fields.documentType;
+      if (fields.people !== undefined) update.people = fields.people;
+      if (fields.organisations !== undefined)
+        update.organisations = fields.organisations;
+      if (fields.landReferences !== undefined)
+        update.landReferences = fields.landReferences;
+
+      await db<DocumentRow>('documents').where({ id }).update(update);
+      return db<DocumentRow>('documents').where({ id }).first();
     },
   };
 }
