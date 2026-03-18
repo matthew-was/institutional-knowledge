@@ -21,6 +21,7 @@ import { createApp } from './index.js';
 import { createLogger } from './middleware/logger.js';
 import { createCurationService } from './services/curation.js';
 import { createDocumentService } from './services/documents.js';
+import { createVocabularyService } from './services/vocabulary.js';
 import { createStorageService } from './storage/index.js';
 import { createVectorStore } from './vectorstore/index.js';
 
@@ -67,6 +68,7 @@ async function start(): Promise<void> {
   const graphStore = createGraphStore(config.graph, db, log);
   const documentService = createDocumentService({ db, storage, config, log });
   const curationService = createCurationService({ db, log });
+  const vocabularyService = createVocabularyService({ db, log });
 
   const app = createApp({
     config,
@@ -76,6 +78,7 @@ async function start(): Promise<void> {
     graphStore,
     documentService,
     curationService,
+    vocabularyService,
     log,
   });
 

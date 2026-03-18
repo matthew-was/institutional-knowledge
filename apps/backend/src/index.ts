@@ -26,6 +26,7 @@ import { generateOpenApiSpec } from './openapi.js';
 import { createRouter } from './routes/index.js';
 import type { CurationService } from './services/curation.js';
 import type { DocumentService } from './services/documents.js';
+import type { VocabularyService } from './services/vocabulary.js';
 import type { StorageService } from './storage/index.js';
 import type { VectorStore } from './vectorstore/index.js';
 
@@ -37,6 +38,7 @@ export interface AppDependencies {
   graphStore: GraphStore;
   documentService: DocumentService;
   curationService: CurationService;
+  vocabularyService: VocabularyService;
   log: Logger;
 }
 

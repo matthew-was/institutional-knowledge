@@ -171,8 +171,10 @@ The following are explicitly prohibited:
 | Mocked database clients for integration tests | Masks real database behaviour | Test Early |
 | Calling service methods directly against a real database as an integration test | Bypasses validate middleware and route layer; leaves HTTP boundary untested | Test Early |
 | Calling a service factory with mocked `db`/`storage` deps as a "unit test" | The mock bypasses real I/O, leaving the HTTP boundary and validate middleware untested; pure-function logic inside a service must be extracted before it can be unit-tested | Test Early |
-| Zod v3 string-refinement format validators (`z.string().uuid()`, `z.string().url()`, `z.string().email()`, etc.) | Zod v4 promotes these to top-level primitives (`z.uuid()`, `z.url()`, `z.email()`); using the chained form is needlessly verbose and signals unfamiliarity with the installed version | Zod v4 |
-| `crypto.randomUUID()` for UUID generation | The `uuid` package (`v4 as uuidv4`) is the project standard; `crypto.randomUUID()` is a Node.js built-in with no consistent import and is not used elsewhere in the codebase | Consistency |
+| Using string-refinement format validators instead of the top-level primitives native to the installed major version of Zod | Use the format validators native to the installed version. Currently Zod v4: `z.uuid()`, `z.url()`, `z.email()` (not the v3 chained form `z.string().uuid()`, `z.string().url()`, `z.string().email()`). Verify these examples against the installed version on any major upgrade. | Zod (version-current) |
+| `crypto.randomUUID()` for UUID generation | The `uuid` package (`v7 as uuidv7`) is the project standard; `crypto.randomUUID()` is a Node.js built-in with no consistent import and is not used elsewhere in the codebase | Consistency |
+| Adding a repository to `DbInstance` without updating the `DbInstance` listing in `development-principles.md` | The listing in this document is the authoritative reference for what is on `DbInstance`; letting it drift creates confusion about what is available and what is missing | Documentation |
+| Inline `res.status(...).json({ error, message })` in a route handler instead of `sendServiceError` | The envelope shape is a project rule, not a per-handler decision; inlining it creates drift risk if the envelope changes | Error Response Pattern |
 
 ---
 
@@ -191,6 +193,12 @@ const graph   = createGraphStore(config.graph, db, log);
 const docs    = createDocumentService({ db, storage, config, log });
 const app     = createApp({ config, db, storage, vectorStore: vector, graphStore: graph, documentService: docs, log });
 ```
+
+**Coordination functions**: `createRouter` and `createApp` are the only functions permitted
+to receive the full `AppDependencies` bag. They are coordination/composition functions whose
+sole job is to destructure the bag and pass one service to each router or factory they
+instantiate. This is not a violation of the narrowing rule — it is the mechanism that
+enforces it. Everything they call receives only what it needs.
 
 **Narrowing rule**: route factories receive one service, not `AppDependencies`.
 
@@ -235,9 +243,47 @@ export function createDocumentService(deps: DocumentServiceDeps): DocumentServic
 
 ---
 
+## Error Response Pattern
+
+Route handlers translate a `ServiceResult` error outcome into a JSON response using this
+unified envelope:
+
+```typescript
+{ error: <errorType>, message?: <errorMessage>, data?: <errorData> }
+```
+
+- `error` — always present; the `errorType` string from `ServiceResult`
+- `message` — present for standard errors; the `errorMessage` string from `ServiceResult`
+- `data` — present when `ServiceResult` carries `errorData`; the structured payload nested
+  under `data` (not spread at the top level)
+- Both `message` and `data` may be present simultaneously when a future error case warrants it
+
+**Example** — standard error (message only):
+
+```typescript
+res.status(404).json({ error: result.errorType, message: result.errorMessage });
+```
+
+**Example** — structured error (data only):
+
+```typescript
+res.status(409).json({ error: result.errorType, data: result.errorData });
+```
+
+The `errorData` payload must never be spread at the top level of the response object
+(`{ error, ...result.errorData }` is prohibited). Nesting it under `data` keeps the envelope
+shape predictable for API consumers.
+
+Route handlers must use `sendServiceError` from `routes/routeUtils.ts` to send error
+responses — not inline `res.json()` calls — so that the envelope shape is enforced in one
+place. `sendServiceError` selects `data:` or `message:` automatically based on whether
+`errorData` is present.
+
+---
+
 ## Repository Pattern
 
-All SQL lives in `apps/backend/src/db/repositories/`. One repository file per database table. Services call `db.documents.insert(...)`, `db.embeddings.search(...)` — they never write SQL directly.
+All SQL lives in `apps/backend/src/db/repositories/`. Repositories are grouped by **domain**, not by table — a repository owns all the tables that belong to its domain and may JOIN across them freely for read queries, and may run transactions across them for writes. Services call `db.graph.addTermWithRelationships(...)` or `db.documents.insert(...)` — they never write SQL directly and never call `db._knex` except to open a transaction boundary that crosses repository domains (which should be rare and explicitly justified).
 
 **Repository factory signature**:
 
@@ -260,6 +306,7 @@ export type DbInstance = {
   embeddings: EmbeddingsRepository;
   chunks: ChunksRepository;
   graph: GraphRepository;
+  pipelineSteps: PipelineStepsRepository;
   destroy(): Promise<void>;
 };
 ```
@@ -277,6 +324,31 @@ export type DbInstance = {
 | Integration test seed helpers | Prefer `db.documents.insert()` (or equivalent repository method) when one exists. Use `db._knex` only for tables that have no repository insert method (e.g. `pipeline_steps`) or when verifying raw DB state after a test |
 
 `knex.raw()` is permitted inside repositories for queries that cannot be expressed in the Knex query builder (pgvector cosine distance, recursive CTEs). When using `knex.raw()`, column names must be written in snake\_case because `wrapIdentifier` does not apply; result rows must be mapped to camelCase explicitly.
+
+---
+
+## Schema Placement
+
+Zod schemas serve two distinct roles in this project. Where a schema lives depends on which
+role it plays:
+
+| Schema type | Where it lives | Exported to OpenAPI? |
+| --- | --- | --- |
+| Path params (`:id`, `:termId`) | Locally in the route file — not exported | No |
+| Query params | `packages/shared/src/schemas/` — registered with the OpenAPI registry | Yes |
+| Request bodies | `packages/shared/src/schemas/` — registered with the OpenAPI registry | Yes |
+| Response bodies | `packages/shared/src/schemas/` — registered with the OpenAPI registry | Yes |
+
+**Why path params are local**: path parameters are always strings at the HTTP layer. A local
+schema coerces or validates the value (e.g. `z.uuid()`) for the handler's benefit only —
+this is not a contract type that API consumers need to know about. Placing a path-param
+schema in `packages/shared/src/schemas/` and registering it with OpenAPI would pollute the
+spec with internal implementation details.
+
+**Why everything else goes in shared**: query params, request bodies, and response bodies
+define the API contract that consumers depend on. They must appear in the OpenAPI spec.
+Defining them locally in a route file makes them invisible to the spec generator and creates
+drift between the code and the documented contract.
 
 ---
 

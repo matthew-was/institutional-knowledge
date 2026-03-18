@@ -123,6 +123,8 @@ Write the review to a timestamped file using the Write tool. Get the current dat
 
 Example: `documentation/tasks/code-reviews/code-review-backend-task-2-2026-03-07-0943.md`
 
+For re-reviews of the same task, use the same pattern with a new timestamp — do not add round numbers or suffixes. The timestamp distinguishes rounds chronologically.
+
 Reviews are written here (not to `archive/`) so they remain visible as pending action items. After the developer has read the review and confirmed any actions taken, they move the file to `archive/code-reviews/[service]/`.
 
 Structure:

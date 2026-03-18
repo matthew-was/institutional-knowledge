@@ -20,6 +20,12 @@ for date format, a required field constraint), the condition cannot be violated 
 Writing a test that mocks the route to bypass validation and test the service directly would
 test a path that does not exist in production.
 
+**Scope**: CR-001 applies specifically when evaluating formal task acceptance conditions in
+code review files. It is the mechanism by which a reviewer can mark an acceptance condition
+as structurally met without a dedicated test. General testing decisions (which tier to use,
+what to test at the unit vs integration level) are governed by the two-tier rule in
+`development-principles.md` — not by CR-001.
+
 **How to apply**:
 
 - Read the Zod schema for the input type. Confirm the condition is covered by the schema.
@@ -77,24 +83,75 @@ pattern and would route domain errors through the 500 handler.
 
 ---
 
-## CR-004 — Repository methods are single-table
+## CR-004 — Repositories have single domain responsibility
 
-**Principle**: Repository methods in `apps/backend/src/db/repositories/` operate on a
-single table. Cross-table queries (JOINs, subqueries referencing a different table) must
-be moved to the service layer as separate repository calls.
+**Principle**: Repository files in `apps/backend/src/db/repositories/` group database
+access by **domain**. All SQL lives in repositories — services never write SQL directly.
+Each repository owns the tables within its domain. Within-domain read queries (JOINs,
+subqueries) and within-domain transactions are permitted freely. Cross-domain writes —
+transactions that insert into or delete from a table owned by a different repository —
+must not appear inside a repository method.
 
-**Why**: The single-table rule keeps repositories testable in isolation and prevents schema
-coupling between repositories. The service layer orchestrates multiple repository calls
-when cross-table data is needed (see `getDocumentQueue` calling both `documents.getFlagged`
-and `pipelineSteps.getLatestFailedStepName` per row).
+**Why**: Grouping by domain rather than by table reflects how queries are actually written.
+Related tables are frequently joined to satisfy a single business query, and forcing those
+joins into the service layer as N+1 calls pushes SQL orchestration upward where it does not
+belong. The hard boundary is mutation: a repository must not write to another domain's
+tables, because that couples two domains at the database layer in a way that is difficult
+to reason about and impossible to swap out independently.
+
+Read-only joins into a neighbouring domain's tables are permitted where the data required
+is small and incidental to the primary query (e.g. joining `documents` to fetch a
+description and date to enrich a vocabulary result). This is different from owning or
+mutating that data.
 
 **How to apply**:
 
-- If a repository method contains a JOIN or references a table other than its own, this is
-  a **blocking** finding.
-- N+1 queries at the service layer are acceptable where the alternative would require a JOIN
-  across repositories. Flag as a **Suggestion** if the volume is expected to be large and
-  a batched approach would be appropriate.
+- If a repository method **inserts, updates, or deletes** rows in a table owned by a
+  different repository, this is a **blocking** finding.
+- If a repository method **reads** from a table outside its primary domain via a JOIN or
+  subquery, assess whether the data is incidental context for the primary query. If yes,
+  this is permitted — not a finding. If the method's primary purpose is to retrieve data
+  from the other domain, it belongs in that domain's repository — flag as a **blocking**
+  finding.
+- If a service method writes raw SQL or calls `db._knex` for anything other than a
+  transaction boundary, this is a **blocking** finding.
+- N+1 queries at the service layer are acceptable where a join would cross repository
+  boundaries. Flag as a **Suggestion** if a batched single-repository call would be more
+  appropriate.
+
+---
+
+## CR-006 — Exhaustive `ERROR_STATUS` Record
+
+**Principle**: Route handlers must map service error types to HTTP status codes using an
+exhaustive `Record<ServiceErrorType, number>` constant. TypeScript enforces at compile time
+that every member of the error type union is mapped.
+
+```typescript
+const ERROR_STATUS: Record<VocabularyErrorType, number> = {
+  not_found: 404,
+  wrong_source: 409,
+  duplicate_term: 409,
+  target_not_found: 404,
+};
+```
+
+Using a type assertion (`status as ErrorType`) or a nullish fallback (`?? 500`) to handle
+the lookup is a **blocking** finding — it defeats exhaustiveness and allows new error types
+to be added to the service without a corresponding HTTP mapping.
+
+**Why**: The exhaustive record means the TypeScript compiler will error if a new `errorType`
+is added to the service union without updating the route. This makes error handling
+self-maintaining as the service evolves.
+
+**How to apply**:
+
+- Confirm the `ERROR_STATUS` constant is typed as `Record<XxxErrorType, number>` (not a
+  plain object literal with inferred type).
+- If the constant uses a cast (`as SomeErrorType`) or a `?? fallback` lookup: **blocking**
+  finding — the exhaustiveness guarantee is lost.
+- The `errorStatus()` wrapper pattern (a helper function that encapsulates the lookup with
+  a fallback) is the prohibited form of this anti-pattern — flag as **blocking**.
 
 ---
 

@@ -13,14 +13,16 @@ import { Router } from 'express';
 import type { AppDependencies } from '../index.js';
 import { createCurationRouter } from './curation.js';
 import { createDocumentsRouter } from './documents.js';
+import { createVocabularyRouter } from './vocabulary.js';
 
 export function createRouter(deps: AppDependencies): Router {
   const router = Router();
 
   router.use(createDocumentsRouter(deps.documentService));
   router.use(createCurationRouter(deps.curationService));
+  router.use(createVocabularyRouter(deps.vocabularyService));
 
-  // Additional route groups added in Tasks 10–15
+  // Additional route groups added in Tasks 11–15
 
   return router;
 }

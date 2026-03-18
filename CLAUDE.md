@@ -26,6 +26,28 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ---
 
+## Code Review Findings
+
+**CRITICAL: Never action code review findings without explicit user instruction.** This is a hard rule, not a preference.
+
+- After invoking the code reviewer, stop. Do not read the review file and pre-emptively apply findings.
+- Wait for the user to read the review and explicitly say what to fix.
+- Do not fix any finding — blocking or otherwise — until instructed.
+
+---
+
+## Implementation Completion Checklist
+
+**CRITICAL: Before declaring any implementation task complete**, always run all three steps:
+
+1. `pnpm biome check apps/backend/src` — lint and formatting
+2. `pnpm --filter backend exec tsc --noEmit` — TypeScript type checking
+3. `pnpm --filter @institutional-knowledge/backend test` — full test suite (requires test DB running via `docker compose -f docker-compose.test.yml up -d`)
+
+Fix all failures before presenting the work as done.
+
+---
+
 ## Task Status Changes
 
 **CRITICAL: Never change a task status in `documentation/tasks/` without explicit user instruction.** This is a hard rule, not a preference.
