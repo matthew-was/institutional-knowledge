@@ -19,6 +19,7 @@ import supertest from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
+import type { DocumentInsert } from '../../db/tables.js';
 import { createGraphStore } from '../../graphstore/index.js';
 import { createApp } from '../../index.js';
 import type { Logger } from '../../middleware/logger.js';
@@ -91,40 +92,39 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 
 async function insertFlaggedDocument(
-  overrides: Record<string, unknown> = {},
+  overrides: Partial<DocumentInsert> = {},
 ): Promise<string> {
   const id = crypto.randomUUID();
-  await db._knex('documents').insert({
+  const row: DocumentInsert = {
     id,
     status: 'finalized',
     filename: 'photo.jpg',
-    content_type: 'image/jpeg',
-    file_size_bytes: '204800',
-    file_hash: `hash-${id}`,
-    storage_path: `/storage/${id}/photo.jpg`,
+    contentType: 'image/jpeg',
+    fileSizeBytes: '204800',
+    fileHash: `hash-${id}`,
+    storagePath: `/storage/${id}/photo.jpg`,
     date: '1987-06-15',
     description: 'Wedding photograph',
-    document_type: null,
+    documentType: null,
     people: ['Alice Smith'],
     organisations: ['Estate of John Smith'],
-    land_references: ['North Field'],
-    flag_reason: 'OCR quality below threshold',
-    flagged_at: new Date('2026-03-13T10:00:00Z'),
-    submitter_identity: 'Primary Archivist',
-    ingestion_run_id: null,
-    created_at: new Date(),
-    updated_at: new Date(),
+    landReferences: ['North Field'],
+    flagReason: 'OCR quality below threshold',
+    flaggedAt: new Date('2026-03-13T10:00:00Z'),
+    submitterIdentity: 'Primary Archivist',
+    ingestionRunId: null,
     ...overrides,
-  });
+  };
+  await db.documents.insert(row);
   return id;
 }
 
 async function insertDocument(
-  overrides: Record<string, unknown> = {},
+  overrides: Partial<DocumentInsert> = {},
 ): Promise<string> {
   return insertFlaggedDocument({
-    flag_reason: null,
-    flagged_at: null,
+    flagReason: null,
+    flaggedAt: null,
     ...overrides,
   });
 }
@@ -162,12 +162,12 @@ describe('GET /api/curation/documents', () => {
 
   it('respects page and pageSize query params', async () => {
     await insertFlaggedDocument({
-      file_hash: 'hash-a',
-      flag_reason: 'reason-1',
+      fileHash: 'hash-a',
+      flagReason: 'reason-1',
     });
     await insertFlaggedDocument({
-      file_hash: 'hash-b',
-      flag_reason: 'reason-2',
+      fileHash: 'hash-b',
+      flagReason: 'reason-2',
     });
 
     const res = await request
