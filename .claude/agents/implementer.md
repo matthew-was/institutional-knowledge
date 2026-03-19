@@ -167,3 +167,4 @@ After setting a task to `code_complete`, inform the developer:
 - Which files were changed or created
 - What the Code Reviewer should focus on (e.g. security boundaries, specific acceptance conditions)
 - Whether any questions arose during implementation that should be noted before review
+- Whether any implementation decision made during this task feels like it should be a development principle but is not yet recorded — flag it explicitly so the developer can decide whether to formalise it in `documentation/process/development-principles.md` before the Code Reviewer runs

@@ -30,7 +30,7 @@ The caller specifies a **service** (frontend, backend, or python) and a **task n
    - Backend: lines 719–1310 (schema and data access ADRs), lines 1466–1522 (ADR-044, ADR-045)
    - Python: lines 255–718 (C2 pipeline ADRs), lines 905–946 (ADR-032), lines 1205–1310 (ADR-038), lines 1343–1379 (ADR-040)
 5. `documentation/process/development-principles.md` — core quality standards
-6. `documentation/process/code-review-principles.md` — numbered review principles (CR-001 to CR-005); consult these when assessing acceptance conditions and pattern compliance
+6. `documentation/process/code-review-principles.md` — numbered review principles; consult these when assessing acceptance conditions, pattern compliance, abstraction call sites, and test tier placement
 7. The code files produced by the task (the caller should provide file paths; if not, locate them from the task description and plan)
 
 Then confirm the task details before proceeding to the review.
@@ -77,6 +77,7 @@ If the acceptance condition is not met, this is a **blocking** finding.
 - Handler functions accept services as injected parameters — no direct instantiation inside handlers
 - Business logic is in handler functions, not in route definitions or FastAPI path operations
 - Same handler reusable from HTTP routes and (where applicable) MCP tool wrappers
+- Handlers call the correct abstraction layer (VectorStore, GraphStore) — not lower-level equivalents (e.g. `db.embeddings.insert` directly); if an abstraction does not yet support a required parameter, extend the abstraction rather than bypassing it (see CR-008)
 - See dependency-composition-pattern skill
 
 ### 6. Error handling
@@ -101,8 +102,8 @@ If the acceptance condition is not met, this is a **blocking** finding.
 ### 9. Test quality
 
 - Tests confirm the behaviour stated in the acceptance condition — not a weaker approximation
-- Unit tests cover pure functions, validation logic, data transformations
-- Integration tests use a real database where the task involves data persistence (see pipeline-testing-strategy skill)
+- Unit tests cover pure functions, validation logic, data transformations only — no DB, no HTTP
+- All handler tests are route integration tests (supertest → validate middleware → service → real DB); no service-layer integration tests (see CR-007 and pipeline-testing-strategy skill)
 - No tests that always pass regardless of implementation (vacuous tests)
 
 ### 10. Plan compliance

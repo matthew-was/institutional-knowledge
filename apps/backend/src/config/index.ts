@@ -88,7 +88,7 @@ const ConfigSchema = z.object({
   }),
   graph: z.object({
     provider: z.string().min(1).default('postgresql'),
-    maxTraversalDepth: z.number().int().min(1).default(3),
+    maxTraversalDepth: z.number().int().min(1),
   }),
   embedding: z.object({
     dimension: z.coerce.number().int().positive(),
