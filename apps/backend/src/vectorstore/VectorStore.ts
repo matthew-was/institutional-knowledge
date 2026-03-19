@@ -11,6 +11,7 @@
  */
 
 import type { ServiceResult } from '@institutional-knowledge/shared';
+import type { Knex } from 'knex';
 
 export type VectorStoreErrorType = 'dimension_mismatch';
 
@@ -30,11 +31,14 @@ export interface VectorStore {
    * @param documentId - the document the chunk belongs to
    * @param chunkId - the chunk the embedding belongs to
    * @param embedding - the embedding vector
+   * @param trx - optional Knex transaction; when provided the insert is enrolled
+   *   in the caller's transaction and rolls back with it on failure
    */
   write(
     documentId: string,
     chunkId: string,
     embedding: number[],
+    trx?: Knex.Transaction,
   ): Promise<ServiceResult<void, VectorStoreErrorType>>;
 
   /**

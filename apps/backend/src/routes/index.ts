@@ -13,6 +13,7 @@ import { Router } from 'express';
 import type { AppDependencies } from '../index.js';
 import { createCurationRouter } from './curation.js';
 import { createDocumentsRouter } from './documents.js';
+import { createProcessingRouter } from './processing.js';
 import { createVocabularyRouter } from './vocabulary.js';
 
 export function createRouter(deps: AppDependencies): Router {
@@ -21,8 +22,9 @@ export function createRouter(deps: AppDependencies): Router {
   router.use(createDocumentsRouter(deps.documentService));
   router.use(createCurationRouter(deps.curationService));
   router.use(createVocabularyRouter(deps.vocabularyService));
+  router.use(createProcessingRouter(deps.processingService));
 
-  // Additional route groups added in Tasks 11–15
+  // Additional route groups added in Tasks 13–15
 
   return router;
 }

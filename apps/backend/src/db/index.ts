@@ -14,7 +14,8 @@
  *   - embeddings:      embeddings repository
  *   - chunks:          chunks repository
  *   - graph:           graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences)
- *   - pipelineSteps:   pipeline steps repository (read-only; writes owned by Python service)
+ *   - pipelineSteps:   pipeline steps repository
+ *   - processingRuns:  processing runs repository
  *   - _knex:           raw Knex instance (for transactions; prefer repositories)
  *   - destroy():       releases the connection pool on graceful shutdown
  *
@@ -43,6 +44,7 @@ import {
   createEmbeddingsRepository,
   createGraphRepository,
   createPipelineStepsRepository,
+  createProcessingRunsRepository,
 } from './repositories/index.js';
 import { camelCase, snakeCase } from './utils.js';
 
@@ -113,8 +115,11 @@ function buildDbInstance(knex: ReturnType<typeof Knex>) {
     /** Graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences). */
     graph: createGraphRepository(knex),
 
-    /** Pipeline steps repository (read-only; write access owned by Python service — ADR-031). */
+    /** Pipeline steps repository. */
     pipelineSteps: createPipelineStepsRepository(knex),
+
+    /** Processing runs repository. */
+    processingRuns: createProcessingRunsRepository(knex),
 
     /** Release the connection pool. Call on graceful shutdown. */
     async destroy(): Promise<void> {

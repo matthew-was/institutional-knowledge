@@ -158,6 +158,7 @@ const stubDeps = {
   documentService: {} as never,
   curationService: {} as never,
   vocabularyService: {} as never,
+  processingService: {} as never,
   log: createLogger({ level: 'error' }),
 };
 

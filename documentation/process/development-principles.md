@@ -175,6 +175,10 @@ The following are explicitly prohibited:
 | `crypto.randomUUID()` for UUID generation | The `uuid` package (`v7 as uuidv7`) is the project standard; `crypto.randomUUID()` is a Node.js built-in with no consistent import and is not used elsewhere in the codebase | Consistency |
 | Adding a repository to `DbInstance` without updating the `DbInstance` listing in `development-principles.md` | The listing in this document is the authoritative reference for what is on `DbInstance`; letting it drift creates confusion about what is available and what is missing | Documentation |
 | Inline `res.status(...).json({ error, message })` in a route handler instead of `sendServiceError` | The envelope shape is a project rule, not a per-handler decision; inlining it creates drift risk if the envelope changes | Error Response Pattern |
+| Omitting `trx` from an abstraction's write method when the underlying repository supports it | Forces the write onto a separate pool connection; uncommitted rows from the outer transaction are invisible, causing FK violations | Repository Pattern / Transaction Participation |
+| Discarding a `ServiceResult` return value inside a `db._knex.transaction()` block | The transaction commits despite a logical failure; errors are silently swallowed | ServiceResult Pattern |
+| A service function that writes to two or more tables without wrapping all writes in a single `db._knex.transaction()` block, with `trx` threaded through every repository call | Partial writes leave the database in an inconsistent state if any step fails; writes that occur outside the transaction block cannot be rolled back | Repository Pattern / Transaction Participation |
+| A "full payload" integration test that omits data for one or more tables named in the acceptance condition | The omission silently satisfies the assertion count while leaving an entire write path untested | Test Early |
 
 ---
 
@@ -240,6 +244,7 @@ export function createDocumentService(deps: DocumentServiceDeps): DocumentServic
 - Methods return `ServiceResult<T, K, E>` for all expected outcomes — never throw for domain errors such as "not found" or "file too large". Throwing is reserved for genuinely unexpected failures (DB unreachable, programming error) that should propagate to the Express error handler via `next(err)`. `T` is the success data type; `K extends string` is the union of valid `errorType` strings (defaults to `string`); `E` is the type of `errorData` for structured error payloads (defaults to `never` for methods whose error cases carry only a message).
 - Services have no knowledge of Express (`Request`, `Response`, `NextFunction` are route-layer concerns).
 - The exported interface type is what callers depend on; the factory implementation is an internal detail.
+- **`ServiceResult` inside transactions**: when calling a function that returns `ServiceResult<T, E>` from within a `db._knex.transaction()` block, always check `outcome` immediately. If `outcome === 'error'`, throw an error to trigger rollback — do not allow the transaction to commit despite a logical failure. Discarding a `ServiceResult` return value inside a transaction is prohibited.
 
 ---
 
@@ -307,6 +312,7 @@ export type DbInstance = {
   chunks: ChunksRepository;
   graph: GraphRepository;
   pipelineSteps: PipelineStepsRepository;
+  processingRuns: ProcessingRunsRepository;
   destroy(): Promise<void>;
 };
 ```
@@ -324,6 +330,8 @@ export type DbInstance = {
 | Integration test seed helpers | Prefer `db.documents.insert()` (or equivalent repository method) when one exists. Use `db._knex` only for tables that have no repository insert method (e.g. `pipeline_steps`) or when verifying raw DB state after a test |
 
 `knex.raw()` is permitted inside repositories for queries that cannot be expressed in the Knex query builder (pgvector cosine distance, recursive CTEs). When using `knex.raw()`, column names must be written in snake\_case because `wrapIdentifier` does not apply; result rows must be mapped to camelCase explicitly.
+
+**Transaction participation**: repository methods that may be called inside a caller-owned transaction accept an optional `trx?: Knex.Transaction` parameter and use `const qb = trx ?? db` internally. Any abstraction that wraps a repository (e.g. `VectorStore`, `GraphStore`) must expose the same optional `trx` parameter on methods that write to the database, and thread it through to the underlying repository call. Omitting `trx` from an abstraction's write method forces the write onto a separate pool connection, which cannot see uncommitted rows from the outer transaction and will fail FK constraints.
 
 ---
 

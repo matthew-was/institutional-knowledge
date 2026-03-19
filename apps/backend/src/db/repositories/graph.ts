@@ -56,8 +56,12 @@ export function createGraphRepository(db: Knex) {
     /**
      * Upsert a vocabulary_terms row on id conflict.
      */
-    async upsertTerm(row: VocabularyTermInsert): Promise<void> {
-      await db<VocabularyTermRow>('vocabularyTerms')
+    async upsertTerm(
+      row: VocabularyTermInsert,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      await qb<VocabularyTermRow>('vocabularyTerms')
         .insert(row)
         .onConflict('id')
         .merge({
@@ -65,15 +69,19 @@ export function createGraphRepository(db: Knex) {
           normalisedTerm: row.normalisedTerm,
           category: row.category,
           confidence: row.confidence,
-          updatedAt: db.fn.now(),
+          updatedAt: qb.fn.now(),
         });
     },
 
     /**
      * Insert a vocabulary_relationships row; ignore on duplicate composite key.
      */
-    async insertRelationship(row: VocabularyRelationshipInsert): Promise<void> {
-      await db<VocabularyRelationshipRow>('vocabularyRelationships')
+    async insertRelationship(
+      row: VocabularyRelationshipInsert,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      await qb<VocabularyRelationshipRow>('vocabularyRelationships')
         .insert(row)
         .onConflict(['sourceTermId', 'targetTermId', 'relationshipType'])
         .ignore();
@@ -235,8 +243,15 @@ export function createGraphRepository(db: Knex) {
     /**
      * Insert an entity_document_occurrences row.
      */
-    async insertOccurrence(row: EntityDocumentOccurrenceInsert): Promise<void> {
-      await db('entityDocumentOccurrences').insert(row);
+    async insertOccurrence(
+      row: EntityDocumentOccurrenceInsert,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      await qb('entityDocumentOccurrences')
+        .insert(row)
+        .onConflict(['termId', 'documentId'])
+        .ignore();
     },
 
     // -----------------------------------------------------------------------
@@ -280,6 +295,41 @@ export function createGraphRepository(db: Knex) {
     },
 
     /**
+     * Return the full vocabulary_terms row for the given normalisedTerm, or
+     * undefined if not found. Used by PROC-002 to resolve entity names to term
+     * IDs for alias appending and occurrence insertion.
+     */
+    async findVocabTermByNormalisedTerm(
+      normalisedTerm: string,
+      trx?: Knex.Transaction,
+    ): Promise<VocabularyTermRow | undefined> {
+      const qb = trx ?? db;
+      return qb<VocabularyTermRow>('vocabularyTerms')
+        .where('normalisedTerm', normalisedTerm)
+        .first();
+    },
+
+    /**
+     * Append an alias to the aliases array of a vocabulary_terms row if it is
+     * not already present. No-op if the alias already exists. Used by PROC-002
+     * when an extracted entity name matches an existing normalised term.
+     */
+    async appendAlias(
+      id: string,
+      alias: string,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      await qb<VocabularyTermRow>('vocabularyTerms')
+        .where('id', id)
+        .whereRaw('NOT (? = ANY(aliases))', [alias])
+        .update({
+          aliases: qb.raw('array_append(aliases, ?)', [alias]),
+          updatedAt: qb.fn.now(),
+        });
+    },
+
+    /**
      * Return true if the given normalisedTerm already exists in vocabulary_terms.
      */
     async findNormalisedTermInVocabulary(
@@ -296,8 +346,10 @@ export function createGraphRepository(db: Knex) {
      */
     async findNormalisedTermInRejected(
       normalisedTerm: string,
+      trx?: Knex.Transaction,
     ): Promise<boolean> {
-      const row = await db<RejectedTermRow>('rejectedTerms')
+      const qb = trx ?? db;
+      const row = await qb<RejectedTermRow>('rejectedTerms')
         .where('normalisedTerm', normalisedTerm)
         .first();
       return row !== undefined;

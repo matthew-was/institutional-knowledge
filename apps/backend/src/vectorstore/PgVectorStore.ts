@@ -16,6 +16,7 @@
  */
 
 import type { ServiceResult } from '@institutional-knowledge/shared';
+import type { Knex } from 'knex';
 import { v7 as uuidv7 } from 'uuid';
 import type { DbInstance } from '../db/index.js';
 import type { Logger } from '../middleware/logger.js';
@@ -45,6 +46,7 @@ export class PgVectorStore implements VectorStore {
     documentId: string,
     chunkId: string,
     embedding: number[],
+    trx?: Knex.Transaction,
   ): Promise<ServiceResult<void, VectorStoreErrorType>> {
     if (embedding.length !== this.embeddingDimension) {
       return {
@@ -57,7 +59,10 @@ export class PgVectorStore implements VectorStore {
     this.log.debug({ documentId, chunkId }, 'write: inserting embedding');
 
     const id = uuidv7();
-    await this.db.embeddings.insert({ id, chunkId, documentId, embedding });
+    await this.db.embeddings.insert(
+      { id, chunkId, documentId, embedding },
+      trx,
+    );
 
     this.log.debug({ documentId, chunkId, embeddingId: id }, 'write: complete');
     return { outcome: 'success', data: undefined };

@@ -5,6 +5,7 @@
  * All queries use the Knex query builder — no knex.raw required.
  */
 
+import type { ProcessingMetadata } from '@institutional-knowledge/shared/schemas/processing';
 import type { Knex } from 'knex';
 import type { DocumentInsert, DocumentRow } from '../tables.js';
 
@@ -142,6 +143,48 @@ export function createDocumentsRepository(db: Knex) {
 
       await db<DocumentRow>('documents').where({ id }).update(update);
       return db<DocumentRow>('documents').where({ id }).first();
+    },
+
+    /**
+     * Apply pipeline-extracted metadata to a document. Overwrites documentType,
+     * people, organisations, and landReferences unconditionally when provided.
+     * Description is overwritten only when metadata.description is non-null and
+     * non-empty (UR-053 — preserve curator-supplied description otherwise).
+     * Always sets updatedAt. Used by PROC-002 (receiveProcessingResults).
+     */
+    async applyProcessingMetadata(
+      id: string,
+      metadata: ProcessingMetadata,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      const update: Record<string, unknown> = {
+        documentType: metadata.documentType,
+        people: metadata.people,
+        organisations: metadata.organisations,
+        landReferences: metadata.landReferences,
+        updatedAt: new Date(),
+      };
+      if (metadata.description !== null && metadata.description !== '') {
+        update.description = metadata.description;
+      }
+      await qb<DocumentRow>('documents').where({ id }).update(update);
+    },
+
+    /**
+     * Set a flag on a document. Used by PROC-002 when the Python service
+     * returns one or more flags for a document.
+     */
+    async setFlag(
+      id: string,
+      flagReason: string,
+      flaggedAt: Date,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      await qb<DocumentRow>('documents')
+        .where({ id })
+        .update({ flagReason, flaggedAt });
     },
   };
 }

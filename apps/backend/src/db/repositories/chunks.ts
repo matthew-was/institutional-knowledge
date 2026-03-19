@@ -13,8 +13,9 @@ export function createChunksRepository(db: Knex) {
     /**
      * Insert a single chunk row.
      */
-    async insert(row: ChunkInsert): Promise<void> {
-      await db<ChunkRow>('chunks').insert(row);
+    async insert(row: ChunkInsert, trx?: Knex.Transaction): Promise<void> {
+      const qb = trx ?? db;
+      await qb<ChunkRow>('chunks').insert(row);
     },
 
     /**
