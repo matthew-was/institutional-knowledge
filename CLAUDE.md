@@ -83,9 +83,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Backend Tasks 1–12 done. Tasks 11 & 12 PM-verified on branch `feature/backend-tasks-11-12` — awaiting merge to main.
-- **Design status**: All design documents approved (ADR-001 to ADR-048). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Merge `feature/backend-tasks-11-12` to main. After that: Frontend Task 1 in parallel with Backend Task 13. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Current phase**: Implementation in progress. Backend Tasks 1–13 done. Tasks 11–13 merged to main (PR #19 merged; PR #20 `feature/backend-task-13` open). Agent workflow review on `chore/agent-workflow-review` (PR #21 open into task-13 branch).
+- **Design status**: All design documents approved (ADR-001 to ADR-049). See [documentation/approvals.md](documentation/approvals.md).
+- **Next actionable step**: Merge PR #20 and PR #21 to main. Then: Frontend Task 1 in parallel with Backend Task 14. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
