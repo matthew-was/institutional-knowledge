@@ -2,7 +2,9 @@
  * Embeddings repository.
  *
  * Encapsulates all database access for the embeddings table.
- * search() also joins the chunks table to return chunk text and metadata.
+ * search() joins the chunks table for chunk text and metadata, and the
+ * documents table for document metadata (description, date, document_type)
+ * required by the QUERY-001 VectorSearchResult contract.
  *
  * Note on knex.raw usage: the pgvector <=> cosine distance operator and the
  * ?::vector cast are PostgreSQL-specific syntax that the Knex query builder
@@ -53,6 +55,9 @@ export function createEmbeddingsRepository(db: Knex) {
       // knex.raw bypasses postProcessResponse for nested rows, so we map
       // each row to an explicit object literal to satisfy the type checker
       // and make the snake_case→camelCase correspondence visible.
+      //
+      // documents is joined so that the document field (description, date,
+      // document_type) is included in each result for the QUERY-001 contract.
       const result = await db.raw<{ rows: Record<string, unknown>[] }>(
         `SELECT
           e.chunk_id,
@@ -60,9 +65,13 @@ export function createEmbeddingsRepository(db: Knex) {
           c.text,
           c.chunk_index,
           c.token_count,
-          1 - (e.embedding <=> ?::vector) AS similarity_score
+          1 - (e.embedding <=> ?::vector) AS similarity_score,
+          d.description AS doc_description,
+          d.date AS doc_date,
+          d.document_type AS doc_document_type
         FROM embeddings e
         JOIN chunks c ON c.id = e.chunk_id
+        JOIN documents d ON d.id = e.document_id
         ORDER BY e.embedding <=> ?::vector
         LIMIT ?`,
         [vectorLiteral, vectorLiteral, topK],
@@ -74,6 +83,11 @@ export function createEmbeddingsRepository(db: Knex) {
         chunkIndex: row.chunk_index as number,
         tokenCount: row.token_count as number,
         similarityScore: row.similarity_score as number,
+        document: {
+          description: row.doc_description as string,
+          date: row.doc_date as string | null,
+          documentType: row.doc_document_type as string | null,
+        },
       }));
     },
   };

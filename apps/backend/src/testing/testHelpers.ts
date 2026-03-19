@@ -43,7 +43,7 @@ export function makeConfig(
     pipeline: { runningStepTimeoutMinutes: 30, maxRetries: 3 },
     python: { baseUrl: 'http://localhost:5000' },
     vectorStore: { provider: 'pgvector' },
-    graph: { provider: 'postgresql' },
+    graph: { provider: 'postgresql', maxTraversalDepth: 3 },
     embedding: { dimension: 384 },
     ingestion: { partialAuditReport: false, reportOutputDirectory: '/reports' },
     logger: { level: 'info' as const },

@@ -27,6 +27,7 @@ import { createRouter } from './routes/index.js';
 import type { CurationService } from './services/curation.js';
 import type { DocumentService } from './services/documents.js';
 import type { ProcessingService } from './services/processing.js';
+import type { SearchService } from './services/search.js';
 import type { VocabularyService } from './services/vocabulary.js';
 import type { StorageService } from './storage/index.js';
 import type { VectorStore } from './vectorstore/index.js';
@@ -41,6 +42,7 @@ export interface AppDependencies {
   curationService: CurationService;
   vocabularyService: VocabularyService;
   processingService: ProcessingService;
+  searchService: SearchService;
   log: Logger;
 }
 

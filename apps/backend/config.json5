@@ -57,7 +57,8 @@
     provider: "pgvector"
   },
   graph: {
-    provider: "postgresql"
+    provider: "postgresql",
+    maxTraversalDepth: 3
   },
   // Embedding vector dimension. Must match the model configured in the Python service.
   // Changing this requires a new database migration (migration 004 hardcodes it).

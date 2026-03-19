@@ -1013,15 +1013,26 @@ middleware.
 **Acceptance condition**: Route integration tests (supertest → validate → service → real
 database, per the two-tier testing rule in `development-principles.md`) confirm:
 (a) `vectorSearch`: returns 400 when `embedding.length` does not match configured dimension;
-calls `VectorStore.search` with correct arguments; returns formatted results.
-(b) `graphSearch`: returns 400 when `entityNames` is empty; resolves entity names to IDs via
-`normalised_term`; calls `GraphStore.traverse` and `GraphStore.findDocumentsByEntity`;
+calls `VectorStore.search` with correct arguments against a real database with seeded
+embeddings; returns correctly formatted `VectorSearchResponse` including the `document`
+metadata fields joined from the `documents` table.
+(b) `graphSearch`: returns 400 when `entityNames` is empty (structurally met via
+`GraphSearchRequest.entityNames` min(1) in the Zod schema — CR-001); resolves entity names
+to IDs via `normalised_term` lookup against real `vocabulary_terms` rows; calls
+`GraphStore.traverse` and `GraphStore.findDocumentsByEntity` against the real database;
 returns aggregated and deduplicated entities, relationships, and document IDs.
 All integration tests pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-19):
+
+- Automated checks: confirmed. All seven integration tests in `apps/backend/src/routes/__tests__/search.integration.test.ts` are route integration tests (supertest → validate middleware → service → repository → real PostgreSQL). Condition (a): the dimension-mismatch test sends a 10-element vector and asserts `res.status === 400` and `res.body.error === 'dimension_mismatch'`; the happy-path test seeds a document, chunk, and embedding via `db._knex`, sends the same unit vector, and asserts the full `VectorSearchResponse` shape including `result.document.description`, `result.document.date`, and `result.document.documentType` joined from the `documents` table; the empty-DB test confirms the `results: []` path. Condition (b): the `entityNames: []` test confirms Zod `min(1)` enforcement returns `res.body.error === 'validation_error'`; the `depth_exceeded` test (added in round 2 for ADR-049) confirms the config-driven guard returns 400 with `res.body.error === 'depth_exceeded'` when `maxDepth` exceeds `config.graph.maxTraversalDepth`; the happy-path test seeds two terms with occurrences and a relationship, searches by entity name, and asserts both entity IDs appear with correct `relatedDocumentIds` and the relationship is present; the deduplication test confirms no duplicate entity IDs and exactly one relationship when two overlapping entity names are searched together. The `findTermByNormalisedTerm` repository method correctly applies the ADR-037 document-evidenced filter (`whereExists` on `entityDocumentOccurrences`).
+- Manual checks: none required — condition type is automated.
+- User need: satisfied. The task implements the QUERY-001 and QUERY-002 internal callback endpoints called by the Python query handler to retrieve semantically similar chunks (QUERY-001) and traverse the entity graph (QUERY-002). Both endpoints validate inputs, delegate to the injected `VectorStore` and `GraphStore` implementations, and return the contract-specified response shapes. The config-driven traversal depth limit (ADR-049) correctly moves the upper bound out of the shared Zod schema and into the service-level guard, consistent with ADR-001 (Infrastructure as Configuration). QUERY-002 is a Phase 1 stub (not called in production until Phase 2 introduces the LLM query classifier); the implementation is present, registered, and tested.
+- Outcome: done
 
 ---
 
