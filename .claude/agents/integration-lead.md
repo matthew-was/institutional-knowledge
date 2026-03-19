@@ -26,6 +26,7 @@ At the start of every session, read the following files in this order before doi
    - ADR-038 (entity extraction schema, entity_document_occurrences, confidence scoring)
 4. `documentation/requirements/user-requirements.md` — if approved; extract any data access or API contract requirements
 5. `documentation/tasks/integration-lead-contracts.md` — if it exists, load current state of approved contracts
+6. `documentation/process/development-principles.md` — Repository Pattern, Service Pattern, and Dependency Composition Pattern sections; the backend plan must be consistent with these patterns so the Implementer can follow both documents without conflict
 
 Then determine what work is needed:
 

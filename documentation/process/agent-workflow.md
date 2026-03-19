@@ -246,30 +246,31 @@ Pre-approval component specs are archived at `archive/previous-documentation/com
 
 ---
 
-### 5. Implementer Agent (Selective Use Only)
+### 5. Implementer Agent
 
 **File**: `.claude/agents/implementer.md`
 
-**Responsibility**: Write production-ready code from Senior Developer plans.
+**Responsibility**: Write production-ready code from approved implementation plans for TypeScript services.
 
-**When to use**: Component 1 (Document Intake web UI) only. The developer has extensive web development experience — there is no learning value in implementing it personally.
+**When to use**: Both TypeScript services — `apps/frontend/` (Next.js) and `apps/backend/` (Express). These are the developer's existing domain; the learning value is in the Python ML pipeline, not in TypeScript web development.
 
-**When NOT to use**: Components 2–4 (processing pipeline, query, continuous ingestion). These are the learning components — OCR, embeddings, RAG, document processing pipelines. The developer implements these personally to build genuine understanding.
+**When NOT to use**: `services/processing/` (Python processing service). This is the learning component — OCR, embeddings, RAG, document processing pipelines. The developer implements this personally with Pair Programmer support to build genuine understanding.
 
-**Inputs**: Detailed Senior Developer implementation plan
+**Inputs**: Approved task list and implementation plan for the target service
 
-**Output format**: Working TypeScript/Node.js code with Vitest tests, following the monorepo patterns from the Component 1 specification.
+**Output format**: Working TypeScript/Node.js code with Vitest tests, following the monorepo patterns and development principles.
 
 **Scope constraints**:
 
-- Implements exactly what the plan specifies
+- Implements exactly what the plan and task list specify
 - Does NOT make architectural decisions
 - Does NOT choose different libraries than specified
 - Does NOT skip tests
+- Flags principle gaps at handoff — if an implementation decision feels like it should be a development principle but is not yet recorded, surfaces it for the developer to formalise
 
-**Code standards**: TypeScript strict mode, Pino logging, Zod validation, nconf configuration, pnpm workspace patterns.
+**Code standards**: TypeScript strict mode, Pino logging, Zod validation, nconf configuration, pnpm workspace patterns, Biome linting.
 
-**Key context files**: Component 1 specification (produced by Senior Developer agent — not yet created), `configuration-patterns.md` skill, `pipeline-testing-strategy.md` skill
+**Key context files**: Approved task list, implementation plan, `configuration-patterns.md` skill, `pipeline-testing-strategy.md` skill, `development-principles.md`
 
 ---
 
@@ -298,7 +299,9 @@ Pre-approval component specs are archived at `archive/previous-documentation/com
 
 **Scope constraints**: Does NOT make architectural decisions. If a blocking issue requires architectural change, escalates to Head of Development.
 
-**Key context files**: [process/development-principles.md](development-principles.md), [decisions/architecture-decisions.md](../decisions/architecture-decisions.md)
+**Key context files**: [process/development-principles.md](development-principles.md), [process/code-review-principles.md](code-review-principles.md), [decisions/architecture-decisions.md](../decisions/architecture-decisions.md)
+
+**Process improvement loop**: After each review cycle completes (Code Reviewer → Implementer fixes → Project Manager verification), the Project Manager identifies whether any blocking finding or recurring pattern should be formalised as a new principle in `development-principles.md` or `code-review-principles.md`. This keeps the principle documents alive and prevents the same class of issue recurring across tasks. The Code Reviewer consults `code-review-principles.md` (numbered CR-NNN) at the start of every session.
 
 ---
 
