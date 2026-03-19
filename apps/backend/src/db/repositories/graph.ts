@@ -88,6 +88,26 @@ export function createGraphRepository(db: Knex) {
     },
 
     /**
+     * Retrieve a vocabulary_terms row by normalised_term, filtered to
+     * entities with at least one entity_document_occurrences row (ADR-037).
+     * Used by graphSearch to resolve entity names to IDs.
+     * Returns undefined if not found or not document-evidenced.
+     */
+    async findTermByNormalisedTerm(
+      normalisedTerm: string,
+    ): Promise<GraphVocabTermRow | undefined> {
+      return db<VocabularyTermRow>('vocabularyTerms as vt')
+        .select('vt.id', 'vt.term', 'vt.category', 'vt.confidence')
+        .whereExists(
+          db('entityDocumentOccurrences')
+            .select(db.raw('1'))
+            .where('termId', db.ref('vt.id')),
+        )
+        .where('vt.normalisedTerm', normalisedTerm)
+        .first();
+    },
+
+    /**
      * Retrieve a vocabulary_terms row by ID, filtered to entities with at
      * least one entity_document_occurrences row (ADR-037).
      * Returns undefined if not found or not document-evidenced.

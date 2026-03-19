@@ -80,6 +80,8 @@ Apply production-ready patterns from day one. The codebase should run on AWS wit
 
 TypeScript strict mode in all TypeScript packages. Zod validation at every external boundary (user input, API responses, file metadata). Shared types package prevents frontend/backend schema drift.
 
+**Prefer explicit `null` over empty string or `undefined` for absent data**: when a field has no value, use `null` — not `''` or omission. `null` is unambiguous ("no data expected here"); `''` cannot be distinguished from a real empty string; `undefined` is lost in JSON serialisation. This applies to Zod schemas, TypeScript types, and DB-to-service mappings. Exceptions exist (e.g. optional fields in request bodies where omission is the natural form), but they should be deliberate.
+
 ### 8. Test Early
 
 Tests written alongside code, not deferred to "after the feature works." See `pipeline-testing-strategy.md` skill for patterns.
@@ -179,6 +181,8 @@ The following are explicitly prohibited:
 | Discarding a `ServiceResult` return value inside a `db._knex.transaction()` block | The transaction commits despite a logical failure; errors are silently swallowed | ServiceResult Pattern |
 | A service function that writes to two or more tables without wrapping all writes in a single `db._knex.transaction()` block, with `trx` threaded through every repository call | Partial writes leave the database in an inconsistent state if any step fails; writes that occur outside the transaction block cannot be rolled back | Repository Pattern / Transaction Participation |
 | A "full payload" integration test that omits data for one or more tables named in the acceptance condition | The omission silently satisfies the assertion count while leaving an entire write path untested | Test Early |
+| Hardcoding operational numeric limits (e.g. max traversal depth, max file size, retry count) in Zod schemas in `packages/shared/src/schemas/` | Embeds a backend-specific or environment-specific constraint in the shared API contract; cannot be changed without a code change; prevents alternative backends from using different safe limits | Infrastructure as Configuration |
+| Using `?? ''` to substitute an empty string for a null value in repository row-mapping code | Converts a meaningful absence of data into an indistinguishable empty string; callers cannot tell the difference; use `null` explicitly (see §7 Type Safety) | Type Safety |
 
 ---
 

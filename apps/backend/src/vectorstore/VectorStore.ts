@@ -22,6 +22,11 @@ export interface SearchResult {
   chunkIndex: number;
   tokenCount: number;
   similarityScore: number;
+  document: {
+    description: string;
+    date: string | null;
+    documentType: string | null;
+  };
 }
 
 export interface VectorStore {

@@ -151,11 +151,12 @@ A task is implementation-complete (ready to set `code_complete`) when:
 
 1. All code required by the task description is written
 2. For each interface or abstraction named in the plan, confirm the implementation calls it — not a lower-level equivalent (e.g. if the plan says call `VectorStore.write()`, do not call `db.embeddings.insert()` directly). If you find yourself calling a lower-level method because the abstraction does not yet support the parameter you need (e.g. `trx`), extend the abstraction — do not bypass it. Bypassing an abstraction to work around a missing parameter is a blocking code review finding.
-3. All tests required by the acceptance condition are written and passing
-4. The full test suite for the service passes — run all tests, not just the new ones, to confirm no regressions
-5. `pnpm lint` passes with no errors (Biome format and lint across the whole monorepo)
-6. No TypeScript compilation errors (`pnpm typecheck` or equivalent)
-7. Task status updated to `code_complete` in the task file
+3. For any numeric parameter with a range specified in the task description (e.g. `maxDepth: 1–10`), do not encode the upper bound in the shared Zod schema in `packages/shared/src/schemas/`. The schema enforces only the structural type (e.g. `z.number().int().min(1)`); the upper bound must be a config field enforced in the service layer. This is the Infrastructure as Configuration principle (ADR-001) applied to operational limits.
+4. All tests required by the acceptance condition are written and passing
+5. The full test suite for the service passes — run all tests, not just the new ones, to confirm no regressions
+6. `pnpm lint` passes with no errors (Biome format and lint across the whole monorepo)
+7. No TypeScript compilation errors (`pnpm typecheck` or equivalent)
+8. Task status updated to `code_complete` in the task file
 
 The Implementer phase for a service is complete when all tasks in the task list are `done` (set by the Project Manager after verification).
 

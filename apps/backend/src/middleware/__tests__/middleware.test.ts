@@ -143,7 +143,7 @@ const stubDeps = {
     pipeline: { runningStepTimeoutMinutes: 30, maxRetries: 3 },
     python: { baseUrl: 'http://localhost:8000' },
     vectorStore: { provider: 'pgvector' },
-    graph: { provider: 'postgresql' },
+    graph: { provider: 'postgresql', maxTraversalDepth: 3 },
     embedding: { dimension: 384 },
     ingestion: {
       partialAuditReport: false,
@@ -159,6 +159,7 @@ const stubDeps = {
   curationService: {} as never,
   vocabularyService: {} as never,
   processingService: {} as never,
+  searchService: {} as never,
   log: createLogger({ level: 'error' }),
 };
 

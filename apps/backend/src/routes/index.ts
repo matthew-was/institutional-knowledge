@@ -14,6 +14,7 @@ import type { AppDependencies } from '../index.js';
 import { createCurationRouter } from './curation.js';
 import { createDocumentsRouter } from './documents.js';
 import { createProcessingRouter } from './processing.js';
+import { createSearchRouter } from './search.js';
 import { createVocabularyRouter } from './vocabulary.js';
 
 export function createRouter(deps: AppDependencies): Router {
@@ -23,6 +24,7 @@ export function createRouter(deps: AppDependencies): Router {
   router.use(createCurationRouter(deps.curationService));
   router.use(createVocabularyRouter(deps.vocabularyService));
   router.use(createProcessingRouter(deps.processingService));
+  router.use(createSearchRouter(deps.searchService));
 
   // Additional route groups added in Tasks 13–15
 

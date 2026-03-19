@@ -195,6 +195,49 @@ critically — bypasses `trx` threading, causing FK violations inside transactio
 
 ---
 
+## CR-009 — Shared schemas must not encode operational limits
+
+**Principle**: When reviewing schemas in `packages/shared/src/schemas/`, check whether any
+`.max()` or `.min()` numeric constraints encode operational limits (depth ceilings, size
+limits, retry counts, timeouts) that are backend- or environment-specific.
+
+**Why**: Shared Zod schemas define the API contract consumed by multiple services. Embedding
+a PostgreSQL-specific traversal depth ceiling in a schema that Python also reads couples the
+contract to an implementation detail of one backend. The constraint belongs in config, with
+the service enforcing it via `ServiceResult` (ADR-001, ADR-049).
+
+**How to apply**:
+
+- For each `.max()` on a numeric field in a shared schema: ask whether the value is
+  structural (e.g. a business rule like "a rating must be 1–5") or operational (e.g. "the
+  database can't handle more than N hops"). Structural bounds belong in the schema;
+  operational bounds belong in config.
+- If an operational limit is hardcoded in a shared schema: **Suggestion** — note the
+  relevant ADR (ADR-001) and recommend moving the ceiling to `config` with service
+  enforcement.
+
+---
+
+## CR-010 — Null substitution in repository row-mapping code
+
+**Principle**: When reviewing repository methods that map raw database rows to typed objects,
+check for `?? ''` (null-to-empty-string) substitutions on nullable fields.
+
+**Why**: An empty string and a null value are semantically different. `?? ''` silently
+converts a meaningful absence of data into a value that callers cannot distinguish from a
+real empty string. The project preference is explicit `null` for absent data (see
+`development-principles.md` §7).
+
+**How to apply**:
+
+- Search for `?? ''` in repository row-mapping code (the `return result.rows.map(...)` or
+  equivalent blocks). If found on a field that is nullable in the DB schema: **Suggestion**
+  — replace with `null` and update the TypeScript type accordingly.
+- This is a **Suggestion**, not a blocker, unless the field's nullability is load-bearing
+  for a contract (e.g. a shared Zod schema that declares the field non-nullable).
+
+---
+
 ## CR-005 — Validate middleware is the input boundary
 
 **Principle**: `validate({ body, params, query })` middleware is the sole mechanism for

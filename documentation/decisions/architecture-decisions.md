@@ -1590,3 +1590,28 @@ The shared-key pattern applies to all internal service boundaries:
 **Tradeoffs**: The schema definitions in `packages/shared/src/schemas/` must be maintained alongside any route handler changes — adding or changing a route requires updating the corresponding schema first. This is a deliberate inversion of the current (nonexistent) contract workflow: the schema is the source of truth, not the handler. For a single-developer project this is low overhead; for a team it would be a coordination requirement.
 
 **Source**: Resolved 2026-03-13, implementation phase. Closes the Express-Python contract validation risk noted in ADR-032 Tradeoffs. Cross-references ADR-002 (packages/shared placement), ADR-015 (Python service boundary), ADR-031 (Express sole DB writer, RPC-style contract), ADR-032 (Python testing — contract gap closed), ADR-044 (shared-key auth — `/openapi.json` unauthenticated like `/api/health`), ADR-047 (ESM module format).
+
+---
+
+### ADR-049: Config-Driven Graph Traversal Depth Limit
+
+**Decision**: The maximum allowed `maxDepth` for graph traversal (QUERY-002) is not hardcoded in the Zod schema. The Zod schema enforces only a minimum of 1; the service enforces the upper bound by reading `config.graph.maxTraversalDepth`. Requests exceeding the configured limit return 400 (`depth_exceeded`).
+
+**Context**: The QUERY-002 contract accepts a `maxDepth` parameter controlling how many hops a recursive CTE traversal follows in PostgreSQL. Recursive CTEs have exponential cost growth with depth — each hop can multiply the row set being walked. The safe upper bound is backend-specific: PostgreSQL with a recursive CTE has a different performance profile than a dedicated graph database (Phase 2+). Hardcoding an upper bound in the shared Zod schema would embed a PostgreSQL-specific performance constraint into the API contract, preventing future backends from allowing deeper traversal without a breaking schema change.
+
+**Options considered**:
+
+1. Hardcode `max(10)` in the Zod schema — simple, but embeds a backend-specific limit in the contract; no documented basis for the value of 10.
+2. Hardcode `max(5)` in the Zod schema — the conservative value the Implementer chose; same problem: arbitrary, undocumented, backend-specific.
+3. Config-driven ceiling, schema enforces only `min(1)` — the upper bound lives in `config.graph.maxTraversalDepth`; the service rejects requests that exceed it. The schema is backend-agnostic; the limit is explicit, documented, and swappable per environment.
+
+**Decision rationale**: Option 3 aligns with the Infrastructure as Configuration principle (ADR-001). The performance ceiling is a property of the concrete backend implementation, not the API contract. Phase 1 default: `maxTraversalDepth: 3` (safe for PostgreSQL recursive CTEs on a moderately connected vocabulary graph; deep enough for typical 1–2 hop relationship queries).
+
+**Consequences**:
+
+- `config.graph` gains a `maxTraversalDepth` field (integer, default 3)
+- `GraphSearchRequest` Zod schema: `maxDepth: z.number().int().min(1)` (no upper bound)
+- `SearchService.graphSearch` checks `input.maxDepth > config.graph.maxTraversalDepth` and returns `ServiceResult` error `depth_exceeded` (mapped to 400)
+- `SearchErrorType` gains `'depth_exceeded'`
+
+**Source**: Resolved 2026-03-19, implementation phase (Task 13). Cross-references ADR-001 (Infrastructure as Configuration), ADR-037 (GraphStore interface), ADR-048 (Zod-to-OpenAPI pipeline).

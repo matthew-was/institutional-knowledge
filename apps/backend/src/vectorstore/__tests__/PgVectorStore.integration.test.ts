@@ -57,13 +57,22 @@ afterEach(async () => {
 // Test data helpers — insert the minimum rows required by foreign key constraints
 // ---------------------------------------------------------------------------
 
-async function insertDocument(id: string): Promise<void> {
+async function insertDocument(
+  id: string,
+  overrides: {
+    description?: string;
+    date?: string | null;
+    documentType?: string | null;
+  } = {},
+): Promise<void> {
   await db._knex('documents').insert({
     id,
     status: 'finalized',
     filename: 'test.pdf',
     content_type: 'application/pdf',
-    description: 'Test document',
+    description: overrides.description ?? 'Test document',
+    date: overrides.date ?? null,
+    document_type: overrides.documentType ?? null,
     submitter_identity: 'test',
   });
 }
@@ -108,7 +117,11 @@ describe('PgVectorStore — write and search round-trip', () => {
   const chunkText = 'The family moved to the farm in spring.';
 
   beforeEach(async () => {
-    await insertDocument(docId);
+    await insertDocument(docId, {
+      description: 'Wedding photograph',
+      date: '1987-06-15',
+      documentType: 'photograph',
+    });
     await insertChunk(chunkId, docId, 0, chunkText);
   });
 
@@ -134,6 +147,10 @@ describe('PgVectorStore — write and search round-trip', () => {
     expect(result.tokenCount).toBeGreaterThan(0);
     // Cosine similarity of a vector with itself is 1.0
     expect(result.similarityScore).toBeCloseTo(1.0, 5);
+    // Document metadata joined from documents table (QUERY-001 contract)
+    expect(result.document.description).toBe('Wedding photograph');
+    expect(result.document.date).toBe('1987-06-15');
+    expect(result.document.documentType).toBe('photograph');
   });
 });
 

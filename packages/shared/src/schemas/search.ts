@@ -27,7 +27,7 @@ export type VectorSearchRequest = z.infer<typeof VectorSearchRequest>;
 
 export const VectorSearchResultDocument = z.object({
   description: z.string(),
-  date: z.string(),
+  date: z.string().nullable(),
   documentType: z.string().nullable(),
 });
 
@@ -62,7 +62,7 @@ export type VectorSearchResponse = z.infer<typeof VectorSearchResponse>;
 export const GraphSearchRequest = z
   .object({
     entityNames: z.array(z.string()).min(1),
-    maxDepth: z.number().int().min(1).max(5),
+    maxDepth: z.number().int().min(1),
     relationshipTypes: z.array(z.string()).optional(),
   })
   .openapi('GraphSearchRequest');
