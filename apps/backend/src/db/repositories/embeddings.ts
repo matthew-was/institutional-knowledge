@@ -29,10 +29,11 @@ export function createEmbeddingsRepository(db: Knex) {
      * required by the pgvector extension internally, so callers do not need
      * to construct knex.raw fragments.
      */
-    async insert(row: EmbeddingInsert): Promise<void> {
-      await db<EmbeddingRow>('embeddings').insert({
+    async insert(row: EmbeddingInsert, trx?: Knex.Transaction): Promise<void> {
+      const qb = trx ?? db;
+      await qb<EmbeddingRow>('embeddings').insert({
         ...row,
-        embedding: db.raw('?::vector', [JSON.stringify(row.embedding)]),
+        embedding: qb.raw('?::vector', [JSON.stringify(row.embedding)]),
       });
     },
 

@@ -155,6 +155,46 @@ self-maintaining as the service evolves.
 
 ---
 
+## CR-007 — Two-tier testing rule is applied
+
+**Principle**: For every handler task, confirm that route integration tests from HTTP to
+real DB are present and that no service-level test files using mocked Knex exist for
+that task.
+
+**Why**: Service-level tests with mocked `db`/`storage` bypass the `validate` middleware
+and the route layer entirely, leaving those paths untested. The two-tier testing rule in
+`development-principles.md` is explicit: there is no middle tier.
+
+**How to apply**:
+
+- Confirm at least one `routes/__tests__/*.integration.test.ts` file covers the task's routes.
+- If any `services/__tests__/` file exists for this task with mocked deps: **blocking** finding.
+- If integration tests are absent entirely: **blocking** finding.
+
+---
+
+## CR-008 — Infrastructure abstractions are used at all call sites
+
+**Principle**: For every infrastructure abstraction named in the backend plan
+(`StorageService`, `VectorStore`, `GraphStore`), all call sites in the implementation
+must use the injected dependency — not a lower-level equivalent.
+
+**Why**: Calling `db.embeddings.insert()` directly instead of `vectorStore.write()`
+bypasses the abstraction, breaks the Infrastructure as Configuration principle, and —
+critically — bypasses `trx` threading, causing FK violations inside transactions.
+
+**How to apply**:
+
+- Identify every abstraction named in the task's plan section.
+- Search for direct calls to the underlying repository from service or route code
+  (e.g. `db.embeddings.insert`, `db.chunks.insert` where `vectorStore.write` is expected).
+  If found: **blocking** finding.
+- If the abstraction is missing a parameter needed by the implementation (e.g. `trx`),
+  the correct fix is to extend the abstraction — not to bypass it. Bypassing to work
+  around a missing parameter is a **blocking** finding.
+
+---
+
 ## CR-005 — Validate middleware is the input boundary
 
 **Principle**: `validate({ body, params, query })` middleware is the sole mechanism for

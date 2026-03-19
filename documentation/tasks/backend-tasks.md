@@ -872,19 +872,28 @@ Asynchronous processing loop (fire-and-forget via `void asyncProcessingLoop(...)
 
 **Complexity**: L
 
-**Acceptance condition**: Vitest unit tests with mocked Knex and mocked HTTP client confirm:
+**Acceptance condition**: Route integration tests (supertest → validate → service → real
+database, per the two-tier testing rule in `development-principles.md`) confirm:
 (a) Returns 409 when a `processing_runs` record with `in_progress` status already exists.
 (b) Resets stale `running` steps (older than the timeout) to `failed` before querying
 documents.
 (c) Returns `{ runId, documentsQueued }` synchronously; does not wait for the async loop.
-(d) The async loop: calls the Python HTTP endpoint once per document; calls
+(d) The async loop: calls the Python HTTP endpoint once per document (mock `fetch` globally
+with `vi.stubGlobal` — external HTTP boundary, not a DB dependency); calls
 `receiveProcessingResults` service logic with the Python response; updates `processing_runs`
 to `completed` after all documents finish.
-All unit tests pass.
+All integration tests pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-19):
+
+- Automated checks: confirmed. All four acceptance conditions covered by route integration tests in `apps/backend/src/routes/__tests__/processing.integration.test.ts`. (a) 409 conflict: inserts an `in_progress` run record via `insertProcessingRun`, calls `POST /api/processing/trigger`, asserts `res.status === 409` and `res.body.error === 'conflict'`. (b) Stale step reset: inserts a step with `startedAt` 2 hours past the 30-minute config timeout, calls trigger, asserts `step.status === 'failed'` via direct DB query. (c) Synchronous return: inserts a document with one pending step, asserts `res.status === 200`, `runId` matches UUID regex, `documentsQueued === 1`. (d) Async loop completion: stubs native `fetch` via `vi.stubGlobal` returning a valid `ProcessingResultsRequest`-shaped payload, calls trigger, polls via `vi.waitFor` (5-second timeout, 100ms interval) until `processing_runs.status === 'completed'`; `receiveProcessingResults` is exercised end-to-end against the real DB with all DB writes going to the real test database.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied. US-050 (manual processing trigger): endpoint returns synchronously with `{ runId, documentsQueued }` before the async loop completes; no automatic processing occurs. US-048/US-049 (step recording, retry): stale-step reset returns `running` steps beyond the timeout to `failed`, making them eligible for retry. Config values (timeout, retry limit, Python base URL, auth key) injected via `ProcessingServiceDeps`. `processingRuns` repository listed in `development-principles.md` `DbInstance` type. Native `fetch` used for the Python HTTP client (Node.js 24 built-in, no extra dependency).
+- Outcome: done
 
 ---
 
@@ -934,10 +943,11 @@ returns HTTP 200 `{ documentId, accepted: true }` on success or propagates error
 
 **Complexity**: L
 
-**Acceptance condition**: Vitest unit tests with mocked Knex, mocked VectorStore, and mocked
-config confirm:
-(a) Full successful pipeline write: all tables updated correctly (pipeline steps, metadata,
-chunks, embeddings, entities, relationships, flags).
+**Acceptance condition**: Route integration tests (supertest → validate → service → real
+database, per the two-tier testing rule in `development-principles.md`) confirm:
+(a) Full successful pipeline write: submit a full `ProcessingResultsRequest` payload; verify
+all rows are present across `documents`, `chunks`, `embeddings`, `vocabulary_terms`,
+`vocabulary_relationships`, `entity_document_occurrences`, and `pipeline_steps`.
 (b) Entity deduplication — new entity: inserts new `vocabulary_terms` row with
 `source = 'llm_extracted'`.
 (c) Entity deduplication — existing entity with alias append: finds existing
@@ -946,22 +956,22 @@ chunks, embeddings, entities, relationships, flags).
 matches `rejected_terms.normalised_term` is skipped; no `vocabulary_terms` row inserted.
 (e) Relationship deduplication: duplicate composite key insert is silently ignored.
 (f) Flag writing: `flag_reason` and `flagged_at` are set when `flags` is non-empty.
-(g) Transaction rollback on failure: when a write operation throws, the entire transaction is
-rolled back (no partial writes).
+(g) Transaction rollback on failure: submit a payload with a deliberately invalid write;
+verify the full transaction rolled back with no partial writes in any table.
 (h) Conditional description overwrite: description is overwritten when `metadata.description`
 is non-null and non-empty; preserved when null or empty.
-All unit tests pass.
+All integration tests pass.
 
-Integration test (real database): submit a full `ProcessingResultsRequest` payload; verify
-all rows are present across `documents`, `chunks`, `embeddings`, `vocabulary_terms`,
-`vocabulary_relationships`, `entity_document_occurrences`, `pipeline_steps`. Submit two
-payloads with overlapping entity names; verify a single `vocabulary_terms` row exists with
-updated `aliases`. Submit a payload with a deliberately invalid entity reference; verify the
-full transaction rolled back with no partial writes in any table. All integration tests pass.
+**Condition type**: automated
 
-**Condition type**: both
+**Status**: done
 
-**Status**: not_started
+**Verification** (2026-03-19):
+
+- Automated checks: confirmed. All eight acceptance conditions covered by route integration tests in `apps/backend/src/routes/__tests__/processing.integration.test.ts`. (a) Full 7-table write: `writes rows across all seven tables on a full payload (B-2)` submits step results, metadata, a 384-dimension chunk, two entities, and one relationship; asserts rows in `documents`, `pipeline_steps`, `chunks`, `embeddings`, `vocabulary_terms`, `entity_document_occurrences`, and `vocabulary_relationships` within a single request. (b) New entity: `inserts a new vocabulary_terms row for a new entity` confirms `source: 'llm_extracted'` and an occurrence row. (c) Alias append: `appends alias and inserts occurrence when entity matches existing term` confirms no duplicate `vocabulary_terms` row, alias appended, occurrence inserted; idempotency confirmed by a second test posting the same entity twice and asserting the alias appears exactly once in the array. (d) Rejected entity suppression: `suppresses entity whose normalisedName matches a rejected term` confirms no `vocabulary_terms` row and no occurrence. (e) Relationship deduplication: `silently ignores duplicate relationship inserts` submits the same relationship twice, asserts exactly one row. (f) Flag writing: `sets flagReason and flaggedAt when flags are present` confirms both fields set. (g) Transaction rollback: `rolls back the entire transaction when a write fails mid-way (B-3)` sends a chunk with embedding dimension 1 (expected 384); `VectorStore.write()` returns `dimension_mismatch`; service throws inside the transaction; rollback confirmed — `pipeline_steps` row unchanged (`status: 'running'`, `attemptCount: 0`), no chunks, no embeddings, `res.status === 500`. (h) Conditional description overwrite: three tests confirm overwrite when `metadata.description` is non-null/non-empty; preservation when null; preservation when empty string.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied. US-037 (conditional description overwrite, UR-053): `applyProcessingMetadata` overwrites description only when `metadata.description` is non-null and non-empty — confirmed by three dedicated tests. US-045 (embeddings per chunk via provider abstraction, ADR-033): `VectorStore.write()` is called via the injected `vectorStore` dependency (not directly to `db.embeddings`), preserving the Infrastructure as Configuration principle; dimension validation fires before the DB insert. US-048/US-049 (pipeline step recording and retry): `pipelineSteps.updateStep(..., trx)` inside the transaction increments `attemptCount` and sets `completedAt` and `errorMessage`. Transaction atomicity across all seven tables confirmed by B-3 rollback test. `receiveProcessingResults` exported from the factory closure and reused by the Task 11 async loop — not duplicated as a separate function.
+- Outcome: done
 
 ---
 
@@ -1000,14 +1010,14 @@ middleware.
 
 **Complexity**: M
 
-**Acceptance condition**: Vitest unit tests with mocked VectorStore and mocked GraphStore
-confirm:
+**Acceptance condition**: Route integration tests (supertest → validate → service → real
+database, per the two-tier testing rule in `development-principles.md`) confirm:
 (a) `vectorSearch`: returns 400 when `embedding.length` does not match configured dimension;
 calls `VectorStore.search` with correct arguments; returns formatted results.
 (b) `graphSearch`: returns 400 when `entityNames` is empty; resolves entity names to IDs via
 `normalised_term`; calls `GraphStore.traverse` and `GraphStore.findDocumentsByEntity`;
 returns aggregated and deduplicated entities, relationships, and document IDs.
-All tests pass.
+All integration tests pass.
 
 **Condition type**: automated
 
@@ -1077,9 +1087,8 @@ Register all four routes on the ingestion router.
 
 **Complexity**: L
 
-**Acceptance condition**: Vitest unit tests with mocked Knex, StorageService, and config
-confirm (lighter testing per the project manager's instruction that ingestion handlers use
-the lighter-testing list):
+**Acceptance condition**: Route integration tests (supertest → validate → service → real
+database, per the two-tier testing rule in `development-principles.md`) confirm:
 (a) `createIngestionRun`: performs run-start sweep (queries and cleans up incomplete runs)
 before creating a new run record.
 (b) `completeRun`: returns 409 when run is not `in_progress`; moves files and updates
@@ -1087,7 +1096,7 @@ statuses to `finalized`; calls the summary report writer.
 (c) `addFileToRun`: returns 404 when run not found; validates filename naming convention;
 returns 409 on duplicate hash; creates `documents` row with `ingestion_run_id`.
 (d) `cleanupRun`: deletes staging and permanent files and the run record.
-All unit tests pass.
+All integration tests pass.
 
 Manual check: run the full CLI ingestion lifecycle against a local Express instance (Task 1
 startup, migrations applied). Submit a directory of 3 conforming files; call
@@ -1125,16 +1134,14 @@ Register both endpoints on their respective routers (`/api/health` and `/api/adm
 
 **Complexity**: S
 
-**Acceptance condition**: Vitest unit test confirms:
+**Acceptance condition**: Route integration tests (supertest → validate → service → real
+database, per the two-tier testing rule in `development-principles.md`) confirm:
 (a) `healthCheck`: returns `{ status: 'ok', timestamp: <ISO string> }`.
-(b) `reindexEmbeddings`: calls `knex.raw` with a query containing `REINDEX INDEX
-CONCURRENTLY`; returns `{ reindexed: true }`.
+(b) `reindexEmbeddings`: call `POST /api/admin/reindex-embeddings` against a real database
+that has the embeddings IVFFlat index (from migration 004); verify the command executes
+without error and the index remains queryable via `VectorStore.search()`.
 
-Integration test (real database): call `POST /api/admin/reindex-embeddings` against a real
-database that has the embeddings IVFFlat index (from migration 004); verify the command
-executes without error and the index remains queryable via `VectorStore.search()`.
-
-**Condition type**: both
+**Condition type**: automated
 
 **Status**: not_started
 

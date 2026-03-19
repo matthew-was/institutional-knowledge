@@ -97,6 +97,7 @@ Do not implement multiple tasks in one session unless the developer explicitly a
 - Biome (ADR-046): all code must pass `biome check` with no errors before marking a task `code_complete`; do not disable Biome rules inline without a comment explaining why
 - TypeScript strict mode: no `any`, no non-null assertions without a comment explaining why
 - Every function that can fail must handle errors explicitly — no silent swallowing
+- Never discard a `ServiceResult` return value — always check `outcome` and handle the error case explicitly; ignoring a `ServiceResult` inside a transaction is especially dangerous as it allows the transaction to commit despite a logical failure
 - No secrets, credentials, or document content in logs — log identifiers and status only
 - All configuration values loaded via nconf at startup, validated with Zod — no hardcoded values (see configuration-patterns skill)
 - File uploads: validate MIME type, extension, and size before processing; reject invalid inputs with a specific error message
@@ -113,6 +114,7 @@ Write tests alongside the implementation — do not defer them. For each task:
 - Identify what the acceptance condition requires
 - Write the minimum tests that confirm the acceptance condition is met
 - Do not write exhaustive edge case tests — pragmatic coverage only (see pipeline-testing-strategy skill)
+- If an acceptance condition enumerates specific items (tables, fields, status codes, etc.), each item must appear in at least one assertion — do not approximate with a subset
 - Unit tests: pure functions, validation logic, data transformations
 - Integration tests (backend): handler functions with real database where the task involves data persistence
 - Component tests (frontend): React Testing Library for components that have user interactions
@@ -148,11 +150,12 @@ You may NOT set `reviewed` or `done` — those are set by the Code Reviewer and 
 A task is implementation-complete (ready to set `code_complete`) when:
 
 1. All code required by the task description is written
-2. All tests required by the acceptance condition are written and passing
-3. The full test suite for the service passes — run all tests, not just the new ones, to confirm no regressions
-4. `pnpm lint` passes with no errors (Biome format and lint across the whole monorepo)
-5. No TypeScript compilation errors (`pnpm typecheck` or equivalent)
-6. Task status updated to `code_complete` in the task file
+2. For each interface or abstraction named in the plan, confirm the implementation calls it — not a lower-level equivalent (e.g. if the plan says call `VectorStore.write()`, do not call `db.embeddings.insert()` directly). If you find yourself calling a lower-level method because the abstraction does not yet support the parameter you need (e.g. `trx`), extend the abstraction — do not bypass it. Bypassing an abstraction to work around a missing parameter is a blocking code review finding.
+3. All tests required by the acceptance condition are written and passing
+4. The full test suite for the service passes — run all tests, not just the new ones, to confirm no regressions
+5. `pnpm lint` passes with no errors (Biome format and lint across the whole monorepo)
+6. No TypeScript compilation errors (`pnpm typecheck` or equivalent)
+7. Task status updated to `code_complete` in the task file
 
 The Implementer phase for a service is complete when all tasks in the task list are `done` (set by the Project Manager after verification).
 

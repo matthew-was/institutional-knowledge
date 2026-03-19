@@ -26,6 +26,7 @@ import { createApp } from '../../index.js';
 import type { Logger } from '../../middleware/logger.js';
 import { createCurationService } from '../../services/curation.js';
 import { createDocumentService } from '../../services/documents.js';
+import { createProcessingService } from '../../services/processing.js';
 import { createVocabularyService } from '../../services/vocabulary.js';
 import { LocalStorageService } from '../../storage/LocalStorageService.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
@@ -69,6 +70,12 @@ beforeAll(async () => {
   const documentService = createDocumentService({ db, storage, config, log });
   const curationService = createCurationService({ db, log });
   const vocabularyService = createVocabularyService({ db, log });
+  const processingService = createProcessingService({
+    db,
+    config,
+    log,
+    vectorStore,
+  });
 
   app = createApp({
     config,
@@ -79,6 +86,7 @@ beforeAll(async () => {
     documentService,
     curationService,
     vocabularyService,
+    processingService,
     log,
   });
 

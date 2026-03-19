@@ -145,6 +145,19 @@ On fail: update the task status to `in_progress` in the task file using the Edit
 
 **CRITICAL — scope constraint**: When writing to a task file, only modify the section for the task being verified. Do NOT rewrite, summarise, or alter any other task's description, verification notes, or status — even if they look inconsistent or verbose. Existing verification notes are the authoritative provenance record. Modifying them destroys history. If you find yourself editing any line outside the verified task's block, stop and revert that change.
 
+### Process improvement review
+
+After completing verification, read the code review file(s) for the task (in `archive/code-reviews/[service]/` or `documentation/tasks/code-reviews/`). Look across the full review history — including how many rounds it took and what the blockers were — and ask: **what would have prevented these findings earlier in the process?**
+
+Produce a short process improvement note covering:
+
+- Any finding that reveals a gap in `documentation/process/development-principles.md` (a pattern the Implementer followed that is not documented, or a prohibited pattern that is not listed)
+- Any finding that reveals a gap in `documentation/process/code-review-principles.md` (a check the reviewer applied that is not captured, or a class of finding that recurred)
+- Any finding that reveals a gap in `.claude/agents/implementer.md` (an instruction that, if present, would have prevented the Implementer from making the mistake)
+- If no gaps are found, say so explicitly — a null result is a valid outcome
+
+Present this note to the developer as a separate section after the verification outcome. Do not apply any changes to those files yourself — the developer decides what to adopt.
+
 ---
 
 ## Output format
