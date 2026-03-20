@@ -34,36 +34,57 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ---
 
-## Code Review Findings
+## Task Status
 
-**CRITICAL: Never action code review findings without explicit user instruction.** This is a hard rule, not a preference.
+Task status in `documentation/tasks/` is managed exclusively through the `/update-task-status`
+skill. A hook blocks all direct edits to `**Status**` fields in task files.
 
-- After invoking the code reviewer, stop. Do not read the review file and pre-emptively apply findings.
-- Wait for the user to read the review and explicitly say what to fix.
-- Do not fix any finding — blocking or otherwise — until instructed.
+### Valid statuses and who sets them
 
----
+| Status | Set by |
+| --- | --- |
+| `not_started` | PM agent (decomposition) |
+| `coding_started` | Implementer |
+| `code_written` | Implementer (after checklist — skill enforces) |
+| `ready_for_review` | **User only** |
+| `in_review` | Code reviewer |
+| `review_passed` | Code reviewer |
+| `review_failed` | Code reviewer or PM agent |
+| `changes_requested` | **User only** |
+| `reviewed` | **User only** |
+| `done` | PM agent |
 
-## Implementation Completion Checklist
+### User-only transitions
 
-**CRITICAL: Before declaring any implementation task complete**, always run all three steps:
+The following transitions require you to invoke `/update-task-status` directly:
+
+- `code_written` → `ready_for_review` (when satisfied with the implementation)
+- `review_passed` → `reviewed` (when all review rounds are complete)
+- `review_passed` → `ready_for_review` (to action suggestions in a new round)
+- `review_failed` → `ready_for_review` (small fixes — Claude handles inline)
+- `review_failed` → `changes_requested` (substantial fixes — Implementer reinvoked)
+
+No agent is permitted to make these transitions. If asked, the agent must output:
+
+> "The transition to `[status]` must be made by the user. Please invoke `/update-task-status`
+> with task file, task number, and new status. The agent is not permitted to make this change."
+
+### After a code review
+
+**CRITICAL: Never action code review findings without explicit user instruction.**
+
+- After the code reviewer returns, stop. Do not read the review and pre-emptively apply findings.
+- The review file ends with "The review is ready for the user to check." — that is the handoff.
+- Wait for explicit instruction before touching any code or changing any status.
+
+### Implementation completion checklist
+
+The `/update-task-status` skill enforces this automatically when setting `code_written`, but
+for reference the three required checks are:
 
 1. `pnpm biome check apps/backend/src` — lint and formatting
 2. `pnpm --filter backend exec tsc --noEmit` — TypeScript type checking
-3. `pnpm --filter @institutional-knowledge/backend test` — full test suite (requires test DB running via `docker compose -f docker-compose.test.yml up -d`)
-
-Fix all failures before presenting the work as done.
-
----
-
-## Task Status Changes
-
-**CRITICAL: Never change a task status in `documentation/tasks/` without explicit user instruction.** This is a hard rule, not a preference.
-
-- Do not update `**Status**` fields in any task file unless the user explicitly says to update it
-- Do not set any task to `done` — only the Project Manager agent may do this, on explicit user instruction
-- Presenting completed work does not imply permission to update task status
-- If you believe a status change is warranted, say so and wait for the user to confirm
+3. `pnpm --filter backend test` — full test suite
 
 ---
 
@@ -154,7 +175,7 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`, `update-task-status.md`
 - Global skills (in `~/.claude/skills/`): `lab-entry` — use `/lab-entry start|append|finish` across all projects
 - Agents: `product-owner.md`, `head-of-development.md`, `integration-lead.md`, `senior-developer-frontend.md`, `senior-developer-python.md`, `project-manager.md`, `implementer.md`, `pair-programmer.md`, `code-reviewer.md`, `platform-engineer.md`
 

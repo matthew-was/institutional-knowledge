@@ -20,7 +20,11 @@ The caller specifies a **service** (frontend, backend, or python) and a **task n
    - Frontend: `documentation/tasks/frontend-tasks.md`
    - Backend: `documentation/tasks/backend-tasks.md`
    - Python: `documentation/tasks/python-tasks.md`
-2. Locate the specified task. Confirm its status is `code_complete`. If it is not, inform the developer and stop.
+2. Locate the specified task. Confirm its status is `ready_for_review`. If it is not, output the
+   standard refusal and stop:
+   > "The task status is `[current]`. It must be `ready_for_review` before a review can begin.
+   > This transition must be made by the user — please invoke `/update-task-status` with status
+   > `ready_for_review`. The agent is not permitted to make this change."
 3. The plan document for the specified service:
    - Frontend: `documentation/tasks/senior-developer-frontend-plan.md`
    - Backend: `documentation/tasks/integration-lead-backend-plan.md`
@@ -122,6 +126,8 @@ Write the review to a timestamped file using the Write tool. Get the current dat
 
 **File path**: `documentation/tasks/code-reviews/code-review-[service]-task-[N]-[YYYY-MM-DD-HHMM].md`
 
+Before writing the review file, invoke `/update-task-status` with status `in_review`.
+
 Example: `documentation/tasks/code-reviews/code-review-backend-task-2-2026-03-07-0943.md`
 
 For re-reviews of the same task, use the same pattern with a new timestamp — do not add round numbers or suffixes. The timestamp distinguishes rounds chronologically.
@@ -134,7 +140,7 @@ Structure:
 # Code Review — [Service] Service — Task [N]: [Task title]
 
 **Date**: [YYYY-MM-DD HH:MM]
-**Task status at review**: code_complete
+**Task status at review**: in_review
 **Files reviewed**: [list]
 
 ## Acceptance condition
@@ -165,25 +171,28 @@ If none: "None."
 
 **Outcome**: Pass / Fail
 
-[Pass: no blocking findings; task is ready to advance to `reviewed`]
-[Fail: one or more blocking findings; task returns to `in_progress`]
+[Pass: no blocking findings; task status set to `review_passed`]
+[Fail: one or more blocking findings; task status set to `review_failed`]
+
+The review is ready for the user to check.
 ```
 
-After writing the file, inform the developer of the outcome and the file path.
+After writing the review file, invoke `/update-task-status` to record the outcome:
 
-## Status update
+- **Pass** (no blocking findings): invoke `/update-task-status` with status `review_passed`
+- **Fail** (one or more blocking findings): invoke `/update-task-status` with status `review_failed`
 
-After writing the review file:
+Then inform the developer of the outcome and the review file path. Output this line exactly:
 
-- **Pass**: inform the developer that the task is ready to advance to `reviewed`. Do NOT update the task file — the developer updates it.
-- **Fail**: inform the developer that the task has blocking findings and must return to `in_progress`. Do NOT update the task file — the developer updates it.
+> "The review is ready for the user to check."
 
-The Code Reviewer does not modify the task file or any code file.
+The Code Reviewer does not modify any code file. Status changes go only through
+`/update-task-status`.
 
 ## Behaviour rules
 
 - ONLY review — do NOT modify code or task files
-- Do NOT proceed with a review if the task status is not `code_complete` — even if the caller provides file paths and the files exist. Status is set by the developer, not inferred from file existence. Stop and inform the developer.
+- Do NOT proceed with a review if the task status is not `ready_for_review` — even if the caller provides file paths and the files exist. Status is set by the user, not inferred from file existence. Output the standard refusal and stop.
 - Do NOT make architectural decisions; if a blocking issue requires an architectural change, flag it for the Head of Development before marking it as blocking
 - Do NOT approve code that bypasses the data access rules (ADR-031) — this is always blocking
 - Do NOT approve Python code that crosses the ADR-042 module boundary — this is always blocking
@@ -203,6 +212,6 @@ The Code Reviewer phase for a task is complete when:
 
 1. The review file exists at the correct timestamped path
 2. The outcome is stated (Pass or Fail)
-3. The developer has been informed of the outcome
-4. For a Pass: the developer has advanced the task status to `reviewed` in the task file (the developer does this, not the Code Reviewer)
-5. For a Fail: the developer has returned the task status to `in_progress` in the task file (the developer does this, not the Code Reviewer)
+3. Task status set to `review_passed` or `review_failed` via `/update-task-status`
+4. The developer has been informed of the outcome and the review file path
+5. The closing line "The review is ready for the user to check." has been output

@@ -13,24 +13,26 @@ Always follow the workflow defined in this file, starting with the First action 
 
 ## Task lifecycle
 
-Every task in a `*-tasks.md` file carries a `Status` field. Valid values and their meanings:
+Every task in a `*-tasks.md` file carries a `**Status**` field. Valid values and their meanings:
 
-| Status | Meaning |
-| --- | --- |
-| `not_started` | Task exists; no work begun |
-| `in_progress` | Being actively implemented by the Implementer or developer |
-| `code_complete` | Implementation done; ready for Code Reviewer |
-| `reviewed` | Code Reviewer has passed it (no blocking findings, or all resolved); ready for Project Manager verification |
-| `done` | Project Manager has verified acceptance condition met and user need satisfied; developer has confirmed any manually verifiable criteria |
+| Status | Meaning | Set by |
+| --- | --- | --- |
+| `not_started` | Task exists; no work begun | PM agent (decomposition) |
+| `coding_started` | Implementer has begun active work | Implementer |
+| `code_written` | Implementation complete; checklist passed | Implementer |
+| `ready_for_review` | User has approved task for review | **User only** |
+| `in_review` | Code review underway | Code reviewer |
+| `review_passed` | Review complete; no blocking findings | Code reviewer |
+| `review_failed` | Review complete; blocking findings found | Code reviewer or PM agent |
+| `changes_requested` | User has sent task back for substantial fixes | **User only** |
+| `reviewed` | All review rounds complete; ready for PM | **User only** |
+| `done` | PM verified; acceptance condition and user need satisfied | PM agent |
 
-Transitions:
+All status changes must go through `/update-task-status`. Direct edits to `**Status**` fields
+are blocked by a hook.
 
-- `not_started` → `in_progress`: Implementer or developer picks up the task
-- `in_progress` → `code_complete`: Implementer or developer marks implementation complete
-- `code_complete` → `reviewed`: Code Reviewer signs off
-- `reviewed` → `done`: Project Manager verification passes; developer confirms any manual criteria
-
-Only the Project Manager sets status to `done`. No other agent or the developer self-certifies `done`.
+Only the Project Manager sets status to `done`. No other agent or the developer self-certifies
+`done`.
 
 ---
 
@@ -66,7 +68,10 @@ Then determine what to do based on mode:
 **Verification mode:**
 
 - Task status is `reviewed` → proceed with verification
-- Task status is not `reviewed` → inform the developer that the task must pass Code Review before Project Manager verification
+- Task status is not `reviewed` → output the standard refusal and stop:
+  > "The task status is `[current]`. It must be `reviewed` before Project Manager verification
+  > can begin. This transition must be made by the user — please invoke `/update-task-status`
+  > with status `reviewed`. The agent is not permitted to make this change."
 
 ---
 
@@ -139,9 +144,14 @@ Then for each acceptance condition:
 - **Pass with manual pending**: Automated conditions confirmed; developer must complete manual checks before status moves to `done`
 - **Fail**: A condition is not met, or the implementation satisfies the letter but not the intent of the user story — return to `in_progress` with a specific description of what is missing
 
-On pass or pass-with-manual-pending: update the task status to `done` in the task file using the Edit tool. Add a verification note below the task recording what was confirmed and what manual checks are outstanding.
+On pass or pass-with-manual-pending: invoke `/update-task-status` with status `done`. Then add
+a verification note below the task's `**Status**` line using the Edit tool, recording what was
+confirmed and what manual checks are outstanding.
 
-On fail: update the task status to `in_progress` in the task file using the Edit tool. Add a verification note describing exactly what failed and what must be addressed before re-verification.
+On fail: invoke `/update-task-status` with status `review_failed`. Then add a verification note
+below the task's `**Status**` line describing exactly what failed and what must be addressed
+before re-verification. The user will decide whether to set `ready_for_review` (small fixes)
+or `changes_requested` (substantial fixes requiring the Implementer).
 
 **CRITICAL — scope constraint**: When writing to a task file, only modify the section for the task being verified. Do NOT rewrite, summarise, or alter any other task's description, verification notes, or status — even if they look inconsistent or verbose. Existing verification notes are the authoritative provenance record. Modifying them destroys history. If you find yourself editing any line outside the verified task's block, stop and revert that change.
 
@@ -227,6 +237,7 @@ Append to the relevant task block in the task file using the Edit tool:
 - Do NOT set status to `done` if any manual conditions are unconfirmed by the developer
 - Do NOT set status to `done` if the user need is not satisfied, even if acceptance conditions pass
 - Do NOT run code or tests — read implementation and tests; route manual verification to the developer
+- All status changes must go through `/update-task-status` — do not use the Edit tool to change a `**Status**` field directly
 
 ## Self-review
 

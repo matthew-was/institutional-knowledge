@@ -35,8 +35,8 @@ The caller specifies a **service** (frontend or backend) and a **task number**. 
 Then determine what to do:
 
 - Task list does not exist or is not approved → inform the developer; do not implement
-- Specified task is `not_started` or `in_progress` → proceed with implementation
-- Specified task is `code_complete`, `reviewed`, or `done` → inform the developer; do not re-implement unless explicitly asked to revise
+- Specified task is `not_started`, `coding_started`, or `changes_requested` → proceed with implementation
+- Specified task is `code_written`, `ready_for_review`, `in_review`, `review_passed`, `review_failed`, `reviewed`, or `done` → inform the developer; do not re-implement unless explicitly asked to revise
 
 If `approvals.md` does not exist, treat all documents as unapproved and do not proceed.
 
@@ -81,14 +81,11 @@ For each task:
 
 1. Read the task description, dependencies, acceptance condition, and condition type from the task file
 2. Read the relevant section of the plan document to understand the design intent
-3. Check that all dependency tasks are `code_complete` or later — if any dependency is `not_started` or `in_progress`, inform the developer and stop
-4. Update the task status to `in_progress` in the task file using the Edit tool before writing any code
-5. Implement the task: write code, write tests, then verify all of the following before marking complete:
-   - `pnpm lint` passes with no errors (Biome check across the whole monorepo)
-   - `pnpm typecheck` (or equivalent tsc) passes with no errors for the service
-   - The full test suite for the service passes — not just the new tests; run all tests to catch regressions
-6. Update the task status to `code_complete` in the task file using the Edit tool
-7. Inform the developer that the task is ready for Code Review; provide the list of files changed
+3. Check that all dependency tasks are `code_written` or later — if any dependency is `not_started` or `coding_started`, inform the developer and stop
+4. Invoke `/update-task-status` with the task file, task number, and status `coding_started` before writing any code
+5. Implement the task: write code and write tests
+6. Invoke `/update-task-status` with the task file, task number, and status `code_written` — the skill runs lint, typecheck, and the full test suite before applying the change; fix any failures before re-invoking
+7. Inform the developer that the task is ready for review; provide the list of files changed and ask them to set the status to `ready_for_review` when satisfied
 
 Do not implement multiple tasks in one session unless the developer explicitly asks. Complete one task fully before moving to the next.
 
@@ -131,12 +128,25 @@ Write tests alongside the implementation — do not defer them. For each task:
 
 ## Status transitions
 
-You may only set these status values on tasks you are working on:
+All status changes must be made via `/update-task-status`. Direct edits to the `**Status**`
+field in task files are blocked by a hook.
 
-- `not_started` → `in_progress`: set this before writing any code
-- `in_progress` → `code_complete`: set this after the implementation is complete and tests pass
+You may invoke `/update-task-status` for these transitions only:
 
-You may NOT set `reviewed` or `done` — those are set by the Code Reviewer and Project Manager respectively.
+- `not_started` → `coding_started`: before writing any code
+- `changes_requested` → `coding_started`: when picking up a task returned for fixes — before writing any code
+- `coding_started` → `code_written`: after implementation is complete and the checklist passes (the skill enforces this)
+
+You may NOT set any other status. In particular:
+
+- `ready_for_review`, `reviewed` — user only
+- `in_review`, `review_passed`, `review_failed` — Code Reviewer only
+- `done` — PM agent only
+
+If you are asked to set a status you are not permitted to set, output the standard refusal:
+
+> "The transition to `[requested]` must be made by [user/Code Reviewer/PM agent]. I am not
+> permitted to make this change."
 
 ## Escalation rules
 
@@ -156,9 +166,10 @@ A task is implementation-complete (ready to set `code_complete`) when:
 5. The full test suite for the service passes — run all tests, not just the new ones, to confirm no regressions
 6. `pnpm lint` passes with no errors (Biome format and lint across the whole monorepo)
 7. No TypeScript compilation errors (`pnpm typecheck` or equivalent)
-8. Task status updated to `code_complete` in the task file
+8. Task status updated to `code_written` via `/update-task-status` (the skill verifies items 5–7 before applying)
 
-The Implementer phase for a service is complete when all tasks in the task list are `done` (set by the Project Manager after verification).
+The Implementer phase for a task is complete when the task is `code_written` and the developer
+has been informed. The task advances further only through user and Code Reviewer actions.
 
 ## Handoff
 
