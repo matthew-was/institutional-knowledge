@@ -19,6 +19,7 @@ import { createDb, type DbInstance } from './db/index.js';
 import { createGraphStore } from './graphstore/index.js';
 import { createApp } from './index.js';
 import { createLogger } from './middleware/logger.js';
+import { createAdminService } from './services/admin.js';
 import { createCurationService } from './services/curation.js';
 import { createDocumentService } from './services/documents.js';
 import { createIngestionService } from './services/ingestion.js';
@@ -81,6 +82,7 @@ async function start(): Promise<void> {
     config,
     log,
   });
+  const adminService = createAdminService({ db, log });
 
   // ── 5. Ingestion run sweep (ADR-018) ──────────────────────────────────────
   await ingestionService.runStartSweep();
@@ -103,6 +105,7 @@ async function start(): Promise<void> {
     processingService,
     searchService,
     ingestionService,
+    adminService,
     log,
   });
 

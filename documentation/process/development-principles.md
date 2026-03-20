@@ -101,7 +101,9 @@ Tests written alongside code, not deferred to "after the feature works." See `pi
   HTTP response and the resulting database state. A real PostgreSQL instance is required. This
   is the correct tier for all paths that involve I/O: `not_found` lookups, success paths that
   write to the database, and any acceptance condition that can be described as "calling the API
-  returns X".
+  returns X". Use `createTestApp(db, storage, config, log, { serviceUnderTest })` from
+  `testing/testHelpers.ts` to build the Express app — pass only the service(s) actually
+  exercised by the test file; all others default to `{} as never` and will throw if called.
 
 **There is no middle tier.** Calling a service method directly against a real database without
 going through the HTTP layer bypasses the `validate` middleware and the route layer entirely,
@@ -183,6 +185,7 @@ The following are explicitly prohibited:
 | A "full payload" integration test that omits data for one or more tables named in the acceptance condition | The omission silently satisfies the assertion count while leaving an entire write path untested | Test Early |
 | Hardcoding operational numeric limits (e.g. max traversal depth, max file size, retry count) in Zod schemas in `packages/shared/src/schemas/` | Embeds a backend-specific or environment-specific constraint in the shared API contract; cannot be changed without a code change; prevents alternative backends from using different safe limits | Infrastructure as Configuration |
 | Using `?? ''` to substitute an empty string for a null value in repository row-mapping code | Converts a meaningful absence of data into an indistinguishable empty string; callers cannot tell the difference; use `null` explicitly (see §7 Type Safety) | Type Safety |
+| Constructing services individually and passing them all to `createApp()` directly in an integration test | Creates boilerplate that must be updated in every test file when `AppDependencies` gains a new entry; use `createTestApp()` from `testing/testHelpers.ts` with only the services under test passed as overrides — all others default to `{} as never` | Test Early |
 | A service operation that interleaves file storage I/O or external service calls with DB writes, where all DB writes are placed inside a single `db._knex.transaction()` — including the I/O | Storage and external service calls cannot participate in a SQL transaction and will not roll back. Use the three-step sentinel pattern instead: (1) a sentinel DB update outside any transaction to mark the operation as in-flight so the startup sweep can detect and recover it on crash; (2) I/O outside any transaction; (3) a single `db._knex.transaction()` wrapping all DB writes that do not depend on I/O | Repository Pattern / Transaction Participation |
 | Inline conditional to compute HTTP status from `errorType` (e.g. `errorType === 'not_found' ? 404 : 409`) instead of a `Record<ErrorType, number>` map | The `Record` form is TypeScript-exhaustiveness-checked; an inline conditional silently omits new error types when the union grows | Error Response Pattern |
 | Synchronous `fs.*` calls (`fs.mkdirSync`, `fs.writeFileSync`, `fs.readFileSync`, etc.) | Blocks the Node.js event loop; all file operations must use `node:fs/promises` | Production-Ready Patterns |
