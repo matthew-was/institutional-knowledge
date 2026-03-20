@@ -11,6 +11,7 @@
 
 import { Router } from 'express';
 import type { AppDependencies } from '../index.js';
+import { createAdminRouter } from './admin.js';
 import { createCurationRouter } from './curation.js';
 import { createDocumentsRouter } from './documents.js';
 import { createIngestionRouter } from './ingestion.js';
@@ -27,6 +28,7 @@ export function createRouter(deps: AppDependencies): Router {
   router.use(createProcessingRouter(deps.processingService));
   router.use(createSearchRouter(deps.searchService));
   router.use(createIngestionRouter(deps.ingestionService));
+  router.use(createAdminRouter(deps.adminService));
 
   return router;
 }

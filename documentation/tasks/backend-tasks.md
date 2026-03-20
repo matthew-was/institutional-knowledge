@@ -1215,7 +1215,36 @@ without error and the index remains queryable via `VectorStore.search()`.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-20):
+
+- Automated checks: confirmed. Both acceptance conditions verified against
+  `apps/backend/src/routes/__tests__/admin.integration.test.ts`.
+  (a) healthCheck: the `describe('GET /api/health')` test at lines 89–99 sends
+  `GET /api/health` with no auth header and asserts status 200, `res.body.status === 'ok'`,
+  and `Date.parse(res.body.timestamp)` is not NaN. Condition met.
+  (b) reindexEmbeddings: the `describe('POST /api/admin/reindex-embeddings')` test at lines
+  106–124 sends the request with valid auth, asserts status 200 and `reindexed: true`, then
+  calls `vectorStore.search(zeroVector, 1)` against the real database and asserts
+  `outcome === 'success'` and the result is an array. The full call path is supertest → route
+  → `AdminService.reindexEmbeddings()` → `db.embeddings.reindexIvfflat()` → `db.raw(...)`.
+  A second test at lines 126–130 asserts 401 when the auth header is absent. Condition met.
+  Round 1 blocking findings (B-1: SQL in service code; B-2: inline `res.json`) were fixed
+  before round 2. Round 2 confirmed: `EmbeddingsRepository.reindexIvfflat()` owns the
+  raw SQL; `AdminService` calls `db.embeddings.reindexIvfflat()`; the admin route uses
+  `sendServiceError`. Repository Pattern and Error Response Pattern both satisfied.
+- Manual checks: none required. Condition type is `automated` only.
+- User need: satisfied. Task 15 is an infrastructure maintenance task derived from the
+  ADMIN-001 contract (`integration-lead-contracts.md`) and the backend plan. There is no
+  single named user story for these endpoints. The health check supports system observability;
+  the reindex endpoint supports the vector search capability (US-073, US-074) operating at
+  full performance after data load. Both endpoints deliver what the contract and plan specify:
+  the health check returns `{ status: 'ok', timestamp: (ISO string) }` without auth; the
+  reindex endpoint requires auth, delegates DDL to the repository layer, and returns
+  `{ reindexed: true }`. The index is confirmed queryable after REINDEX. No gap found between
+  the acceptance conditions and the underlying need.
+- Outcome: done
 
 ---
 

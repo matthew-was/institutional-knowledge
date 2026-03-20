@@ -3,6 +3,7 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../index.js';
+import { makeStubDeps } from '../../testing/testHelpers.js';
 import { createAuthMiddleware } from '../auth.js';
 import { createErrorHandler } from '../errorHandler.js';
 import { createLogger } from '../logger.js';
@@ -120,49 +121,7 @@ describe('createAuthMiddleware', () => {
 // inside auth.ts). This test confirms that arrangement works end-to-end.
 // ---------------------------------------------------------------------------
 
-const stubDeps = {
-  config: {
-    auth: {
-      frontendKey: 'test-frontend-key',
-      pythonKey: 'test-python-key',
-      pythonServiceKey: 'test-python-service-key',
-    },
-    server: { port: 4000 },
-    db: {
-      host: 'localhost',
-      port: 5432,
-      database: 'ik',
-      user: 'ik',
-      password: 'ik',
-    },
-    storage: {
-      provider: 'local',
-      local: { basePath: './data', stagingPath: './staging' },
-    },
-    upload: { maxFileSizeMb: 50, acceptedExtensions: ['.pdf'] },
-    pipeline: { runningStepTimeoutMinutes: 30, maxRetries: 3 },
-    python: { baseUrl: 'http://localhost:8000' },
-    vectorStore: { provider: 'pgvector' },
-    graph: { provider: 'postgresql', maxTraversalDepth: 3 },
-    embedding: { dimension: 384 },
-    ingestion: {
-      partialAuditReport: false,
-      reportOutputDirectory: './reports',
-    },
-    logger: { level: 'error' as const },
-  },
-  db: {} as never,
-  storage: {} as never,
-  vectorStore: {} as never,
-  graphStore: {} as never,
-  documentService: {} as never,
-  curationService: {} as never,
-  vocabularyService: {} as never,
-  processingService: {} as never,
-  searchService: {} as never,
-  ingestionService: {} as never,
-  log: createLogger({ level: 'error' }),
-};
+const stubDeps = makeStubDeps();
 
 describe('GET /api/health auth bypass', () => {
   it('returns 200 for GET /api/health with no x-internal-key', async () => {

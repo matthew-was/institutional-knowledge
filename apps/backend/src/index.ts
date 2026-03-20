@@ -24,6 +24,7 @@ import { createErrorHandler } from './middleware/errorHandler.js';
 import { createRequestLogger, type Logger } from './middleware/logger.js';
 import { generateOpenApiSpec } from './openapi.js';
 import { createRouter } from './routes/index.js';
+import type { AdminService } from './services/admin.js';
 import type { CurationService } from './services/curation.js';
 import type { DocumentService } from './services/documents.js';
 import type { IngestionService } from './services/ingestion.js';
@@ -45,6 +46,7 @@ export interface AppDependencies {
   processingService: ProcessingService;
   searchService: SearchService;
   ingestionService: IngestionService;
+  adminService: AdminService;
   log: Logger;
 }
 

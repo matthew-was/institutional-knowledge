@@ -40,6 +40,18 @@ export function createEmbeddingsRepository(db: Knex) {
     },
 
     /**
+     * Rebuild the IVFFlat index on the embedding column.
+     *
+     * REINDEX INDEX CONCURRENTLY cannot run inside a transaction — callers must
+     * not invoke this method from within a db._knex.transaction() block.
+     */
+    async reindexIvfflat(): Promise<void> {
+      await db.raw(
+        'REINDEX INDEX CONCURRENTLY embeddings_embedding_ivfflat_idx',
+      );
+    },
+
+    /**
      * Search for the topK most similar chunks to the given query embedding
      * using cosine similarity (pgvector <=> operator).
      *

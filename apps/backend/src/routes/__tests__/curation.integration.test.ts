@@ -21,27 +21,19 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
 import type { DocumentInsert } from '../../db/tables.js';
-import { createGraphStore } from '../../graphstore/index.js';
-import { createApp } from '../../index.js';
 import type { Logger } from '../../middleware/logger.js';
 import { createCurationService } from '../../services/curation.js';
-import { createDocumentService } from '../../services/documents.js';
-import { createIngestionService } from '../../services/ingestion.js';
-import { createProcessingService } from '../../services/processing.js';
-import { createSearchService } from '../../services/search.js';
-import { createVocabularyService } from '../../services/vocabulary.js';
 import { LocalStorageService } from '../../storage/LocalStorageService.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
 import { TEST_DB_CONFIG } from '../../testing/testDb.js';
-import { makeConfig } from '../../testing/testHelpers.js';
-import { createVectorStore } from '../../vectorstore/index.js';
+import { createTestApp, makeConfig } from '../../testing/testHelpers.js';
 
 // ---------------------------------------------------------------------------
 // Suite setup
 // ---------------------------------------------------------------------------
 
 let db: DbInstance;
-let app: ReturnType<typeof createApp>;
+let app: ReturnType<typeof createTestApp>;
 let request: ReturnType<typeof supertest>;
 let tmpDir: string;
 
@@ -59,45 +51,9 @@ beforeAll(async () => {
   const log = pino({ level: 'silent' }) as unknown as Logger;
   const config = makeConfig();
   const storage = new LocalStorageService(basePath, stagingPath, log);
-  const vectorStore = createVectorStore(
-    config.vectorStore,
-    config.embedding,
-    db,
-    log,
-  );
-  const graphStore = createGraphStore(config.graph, db, log);
-  const documentService = createDocumentService({ db, storage, config, log });
   const curationService = createCurationService({ db, log });
-  const vocabularyService = createVocabularyService({ db, log });
-  const processingService = createProcessingService({
-    db,
-    config,
-    log,
-    vectorStore,
-  });
-  const searchService = createSearchService({
-    db,
-    vectorStore,
-    graphStore,
-    config,
-    log,
-  });
-  const ingestionService = createIngestionService({ db, storage, config, log });
 
-  app = createApp({
-    config,
-    db,
-    storage,
-    vectorStore,
-    graphStore,
-    documentService,
-    curationService,
-    vocabularyService,
-    processingService,
-    searchService,
-    ingestionService,
-    log,
-  });
+  app = createTestApp(db, storage, config, log, { curationService });
 
   request = supertest(app);
 });
