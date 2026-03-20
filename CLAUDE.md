@@ -112,9 +112,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Backend Tasks 1–14 done. Tasks 1–13 merged to main. PR #20 (`feature/backend-task-13`) and PR #21 (`chore/agent-workflow-review`) open. Task 14 on `feature/backend-task-14` (reviewed, PM verified, ready to commit and merge).
+- **Current phase**: Implementation in progress. Backend Tasks 1–15 done. All merged to main.
 - **Design status**: All design documents approved (ADR-001 to ADR-049). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Commit and merge Task 14 (PR #20 and PR #21 first). Then: Frontend Task 1 in parallel with Backend Task 15. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -154,7 +154,7 @@ documentation/
 │   ├── system-diagrams.md        ← Visual diagrams (4 levels of detail)
 │   └── developer-context.md      ← Developer background
 ├── decisions/
-│   └── architecture-decisions.md ← All 48 ADRs (ADR-001 to ADR-048)
+│   └── architecture-decisions.md ← All 49 ADRs (ADR-001 to ADR-049)
 ├── requirements/
 │   ├── user-requirements.md      ← 138 requirements with Architectural Flags
 │   └── phase-1-user-stories.md   ← 101 user stories for Phase 1
@@ -175,13 +175,13 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`, `update-task-status.md`
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`, `update-task-status/` (invocable skill — `/update-task-status`)
 - Global skills (in `~/.claude/skills/`): `lab-entry` — use `/lab-entry start|append|finish` across all projects
 - Agents: `product-owner.md`, `head-of-development.md`, `integration-lead.md`, `senior-developer-frontend.md`, `senior-developer-python.md`, `project-manager.md`, `implementer.md`, `pair-programmer.md`, `code-reviewer.md`, `platform-engineer.md`
 
 **All agents and skills written.** Design phase complete.
 
-**Current next step:** Begin Backend Task 11 and/or Frontend Task 1 in parallel. Resolve OQ-3 (embedding model) before Python Task 15/22.
+**Current next step:** Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
 
 ### Key Output Locations
 
