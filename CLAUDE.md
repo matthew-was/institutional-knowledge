@@ -15,12 +15,20 @@ Current allow list (`.claude/settings.json`):
 - `Bash(markdownlint:*)`
 - `Bash(pnpm:*)`
 - `Bash(docker:*)`
-- `Bash(chmod:*)`
 - `Bash(date:*)`
 - `Bash(python3:*)`
 - `Edit(./*)`
 - `Read(./*)`
 - `Write(./*)`
+- `Edit(~/.claude/lab-entry-draft.json)`
+- `Write(~/.claude/lab-entry-draft.json)`
+- `Bash(cat ~/.claude/lab-entry-draft.json)`
+- `Bash(rm ~/.claude/lab-entry-draft.json)`
+
+`ask` list (prompts before executing):
+
+- `Bash(chmod:*)`
+- `Edit(.claude/settings.json)`
 
 When requesting a new permission, say clearly: "This requires `Bash(command:*)` — would you like to add it to the allow list in `.claude/settings.json`?"
 
@@ -83,9 +91,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Backend Tasks 1–13 done. Tasks 11–13 merged to main (PR #19 merged; PR #20 `feature/backend-task-13` open). Agent workflow review on `chore/agent-workflow-review` (PR #21 open into task-13 branch).
+- **Current phase**: Implementation in progress. Backend Tasks 1–14 done. Tasks 1–13 merged to main. PR #20 (`feature/backend-task-13`) and PR #21 (`chore/agent-workflow-review`) open. Task 14 on `feature/backend-task-14` (reviewed, PM verified, ready to commit and merge).
 - **Design status**: All design documents approved (ADR-001 to ADR-049). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Merge PR #20 and PR #21 to main. Then: Frontend Task 1 in parallel with Backend Task 14. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Commit and merge Task 14 (PR #20 and PR #21 first). Then: Frontend Task 1 in parallel with Backend Task 15. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)

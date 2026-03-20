@@ -160,6 +160,7 @@ const stubDeps = {
   vocabularyService: {} as never,
   processingService: {} as never,
   searchService: {} as never,
+  ingestionService: {} as never,
   log: createLogger({ level: 'error' }),
 };
 
