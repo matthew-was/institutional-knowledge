@@ -6,6 +6,8 @@ export type { EmbeddingsRepository } from './embeddings.js';
 export { createEmbeddingsRepository } from './embeddings.js';
 export type { GraphRepository } from './graph.js';
 export { createGraphRepository } from './graph.js';
+export type { IngestionRunsRepository } from './ingestionRuns.js';
+export { createIngestionRunsRepository } from './ingestionRuns.js';
 export type { PipelineStepsRepository } from './pipelineSteps.js';
 export { createPipelineStepsRepository } from './pipelineSteps.js';
 export type { ProcessingRunsRepository } from './processingRuns.js';

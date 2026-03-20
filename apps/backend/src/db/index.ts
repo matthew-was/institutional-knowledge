@@ -16,6 +16,7 @@
  *   - graph:           graph repository (vocabulary_terms, vocabulary_relationships, entity_document_occurrences)
  *   - pipelineSteps:   pipeline steps repository
  *   - processingRuns:  processing runs repository
+ *   - ingestionRuns:   ingestion runs repository
  *   - _knex:           raw Knex instance (for transactions; prefer repositories)
  *   - destroy():       releases the connection pool on graceful shutdown
  *
@@ -43,6 +44,7 @@ import {
   createDocumentsRepository,
   createEmbeddingsRepository,
   createGraphRepository,
+  createIngestionRunsRepository,
   createPipelineStepsRepository,
   createProcessingRunsRepository,
 } from './repositories/index.js';
@@ -120,6 +122,9 @@ function buildDbInstance(knex: ReturnType<typeof Knex>) {
 
     /** Processing runs repository. */
     processingRuns: createProcessingRunsRepository(knex),
+
+    /** Ingestion runs repository. */
+    ingestionRuns: createIngestionRunsRepository(knex),
 
     /** Release the connection pool. Call on graceful shutdown. */
     async destroy(): Promise<void> {

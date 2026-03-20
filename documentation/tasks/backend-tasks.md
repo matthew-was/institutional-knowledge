@@ -1117,7 +1117,68 @@ in the database with status `finalized`.
 
 **Condition type**: both
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-20):
+
+- Automated checks: confirmed. All four acceptance conditions verified against
+  `apps/backend/src/routes/__tests__/ingestion.integration.test.ts` and
+  `apps/backend/src/services/ingestion.ts`.
+  (a) `createIngestionRun` sweep: test seeds an `in_progress` run with a real staging
+  directory, calls `POST /api/ingestion/runs`, asserts the old run is deleted and new run
+  exists with `status: 'in_progress'`. Service calls `runStartSweep()` first, which queries
+  `db.ingestionRuns.getIncomplete()` and wraps each cleanup in a transaction. Confirmed.
+  (b) `completeRun`: three tests cover all sub-conditions — (i) 409 `conflict` when run is
+  in `moving` status; (ii) file moved and document status updated to `finalized`, run
+  status updated to `completed`; (iii) report file written to `reportDir` with correct
+  `runId` and `totalSubmitted`. Service implements the correct three-step pattern: sentinel
+  `moving` update (outside transaction), file I/O loop, then a single `db._knex.transaction`
+  wrapping all DB writes (storage paths, `stored`, `finalized`, `completed`). Confirmed.
+  (c) `addFileToRun`: four tests cover all sub-conditions — 404 on unknown run; 422
+  `invalid_filename` for standalone bad name (`bad_name.jpg`); 422 `invalid_filename` for
+  grouped bad name (`bad-name.jpg` against `GROUPED_FILENAME_RE`); 409 `duplicate_detected`
+  against a seeded finalized document with matching MD5; 201 success with document row
+  having correct `ingestionRunId`. Confirmed.
+  (d) `cleanupRun`: test seeds a run and document, writes a real staging file, calls DELETE,
+  asserts `deleted: true`, run absent, document absent. Confirmed.
+- Manual checks: the developer must verify the full CLI ingestion lifecycle against a local
+  Express instance. Steps (using `curl` or a REST client with header
+  `x-internal-key: <auth.frontendKey from config.json5>`):
+  1. Start the backend: `pnpm --filter backend build && pnpm --filter backend start`
+  2. `POST /api/ingestion/runs` body `{ "sourceDirectory": "/path/to/dir", "grouped": false }`.
+     Save the returned `runId`.
+  3. `POST /api/ingestion/runs/:runId/files` (multipart/form-data) three times, attaching
+     files named `1992-06-15 - letter from bank.jpg`, `1993-03-20 - birth certificate.pdf`,
+     `2001-11-01 - photo album.jpg`. Verify each returns
+     `{ "documentId": "<uuid>", "status": "uploaded" }`.
+  4. `POST /api/ingestion/runs/:runId/complete`. Verify response:
+     `{ "runId": "...", "status": "completed", "totalSubmitted": 3, "totalAccepted": 3, "totalRejected": 0 }`.
+  5. Verify the summary report JSON appears in `ingestion.reportOutputDirectory` and contains
+     all three filenames in `report.files`.
+  6. Verify the three documents in the `documents` table have `status = 'finalized'` and a
+     non-null `storagePath`.
+- User need: satisfied. The implementation covers the core ingestion user needs:
+  US-010 (naming convention enforcement): both `STANDALONE_FILENAME_RE` and
+  `GROUPED_FILENAME_RE` validated in `addFileToRun`; rejection tested for both patterns.
+  US-012 (rollback on interrupted run): `runStartSweep` cleans up incomplete runs at the
+  start of every `createIngestionRun` call; `moving` status acts as a sentinel for
+  crash-during-file-I/O detection per ADR-018.
+  US-014 (summary report): report written to a timestamped JSON file in
+  `ingestion.reportOutputDirectory` (auto-created with `{ recursive: true }`) and logged
+  via Pino; includes `totalSubmitted`, `totalAccepted`, `totalRejected`, and a per-file
+  `files` array.
+  US-015 (auto-create output directory): `fs.mkdir(reportDir, { recursive: true })` called
+  before writing the report — directory created automatically if absent.
+  US-020 (duplicate detection): MD5 hash computed and checked against finalized documents
+  via `db.documents.findAnyFinalizedByHash`; staging file deleted before returning the
+  `duplicate_detected` error.
+  US-023 (fail-fast group validation): group failure check present in `addFileToRun` —
+  if any document in the group has `status === 'failed'`, the new file is rejected with
+  `group_validation_failed`.
+  Transaction pattern (ADR-018, development-principles.md): all DB writes in `completeRun`
+  wrapped in a single `db._knex.transaction`; `_cleanupRunById` accepts and threads `trx`.
+  No gap found between acceptance conditions and user needs.
+- Outcome: done
 
 ---
 

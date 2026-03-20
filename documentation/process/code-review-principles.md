@@ -238,6 +238,19 @@ real empty string. The project preference is explicit `null` for absent data (se
 
 ---
 
+## CR-011 — No dead repository methods
+
+**Principle**: Repository methods that have no call sites anywhere in the codebase (services, routes, tests, startup) are dead code and must be removed before the task is marked complete.
+
+**Why**: Dead methods in a repository create false affordances — future implementers may call them assuming they are tested and correct, when in fact they have never been exercised. They also inflate the repository's apparent surface area and make the domain model harder to understand.
+
+**How to apply**:
+
+- For each public method added to a repository in the task diff, confirm at least one call site exists outside the repository file itself.
+- If a method has no call sites: **Suggestion** — remove it. Escalate to **Blocking** if the method is referenced in an acceptance condition or task description as required behaviour.
+
+---
+
 ## CR-005 — Validate middleware is the input boundary
 
 **Principle**: `validate({ body, params, query })` middleware is the sole mechanism for

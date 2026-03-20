@@ -26,6 +26,7 @@ import { generateOpenApiSpec } from './openapi.js';
 import { createRouter } from './routes/index.js';
 import type { CurationService } from './services/curation.js';
 import type { DocumentService } from './services/documents.js';
+import type { IngestionService } from './services/ingestion.js';
 import type { ProcessingService } from './services/processing.js';
 import type { SearchService } from './services/search.js';
 import type { VocabularyService } from './services/vocabulary.js';
@@ -43,6 +44,7 @@ export interface AppDependencies {
   vocabularyService: VocabularyService;
   processingService: ProcessingService;
   searchService: SearchService;
+  ingestionService: IngestionService;
   log: Logger;
 }
 

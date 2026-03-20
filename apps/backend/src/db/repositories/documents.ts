@@ -81,10 +81,51 @@ export function createDocumentsRepository(db: Knex) {
     },
 
     /**
-     * Delete a document row by ID.
+     * Find any finalized document with the given file hash.
+     * Used for duplicate detection during bulk ingestion (ING-003), where
+     * there is no existing document ID to exclude.
+     * Returns undefined if no match.
      */
-    async delete(id: string): Promise<void> {
-      await db<DocumentRow>('documents').where({ id }).delete();
+    async findAnyFinalizedByHash(
+      fileHash: string,
+    ): Promise<DocumentRow | undefined> {
+      return db<DocumentRow>('documents')
+        .where({ fileHash, status: 'finalized' })
+        .first();
+    },
+
+    /**
+     * Update the status of a document row. Used by ingestion to transition
+     * documents through stored → finalized.
+     */
+    async updateStatus(
+      id: string,
+      status: string,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      await qb<DocumentRow>('documents').where({ id }).update({ status });
+    },
+
+    /**
+     * Delete a document row by ID. Accepts an optional transaction.
+     */
+    async delete(id: string, trx?: Knex.Transaction): Promise<void> {
+      const qb = trx ?? db;
+      await qb<DocumentRow>('documents').where({ id }).delete();
+    },
+
+    /**
+     * Update the storagePath of a document row after a file is moved to
+     * permanent storage. Used by ingestion completeRun (ING-002).
+     */
+    async updateStoragePath(
+      id: string,
+      storagePath: string,
+      trx?: Knex.Transaction,
+    ): Promise<void> {
+      const qb = trx ?? db;
+      await qb<DocumentRow>('documents').where({ id }).update({ storagePath });
     },
 
     /**
