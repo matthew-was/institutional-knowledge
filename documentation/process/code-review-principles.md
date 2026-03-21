@@ -251,6 +251,21 @@ real empty string. The project preference is explicit `null` for absent data (se
 
 ---
 
+## CR-012 — Cleanup and sweep operations follow development-principles.md
+
+**Principle**: When reviewing any cleanup, sweep, or recovery function, verify it follows
+the patterns documented in `development-principles.md` rather than restating them here.
+
+**How to apply**:
+
+- Check that cleanup operations follow the resource ordering, isolation, and error-handling
+  patterns in `development-principles.md` (Startup Sweep Design Principle section)
+- Check that UUID generation follows the UUID Version Standard (backend) section
+- For any other implementation pattern, consult `development-principles.md` as the
+  canonical reference — do not restate rules from it in this file
+
+---
+
 ## CR-005 — Validate middleware is the input boundary
 
 **Principle**: `validate({ body, params, query })` middleware is the sole mechanism for

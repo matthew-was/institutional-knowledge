@@ -1,8 +1,14 @@
 #!/bin/bash
-# PostToolUse hook: block direct edits to **Status**: fields in task files.
-# Status changes must go through the /update-task-status skill.
-# Allows: writing not_started (PM decomposition), any change via the skill itself.
-# Blocks: any Edit or Write that changes a **Status**: line from a non-not_started value.
+# PostToolUse hook: block Claude tool calls that would set a user-only status.
+#
+# User-only statuses (may only be set by the user editing the file directly in their editor):
+#   ready_for_review, reviewed, changes_requested
+#
+# All other status transitions are permitted via Claude tool calls.
+# Legitimate writes (verification notes, description edits) that don't change
+# the status value are always permitted.
+
+USER_ONLY_STATUSES="ready_for_review|reviewed|changes_requested"
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -18,34 +24,45 @@ esac
 
 if [ "$TOOL_NAME" = "Edit" ]; then
   OLD=$(echo "$INPUT" | jq -r '.tool_input.old_string // empty')
-  # If the old_string contains a Status line that is not not_started, block it
-  if echo "$OLD" | grep -qE '^\*\*Status\*\*: ' && ! echo "$OLD" | grep -qE '^\*\*Status\*\*: not_started$'; then
-    echo "Direct edits to the Status field in task files are not permitted." >&2
-    echo "Use /update-task-status (task file, task number, new status) to change task status." >&2
-    exit 2
+  NEW=$(echo "$INPUT" | jq -r '.tool_input.new_string // empty')
+
+  # Extract status values from old and new strings (if present)
+  OLD_STATUS=$(echo "$OLD" | grep -oE '^\*\*Status\*\*: \S+' | sed 's/\*\*Status\*\*: //')
+  NEW_STATUS=$(echo "$NEW" | grep -oE '^\*\*Status\*\*: \S+' | sed 's/\*\*Status\*\*: //')
+
+  # Only act if both old and new have a status and they differ
+  if [ -n "$OLD_STATUS" ] && [ -n "$NEW_STATUS" ] && [ "$OLD_STATUS" != "$NEW_STATUS" ]; then
+    # Block if the new status is user-only
+    if echo "$NEW_STATUS" | grep -qE "^($USER_ONLY_STATUSES)$"; then
+      echo "The status '$NEW_STATUS' is a user-only transition." >&2
+      echo "Please edit the file directly in your editor. Claude will provide the exact line and value to change." >&2
+      exit 2
+    fi
   fi
 fi
 
 if [ "$TOOL_NAME" = "Write" ]; then
   NEW_CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // empty')
 
-  # Read the current file content (before the write)
   if [ ! -f "$FILE_PATH" ]; then
-    exit 0  # New file — no existing statuses to protect
+    exit 0  # New file — nothing to protect
   fi
 
-  # For each Status line in the current file that is not not_started,
-  # check if that exact line is absent or changed in the new content.
+  # For each status line in the current file, check if it has been changed to a user-only value
   while IFS= read -r line; do
-    # Extract current status value
     current_status=$(echo "$line" | sed -n 's/^\*\*Status\*\*: //p')
-    if [ -z "$current_status" ] || [ "$current_status" = "not_started" ]; then
+    [ -z "$current_status" ] && continue
+
+    # If this status line is unchanged in the new content, it's fine
+    if echo "$NEW_CONTENT" | grep -qF "$line"; then
       continue
     fi
-    # Check if this status line still appears unchanged in the new content
-    if ! echo "$NEW_CONTENT" | grep -qF "$line"; then
-      echo "Direct edits to the Status field in task files are not permitted." >&2
-      echo "Use /update-task-status (task file, task number, new status) to change task status." >&2
+
+    # The status line changed — find what it changed to
+    new_status=$(echo "$NEW_CONTENT" | grep -oE '^\*\*Status\*\*: \S+' | sed 's/\*\*Status\*\*: //' | head -1)
+    if echo "$new_status" | grep -qE "^($USER_ONLY_STATUSES)$"; then
+      echo "The status '$new_status' is a user-only transition." >&2
+      echo "Please edit the file directly in your editor. Claude will provide the exact line and value to change." >&2
       exit 2
     fi
   done < <(grep -E '^\*\*Status\*\*: ' "$FILE_PATH")

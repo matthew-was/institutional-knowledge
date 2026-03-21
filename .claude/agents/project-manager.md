@@ -1,7 +1,7 @@
 ---
 name: project-manager
 description: Converts a Senior Developer or Integration Lead implementation plan into an ordered task list (decomposition mode), or verifies completed tasks against acceptance conditions and user story intent (verification mode). Invoke once per service plan for decomposition; invoke per task for verification after the Code Reviewer has passed it.
-tools: Read, Grep, Glob, Write
+tools: Read, Grep, Glob, Write, Edit
 model: sonnet
 ---
 
@@ -144,14 +144,17 @@ Then for each acceptance condition:
 - **Pass with manual pending**: Automated conditions confirmed; developer must complete manual checks before status moves to `done`
 - **Fail**: A condition is not met, or the implementation satisfies the letter but not the intent of the user story — return to `in_progress` with a specific description of what is missing
 
-On pass or pass-with-manual-pending: invoke `/update-task-status` with status `done`. Then add
-a verification note below the task's `**Status**` line using the Edit tool, recording what was
-confirmed and what manual checks are outstanding.
+On pass or pass-with-manual-pending: use the Edit tool to set status to `done` and append the
+verification note in the same edit — replace `**Status**: [current]` with `**Status**: done`
+followed by the verification note block. The hook permits this because `done` is not a
+user-only status.
 
-On fail: invoke `/update-task-status` with status `review_failed`. Then add a verification note
-below the task's `**Status**` line describing exactly what failed and what must be addressed
-before re-verification. The user will decide whether to set `ready_for_review` (small fixes)
-or `changes_requested` (substantial fixes requiring the Implementer).
+On fail: use the Edit tool to set status to `review_failed` and append the verification note.
+The hook permits this because `review_failed` is not a user-only status. Then output a
+clickable link for the user to set the next status if needed:
+
+> "To move Task [N] to `ready_for_review`, edit [backend-tasks.md:LINE](documentation/tasks/backend-tasks.md#LLINE) —
+> change `**Status**: review_failed` to `**Status**: ready_for_review`."
 
 **CRITICAL — scope constraint**: When writing to a task file, only modify the section for the task being verified. Do NOT rewrite, summarise, or alter any other task's description, verification notes, or status — even if they look inconsistent or verbose. Existing verification notes are the authoritative provenance record. Modifying them destroys history. If you find yourself editing any line outside the verified task's block, stop and revert that change.
 
@@ -237,7 +240,7 @@ Append to the relevant task block in the task file using the Edit tool:
 - Do NOT set status to `done` if any manual conditions are unconfirmed by the developer
 - Do NOT set status to `done` if the user need is not satisfied, even if acceptance conditions pass
 - Do NOT run code or tests — read implementation and tests; route manual verification to the developer
-- All status changes must go through `/update-task-status` — do not use the Edit tool to change a `**Status**` field directly
+- Status changes use the Edit tool directly. The `protect-task-status.sh` hook only blocks transitions to user-only statuses (`ready_for_review`, `reviewed`, `changes_requested`) — all other transitions (including `done` and `review_failed`) are permitted via Edit. When a user-only transition is needed, output a clickable link to the exact line so the user can make the edit themselves.
 
 ## Self-review
 

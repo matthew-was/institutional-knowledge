@@ -36,8 +36,9 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ## Task Status
 
-Task status in `documentation/tasks/` is managed exclusively through the `/update-task-status`
-skill. A hook blocks all direct edits to `**Status**` fields in task files.
+Task status transitions use the `/update-task-status` skill (for agent-permitted transitions)
+or the user editing the file directly in their editor (for user-only transitions). A hook
+blocks Claude tool calls that attempt to set a user-only status.
 
 ### Valid statuses and who sets them
 
@@ -56,18 +57,14 @@ skill. A hook blocks all direct edits to `**Status**` fields in task files.
 
 ### User-only transitions
 
-The following transitions require you to invoke `/update-task-status` directly:
+The statuses `ready_for_review`, `reviewed`, and `changes_requested` may only be set by the
+user editing the task file directly in their editor. The hook enforces this mechanically —
+Claude tool calls that attempt to set these values are blocked.
 
-- `code_written` → `ready_for_review` (when satisfied with the implementation)
-- `review_passed` → `reviewed` (when all review rounds are complete)
-- `review_passed` → `ready_for_review` (to action suggestions in a new round)
-- `review_failed` → `ready_for_review` (small fixes — Claude handles inline)
-- `review_failed` → `changes_requested` (substantial fixes — Implementer reinvoked)
+When a user-only transition is needed, Claude outputs a clickable link to the exact line:
 
-No agent is permitted to make these transitions. If asked, the agent must output:
-
-> "The transition to `[status]` must be made by the user. Please invoke `/update-task-status`
-> with task file, task number, and new status. The agent is not permitted to make this change."
+> "To move Task [N] to `ready_for_review`, edit [backend-tasks.md:LINE](documentation/tasks/backend-tasks.md#LLINE) —
+> change `**Status**: [current]` to `**Status**: ready_for_review`."
 
 ### After a code review
 
