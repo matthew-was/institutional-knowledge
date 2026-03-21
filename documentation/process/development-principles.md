@@ -4,6 +4,23 @@
 
 These principles were established deliberately during the design phase. They should not be revisited casually — they are load-bearing. Changes require an explicit architectural decision recorded in [decisions/architecture-decisions.md](../decisions/architecture-decisions.md).
 
+## How to Grow These Principles
+
+**This file is the single source of truth for all implementation patterns.** `code-review-principles.md` and agent definitions (implementer.md, code-reviewer.md) reference this file — they do not restate its content.
+
+When a new pattern is identified (e.g. from a code review finding or PM process review):
+
+1. Add it here, in the most appropriate section, at the right level of generality
+2. If it is an instance of a more general pattern already documented here, extend that section rather than adding a new one
+3. In `code-review-principles.md`, add only a cross-reference: *"Check that X follows the [pattern name] in development-principles.md"* — do not restate the rule
+4. In agent definitions, do not add the pattern — the Implementer's reading list already includes this file
+
+**Avoid**:
+
+- Adding the same rule to multiple files (duplication causes drift and inflates context)
+- Over-specifying (prefer "cleanup operations delete the harder-to-query resource first" over "startup sweeps delete the file before the DB row")
+- Adding a new section when the pattern belongs in an existing one
+
 ---
 
 ## Core Architectural Principle: Infrastructure as Configuration
@@ -411,3 +428,59 @@ Every source file in `apps/backend/src/` should include a one-sentence ADR citat
 - **Repository files**: cite only if there is a non-obvious design decision documented in an ADR (e.g. the graph repository cites ADR-037 for the document-evidenced filter). Omit the citation if there is no relevant ADR.
 
 This gives one sentence of context per file without cluttering every method.
+
+---
+
+## Startup Sweep Design Principle
+
+Startup sweeps (ADR-017, ADR-018) prioritise **recoverability over atomicity**. The sweep runs
+once at startup, before the HTTP server accepts requests, and cleans up state left by a previous
+crash. The design rules are:
+
+**Per-document ordering: file first, then DB row**
+
+Delete the storage file before deleting the database record. If the file delete succeeds but
+the process crashes before the DB delete, the next sweep will retry — the DB row makes the
+orphaned state visible. If the DB delete happened first and the process then crashed, the file
+would be invisible and would leak permanently.
+
+**Per-document isolation: try/catch per document**
+
+Each document's cleanup is wrapped in a try/catch. A failure on one document (e.g. a transient
+I/O error) must not prevent the next document from being cleaned up. Log the error and continue.
+
+**No transaction wrapper**
+
+Startup sweeps must not use a `db._knex.transaction()` wrapper. Storage I/O cannot participate
+in a SQL transaction and would not roll back. The per-document try/catch is the recovery
+mechanism; atomicity is neither achievable nor necessary here.
+
+**Intentional divergence from service-layer cleanup**
+
+Startup sweeps may duplicate logic from service-layer cleanup methods (e.g. `_cleanupRunById`
+in `IngestionService`). This is intentional — the sweep cannot reuse those methods because
+they may be written for transactional contexts. The comment in each sweep file should note
+which service method it intentionally diverges from and why.
+
+**Storage deletes are idempotent**
+
+`StorageService.deleteStagingFile`, `deletePermanentFile`, and `deleteStagingDirectory` are all
+idempotent — `ENOENT` is silently swallowed. Sweeps may call them unconditionally without
+checking whether the file exists first.
+
+---
+
+## UUID Version Standard (backend)
+
+The backend (`apps/backend/`) uses **UUID v7** (`v7 as uuidv7` from the `uuid` package) for all
+generated identifiers — in source code and in tests. UUID v7 is time-ordered, which improves
+B-tree index locality and insert performance when used as PostgreSQL primary keys.
+
+```ts
+import { v7 as uuidv7 } from 'uuid';
+const id = uuidv7();
+```
+
+UUID v4 is not prohibited in other parts of the project (frontend, Python service) where DB
+primary key performance is not a concern. If v4 is used elsewhere for a valid reason, no change
+is required.
