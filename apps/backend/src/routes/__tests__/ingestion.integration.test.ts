@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pino } from 'pino';
 import supertest from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
+import { v7 as uuidv7 } from 'uuid';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
@@ -94,7 +94,7 @@ afterEach(async () => {
 async function insertIngestionRun(
   overrides: Partial<IngestionRunInsert> = {},
 ): Promise<string> {
-  const id = uuidv4();
+  const id = uuidv7();
   const row: IngestionRunInsert = {
     id,
     status: 'in_progress',
@@ -121,7 +121,7 @@ async function insertRunDocument(
     storagePath: string | null;
   }> = {},
 ): Promise<string> {
-  const id = overrides.id ?? uuidv4();
+  const id = overrides.id ?? uuidv7();
   await db.documents.insert({
     id,
     status: overrides.status ?? 'uploaded',
@@ -205,7 +205,7 @@ describe('POST /api/ingestion/runs/:runId/complete', () => {
 
   it('returns 404 when run does not exist', async () => {
     const res = await request
-      .post(`/api/ingestion/runs/${uuidv4()}/complete`)
+      .post(`/api/ingestion/runs/${uuidv7()}/complete`)
       .set(AUTH);
 
     expect(res.status).toBe(404);
@@ -295,7 +295,7 @@ describe('POST /api/ingestion/runs/:runId/complete', () => {
 describe('POST /api/ingestion/runs/:runId/files', () => {
   it('(c) returns 404 when run does not exist', async () => {
     const res = await request
-      .post(`/api/ingestion/runs/${uuidv4()}/files`)
+      .post(`/api/ingestion/runs/${uuidv7()}/files`)
       .set(AUTH)
       .attach('file', Buffer.from('data'), {
         filename: '2000-01-01 - photo.jpg',
@@ -358,7 +358,7 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
     const hash = crypto.createHash('md5').update(fileContent).digest('hex');
 
     await db.documents.insert({
-      id: uuidv4(),
+      id: uuidv7(),
       status: 'finalized',
       filename: 'existing.jpg',
       contentType: 'image/jpeg',
@@ -423,7 +423,7 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
 describe('DELETE /api/ingestion/runs/:runId', () => {
   it('returns 404 when run does not exist', async () => {
     const res = await request
-      .delete(`/api/ingestion/runs/${uuidv4()}`)
+      .delete(`/api/ingestion/runs/${uuidv7()}`)
       .set(AUTH);
 
     expect(res.status).toBe(404);

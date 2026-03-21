@@ -5,8 +5,8 @@
  *   1. Load and validate config (fail-fast on invalid config)
  *   2. Initialise Knex and confirm PostgreSQL connectivity
  *   3. Run knex migrate:latest
- *   4. Upload cleanup sweep — stub until Task 8 (ADR-017)
- *   5. Ingestion run sweep (ADR-018) — implemented in Task 14
+ *   4. Upload cleanup sweep (ADR-017)
+ *   5. Ingestion run sweep (ADR-018)
  *   6. Seed data if vocabulary_terms is empty — stub until Task 7
  *   7. Start the HTTP server
  *
@@ -26,6 +26,8 @@ import { createIngestionService } from './services/ingestion.js';
 import { createProcessingService } from './services/processing.js';
 import { createSearchService } from './services/search.js';
 import { createVocabularyService } from './services/vocabulary.js';
+import { ingestionStartupSweep } from './startup/ingestionSweep.js';
+import { uploadStartupSweep } from './startup/uploadSweep.js';
 import { createStorageService } from './storage/index.js';
 import { createVectorStore } from './vectorstore/index.js';
 
@@ -45,14 +47,23 @@ async function start(): Promise<void> {
     process.exit(1);
   }
 
+  // Storage is needed by both startup sweeps — initialise before them.
+  const storage = createStorageService(config.storage, log);
+
   // ── 4. Upload cleanup sweep (ADR-017) ─────────────────────────────────────
-  // Stub — implemented in Task 8.
-  // On startup, any documents with status initiated/uploaded/stored that are
-  // not finalized are cleaned up (staging files deleted, records removed).
-  log.info('Upload cleanup sweep: stub (implemented in Task 8)');
+  await uploadStartupSweep(db, storage, log);
+  log.info('Upload cleanup sweep complete');
+
+  // ── 5. Ingestion run sweep (ADR-018) ──────────────────────────────────────
+  await ingestionStartupSweep(db, storage, log);
+  log.info('Ingestion startup sweep complete');
+
+  // ── 6. Seed data ───────────────────────────────────────────────────────────
+  // Stub — implemented in Task 7.
+  // Run seeds only if vocabulary_terms contains zero rows.
+  log.info('Seed data check: stub (implemented in Task 7)');
 
   // ── 7. Start HTTP server ───────────────────────────────────────────────────
-  const storage = createStorageService(config.storage, log);
   const vectorStore = createVectorStore(
     config.vectorStore,
     config.embedding,
@@ -83,15 +94,6 @@ async function start(): Promise<void> {
     log,
   });
   const adminService = createAdminService({ db, log });
-
-  // ── 5. Ingestion run sweep (ADR-018) ──────────────────────────────────────
-  await ingestionService.runStartSweep();
-  log.info('Ingestion run sweep complete');
-
-  // ── 6. Seed data ───────────────────────────────────────────────────────────
-  // Stub — implemented in Task 7.
-  // Run seeds only if vocabulary_terms contains zero rows.
-  log.info('Seed data check: stub (implemented in Task 7)');
 
   const app = createApp({
     config,

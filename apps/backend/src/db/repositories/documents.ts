@@ -213,6 +213,18 @@ export function createDocumentsRepository(db: Knex) {
     },
 
     /**
+     * Return all documents that are non-finalized and not linked to an
+     * ingestion run. These are candidates for the upload startup sweep
+     * (ADR-017): initiated/uploaded documents have staging files; stored
+     * documents have permanent storage files.
+     */
+    async getNonFinalizedUploads(): Promise<DocumentRow[]> {
+      return db<DocumentRow>('documents')
+        .whereIn('status', ['initiated', 'uploaded', 'stored'])
+        .whereNull('ingestionRunId');
+    },
+
+    /**
      * Set a flag on a document. Used by PROC-002 when the Python service
      * returns one or more flags for a document.
      */

@@ -19,7 +19,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pino } from 'pino';
 import supertest from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
+import { v7 as uuidv7 } from 'uuid';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
@@ -85,7 +85,7 @@ afterEach(async () => {
 async function insertDocument(
   overrides: Partial<DocumentInsert> = {},
 ): Promise<string> {
-  const id = uuidv4();
+  const id = uuidv7();
   const row: DocumentInsert = {
     id,
     status: 'finalized',
@@ -222,7 +222,7 @@ describe('POST /api/documents/:uploadId/upload', () => {
 
   it('returns 404 for an unknown uploadId', async () => {
     const res = await request
-      .post(`/api/documents/${uuidv4()}/upload`)
+      .post(`/api/documents/${uuidv7()}/upload`)
       .set(AUTH)
       .attach('file', Buffer.from('data'), {
         filename: 'photo.jpg',
@@ -344,7 +344,7 @@ describe('POST /api/documents/:uploadId/finalize', () => {
 
   it('returns 404 for an unknown uploadId', async () => {
     const res = await request
-      .post(`/api/documents/${uuidv4()}/finalize`)
+      .post(`/api/documents/${uuidv7()}/finalize`)
       .set(AUTH);
 
     expect(res.status).toBe(404);
@@ -431,7 +431,7 @@ describe('DELETE /api/documents/:uploadId', () => {
   });
 
   it('returns 404 for an unknown uploadId', async () => {
-    const res = await request.delete(`/api/documents/${uuidv4()}`).set(AUTH);
+    const res = await request.delete(`/api/documents/${uuidv7()}`).set(AUTH);
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('not_found');
@@ -511,7 +511,7 @@ describe('DELETE /api/documents/:uploadId', () => {
     // 'stored' is a transitional status where the file has been moved to
     // permanent storage but the document is not yet finalised. cleanupUpload
     // must call deletePermanentFile for this status.
-    const id = uuidv4();
+    const id = uuidv7();
     const permanentFile = path.join(basePath, id, 'photo.jpg');
     await fs.mkdir(path.join(basePath, id), { recursive: true });
     await fs.writeFile(permanentFile, 'stored-file-content');
