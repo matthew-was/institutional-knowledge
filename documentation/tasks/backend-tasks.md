@@ -1251,7 +1251,7 @@ without error and the index remains queryable via `VectorStore.search()`.
 ### Task 16: Implement startup sweeps
 
 **Description**: Implement the two startup sweep operations that run when Express starts,
-before it begins accepting requests. These are invoked from `src/index.ts`.
+before it begins accepting requests. These are invoked from `src/server.ts`.
 
 **Upload cleanup sweep** (ADR-017):
 
@@ -1271,7 +1271,7 @@ before it begins accepting requests. These are invoked from `src/index.ts`.
   document records, delete run record
 - Log each cleaned-up run with Pino
 
-Call both sweep functions in `src/index.ts` during startup, after migrations run and before
+Call both sweep functions in `src/server.ts` during startup, after migrations run and before
 the HTTP server starts. Startup fails fast if either sweep throws an unhandled error.
 
 **Depends on**: Task 2, Task 3, Task 4, Task 5
@@ -1286,7 +1286,30 @@ unaffected. Test passes.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-21):
+
+- Automated checks: confirmed. `uploadSweep.integration.test.ts` covers all three non-finalized
+  statuses (`initiated`, `uploaded`, `stored`) individually and together in a single sweep call.
+  Each test inserts a real document row and a real file, calls `uploadStartupSweep` directly
+  against a real test DB and `LocalStorageService`, and asserts both the DB record is absent and
+  the file deleted. `finalized` document preservation confirmed (record untouched). The
+  `whereNull('ingestionRunId')` guard confirmed by dedicated test — non-finalized documents
+  linked to an ingestion run are not swept. Error-continuation confirmed: a failing document's
+  DB row survives (file-first ordering); the next document is fully cleaned up.
+  `ingestionSweep.integration.test.ts` covers equivalent paths for the ingestion run flow,
+  including the run record deletion after all documents processed and error-continuation across
+  documents.
+- Manual checks: none required. Condition type is `automated` only.
+- User need: satisfied. Task 16 implements ADR-017 (upload cleanup sweep) and ADR-018
+  (ingestion run sweep). Both sweeps run once at startup before the HTTP server accepts
+  requests, ensuring incomplete uploads and partial ingestion runs from a prior crash are
+  cleaned up automatically. The per-document file-first ordering with best-effort sequential
+  processing (new development principle) ensures a surviving DB row is always queryable and
+  recoverable on the next sweep, while a surviving file with no DB row is avoided. This matches
+  the user need for reliable self-healing of interrupted operations without manual intervention.
+- Outcome: done
 
 ---
 
