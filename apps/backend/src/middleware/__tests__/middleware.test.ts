@@ -200,3 +200,17 @@ describe('createErrorHandler', () => {
     expect(JSON.stringify(body)).not.toContain('stack');
   });
 });
+
+// ---------------------------------------------------------------------------
+// GET /openapi.json — no auth required
+// ---------------------------------------------------------------------------
+
+describe('GET /openapi.json', () => {
+  it('returns OpenAPI spec without auth header', async () => {
+    const app = createApp(makeStubDeps());
+    const res = await request(app).get('/openapi.json');
+    expect(res.status).toBe(200);
+    expect(typeof res.body.openapi).toBe('string');
+    expect(res.body.info).toBeDefined();
+  });
+});

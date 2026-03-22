@@ -23,7 +23,7 @@ import { createTestDb } from '../../db/index.js';
 import type { IngestionRunInsert } from '../../db/tables.js';
 import type { Logger } from '../../middleware/logger.js';
 import { createIngestionService } from '../../services/ingestion.js';
-import { LocalStorageService } from '../../storage/LocalStorageService.js';
+import { createStorageService } from '../../storage/index.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
 import { TEST_DB_CONFIG } from '../../testing/testDb.js';
 import { createTestApp, makeConfig } from '../../testing/testHelpers.js';
@@ -65,7 +65,10 @@ beforeAll(async () => {
     },
   };
 
-  const storage = new LocalStorageService(basePath, stagingPath, log);
+  const storage = createStorageService(
+    { provider: 'local', local: { basePath, stagingPath } },
+    log,
+  );
   const ingestionService = createIngestionService({
     db,
     storage,
@@ -412,6 +415,88 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
     expect(doc).toBeDefined();
     expect(doc?.status).toBe('uploaded');
     expect(doc?.ingestionRunId).toBe(runId);
+  });
+
+  it('(c) returns 422 for a file with a rejected extension', async () => {
+    const createRes = await request
+      .post('/api/ingestion/runs')
+      .set(AUTH)
+      .send({ sourceDirectory: '/source', grouped: false });
+    const runId: string = createRes.body.runId;
+
+    const res = await request
+      .post(`/api/ingestion/runs/${runId}/files`)
+      .set(AUTH)
+      .attach('file', Buffer.from('data'), {
+        filename: '2000-01-01 - document.exe',
+        contentType: 'application/octet-stream',
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe('file_validation_failed');
+  });
+
+  it('(c) returns 422 for a file that exceeds the size limit', async () => {
+    const createRes = await request
+      .post('/api/ingestion/runs')
+      .set(AUTH)
+      .send({ sourceDirectory: '/source', grouped: false });
+    const runId: string = createRes.body.runId;
+
+    // makeConfig() sets maxFileSizeMb: 10; send 11 MB to exceed it
+    const oversizedBuffer = Buffer.alloc(11 * 1024 * 1024);
+
+    const res = await request
+      .post(`/api/ingestion/runs/${runId}/files`)
+      .set(AUTH)
+      .attach('file', oversizedBuffer, {
+        filename: '2000-01-01 - large file.jpg',
+        contentType: 'image/jpeg',
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe('file_validation_failed');
+  });
+
+  it('(c) returns 422 when a file belongs to a group that already has a failed file', async () => {
+    const createRes = await request
+      .post('/api/ingestion/runs')
+      .set(AUTH)
+      .send({ sourceDirectory: '/source', grouped: true });
+    const runId: string = createRes.body.runId;
+
+    // Seed a failed document in the same group (description prefixed with groupName)
+    await db.documents.insert({
+      id: uuidv7(),
+      status: 'failed',
+      filename: '001 - first file.jpg',
+      contentType: 'image/jpeg',
+      fileSizeBytes: '1024',
+      fileHash: `hash-${uuidv7()}`,
+      storagePath: null,
+      date: null,
+      description: 'Group A - first file',
+      documentType: null,
+      people: null,
+      organisations: null,
+      landReferences: null,
+      flagReason: null,
+      flaggedAt: null,
+      submitterIdentity: 'CLI Ingestion',
+      ingestionRunId: runId,
+    });
+
+    const res2 = await request
+      .post(`/api/ingestion/runs/${runId}/files`)
+      .set(AUTH)
+      .field('groupName', 'Group A')
+      .attach('file', Buffer.from('data'), {
+        filename: '002.jpg',
+        contentType: 'image/jpeg',
+      });
+
+    expect(res2.status).toBe(422);
+    expect(res2.body.error).toBe('group_validation_failed');
   });
 });
 

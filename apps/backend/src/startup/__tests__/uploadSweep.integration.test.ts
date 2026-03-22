@@ -18,7 +18,7 @@ import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
 import type { DocumentInsert } from '../../db/tables.js';
 import type { Logger } from '../../middleware/logger.js';
-import { LocalStorageService } from '../../storage/LocalStorageService.js';
+import { createStorageService } from '../../storage/index.js';
 import type { StorageService } from '../../storage/StorageService.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
 import { TEST_DB_CONFIG } from '../../testing/testDb.js';
@@ -29,7 +29,7 @@ import { uploadStartupSweep } from '../uploadSweep.js';
 // ---------------------------------------------------------------------------
 
 let db: DbInstance;
-let storage: LocalStorageService;
+let storage: StorageService;
 let tmpDir: string;
 let basePath: string;
 let stagingPath: string;
@@ -47,7 +47,10 @@ beforeAll(async () => {
   await fs.mkdir(stagingPath, { recursive: true });
 
   log = pino({ level: 'silent' }) as unknown as Logger;
-  storage = new LocalStorageService(basePath, stagingPath, log);
+  storage = createStorageService(
+    { provider: 'local', local: { basePath, stagingPath } },
+    log,
+  );
 });
 
 afterAll(async () => {

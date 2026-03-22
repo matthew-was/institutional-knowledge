@@ -17,13 +17,6 @@ export function createChunksRepository(db: Knex) {
       const qb = trx ?? db;
       await qb<ChunkRow>('chunks').insert(row);
     },
-
-    /**
-     * Retrieve a single chunk by ID. Returns undefined if not found.
-     */
-    async getById(id: string): Promise<ChunkRow | undefined> {
-      return db<ChunkRow>('chunks').where({ id }).first();
-    },
   };
 }
 

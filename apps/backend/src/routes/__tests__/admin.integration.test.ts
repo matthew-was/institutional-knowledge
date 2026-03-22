@@ -28,7 +28,7 @@ import type { DbInstance } from '../../db/index.js';
 import { createTestDb } from '../../db/index.js';
 import type { Logger } from '../../middleware/logger.js';
 import { createAdminService } from '../../services/admin.js';
-import { LocalStorageService } from '../../storage/LocalStorageService.js';
+import { createStorageService } from '../../storage/index.js';
 import { cleanAllTables } from '../../testing/dbCleanup.js';
 import { TEST_DB_CONFIG } from '../../testing/testDb.js';
 import { createTestApp, makeConfig } from '../../testing/testHelpers.js';
@@ -59,7 +59,10 @@ beforeAll(async () => {
 
   const log = pino({ level: 'silent' }) as unknown as Logger;
   const config = makeConfig();
-  const storage = new LocalStorageService(basePath, stagingPath, log);
+  const storage = createStorageService(
+    { provider: 'local', local: { basePath, stagingPath } },
+    log,
+  );
   vectorStore = createVectorStore(
     config.vectorStore,
     config.embedding,
