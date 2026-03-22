@@ -1464,6 +1464,22 @@ implemented.
 
 **Condition type**: manual
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-22):
+
+- Automated checks: none required — condition type is manual.
+- Manual checks: developer confirmed both invocation forms exit 0 with no errors across 80
+  files: `biome check apps/backend/src/` and `pnpm --filter backend lint`. Code reviewer
+  independently executed both forms during review and recorded "Checked 80 files in ~15ms.
+  No fixes applied." `apps/backend/package.json` line 17 confirms the `lint` script is
+  present: `"lint": "biome check src/"`. Root `biome.json` confirms all three required rules
+  are active: `organizeImports` (recommended ruleset), `noUnusedVariables` set to `"error"`,
+  and formatting with `indentStyle: "space"` and `quoteStyle: "single"`. Developer
+  confirmation accepted; all manual conditions satisfied.
+- User need: satisfied — the quality gate is operative across the entire `src/` tree at the
+  point all handler tasks (8–19) are complete. The `lint` script provides a consistent
+  shortcut for future task completions. No gap between acceptance condition and user need.
+- Outcome: done
 
 ---
