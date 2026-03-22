@@ -83,7 +83,7 @@ export const DuplicateConflictResponse = z
         .uuid()
         .openapi({ example: '01927c3a-5b2e-7000-8000-000000000002' }),
       description: z.string().openapi({ example: 'Wedding photograph' }),
-      date: z.string().openapi({ example: '1987-06-15' }),
+      date: z.string().nullable().openapi({ example: '1987-06-15' }),
       archiveReference: z
         .string()
         .openapi({ example: '1987-06-15 — Wedding photograph' }),
@@ -105,7 +105,7 @@ export const FinalizeUploadResponse = z
       .uuid()
       .openapi({ example: '01927c3a-5b2e-7000-8000-000000000001' }),
     description: z.string().openapi({ example: 'Wedding photograph' }),
-    date: z.string().openapi({ example: '1987-06-15' }),
+    date: z.string().nullable().openapi({ example: '1987-06-15' }),
     archiveReference: z
       .string()
       .openapi({ example: '1987-06-15 — Wedding photograph' }),
@@ -151,14 +151,14 @@ export const DocumentQueueItem = z
       .uuid()
       .openapi({ example: '01927c3a-5b2e-7000-8000-000000000001' }),
     description: z.string().openapi({ example: 'Wedding photograph' }),
-    date: z.string().openapi({ example: '1987-06-15' }),
+    date: z.string().nullable().openapi({ example: '1987-06-15' }),
     archiveReference: z
       .string()
       .openapi({ example: '1987-06-15 — Wedding photograph' }),
     flagReason: z.string().openapi({ example: 'OCR quality below threshold' }),
     flaggedAt: z.string().openapi({ example: '2026-03-13T10:00:00Z' }),
     submitterIdentity: z.string().openapi({ example: 'Primary Archivist' }),
-    pipelineStatus: z.string().openapi({ example: 'step_2_failed' }),
+    pipelineStatus: z.string().nullable().openapi({ example: 'ocr' }),
   })
   .openapi('DocumentQueueItem');
 
@@ -185,7 +185,7 @@ export const DocumentDetailResponse = z
       .uuid()
       .openapi({ example: '01927c3a-5b2e-7000-8000-000000000001' }),
     description: z.string().openapi({ example: 'Wedding photograph' }),
-    date: z.string().openapi({ example: '1987-06-15' }),
+    date: z.string().nullable().openapi({ example: '1987-06-15' }),
     archiveReference: z
       .string()
       .openapi({ example: '1987-06-15 — Wedding photograph' }),
@@ -275,7 +275,7 @@ export const UpdateDocumentMetadataResponse = z
     description: z
       .string()
       .openapi({ example: 'Wedding photograph (revised)' }),
-    date: z.string().openapi({ example: '1987-06-15' }),
+    date: z.string().nullable().openapi({ example: '1987-06-15' }),
     archiveReference: z
       .string()
       .openapi({ example: '1987-06-15 — Wedding photograph (revised)' }),

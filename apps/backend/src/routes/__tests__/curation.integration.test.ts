@@ -167,6 +167,27 @@ describe('GET /api/curation/documents', () => {
     const res = await request.get('/api/curation/documents?page=abc').set(AUTH);
     expect(res.status).toBe(400);
   });
+
+  it('returns null date and [undated] archiveReference for a flagged document with no date', async () => {
+    await insertFlaggedDocument({ date: null });
+
+    const res = await request.get('/api/curation/documents').set(AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.documents[0].date).toBeNull();
+    expect(res.body.documents[0].archiveReference).toBe(
+      '[undated] — Wedding photograph',
+    );
+  });
+
+  it('returns null pipelineStatus when no failed pipeline step exists for the document', async () => {
+    await insertFlaggedDocument();
+
+    const res = await request.get('/api/curation/documents').set(AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.documents[0].pipelineStatus).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

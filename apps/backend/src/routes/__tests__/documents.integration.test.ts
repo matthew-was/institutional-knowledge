@@ -420,6 +420,39 @@ describe('POST /api/documents/:uploadId/finalize', () => {
     // Permanent file exists at storagePath
     await expect(fs.access(row.storagePath as string)).resolves.toBeUndefined();
   });
+
+  it('returns null date and [undated] archiveReference when document has no date', async () => {
+    const fileContent = Buffer.from('undated-test-content');
+
+    const initRes = await request
+      .post('/api/documents/initiate')
+      .set(AUTH)
+      .send({
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+        fileSizeBytes: fileContent.length,
+        date: '',
+        description: 'Undated photograph',
+      });
+    expect(initRes.status).toBe(201);
+    const uploadId = initRes.body.uploadId as string;
+
+    await request
+      .post(`/api/documents/${uploadId}/upload`)
+      .set(AUTH)
+      .attach('file', fileContent, {
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+      });
+
+    const res = await request
+      .post(`/api/documents/${uploadId}/finalize`)
+      .set(AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.date).toBeNull();
+    expect(res.body.archiveReference).toBe('[undated] — Undated photograph');
+  });
 });
 
 // ---------------------------------------------------------------------------
