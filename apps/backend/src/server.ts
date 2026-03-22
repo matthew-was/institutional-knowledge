@@ -7,7 +7,7 @@
  *   3. Run knex migrate:latest
  *   4. Upload cleanup sweep (ADR-017)
  *   5. Ingestion run sweep (ADR-018)
- *   6. Seed data if vocabulary_terms is empty — stub until Task 7
+ *   6. Seed data if vocabulary_terms is empty (ADR-028)
  *   7. Start the HTTP server
  *
  * The compiled output of this file is dist/server.js — referenced in the
@@ -58,10 +58,11 @@ async function start(): Promise<void> {
   await ingestionStartupSweep(db, storage, log);
   log.info('Ingestion startup sweep complete');
 
-  // ── 6. Seed data ───────────────────────────────────────────────────────────
-  // Stub — implemented in Task 7.
-  // Run seeds only if vocabulary_terms contains zero rows.
-  log.info('Seed data check: stub (implemented in Task 7)');
+  // ── 6. Seed data (ADR-028) ─────────────────────────────────────────────────
+  // The seed file guards against re-seeding internally — this call is always
+  // safe on an already-populated database.
+  await db._knex.seed.run();
+  log.info('Vocabulary seed check complete');
 
   // ── 7. Start HTTP server ───────────────────────────────────────────────────
   const vectorStore = createVectorStore(

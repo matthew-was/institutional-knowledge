@@ -1344,7 +1344,24 @@ the test database after running seeds.
 
 **Condition type**: manual
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-22):
+
+- Automated checks: none required — condition type is `manual` only.
+- Manual checks: confirmed by the user. Running `knex seed:run` on a clean database (after
+  migrations) inserts at least one term per vocabulary category — all six ADR-028 categories
+  are covered (People, Organisation, Land Parcel / Field, Date / Event, Legal Reference,
+  Organisation Role) with 2–3 placeholder terms each (13 rows total). Running the seed again
+  on a populated database is a no-op — the inner guard in the seed function returns immediately
+  when `vocabulary_terms` contains any rows, confirmed by the user.
+- User need: satisfied. US-060 requires a non-empty vocabulary on first use so the system is
+  immediately useful without manual vocabulary entry. The seed file delivers 13 placeholder
+  terms across all six categories and is called automatically from `server.ts` after migrations
+  run, before the HTTP server starts. The idempotency guard prevents re-seeding on subsequent
+  startups. The non-blocking suggestion S-001 (`source: 'seed'` vs `source: 'manual'`) does
+  not affect correctness or the user need in Phase 1 — the vocabulary is immediately usable.
+- Outcome: done
 
 ---
 

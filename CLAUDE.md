@@ -95,6 +95,11 @@ for reference the three required checks are:
 - User controls all commits to maintain clean, intentional git history with proper batch grouping
 - **Permission does not carry forward.** If the user said "commit" earlier in the session, that applies to that specific batch only. Each subsequent commit requires a fresh explicit instruction. Do not infer standing permission from a prior commit instruction.
 
+**Before committing:**
+
+- Check whether any files exist in `documentation/tasks/code-reviews/`. If they do, remind the user to move them to `archive/code-reviews/[service]/` before committing — unless the user has explicitly said they don't want them moved.
+- Code review files must be committed in the same commit as the implementation they relate to.
+
 **When work is complete:**
 
 1. Present the changes to the user
@@ -109,9 +114,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. Backend Tasks 1–15 done. All merged to main.
+- **Current phase**: Implementation in progress. Backend Tasks 1–16 done. All merged to main.
 - **Design status**: All design documents approved (ADR-001 to ADR-049). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Backend Task 18. After that: Task 19, then Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
