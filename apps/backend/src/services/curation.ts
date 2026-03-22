@@ -70,15 +70,23 @@ export function createCurationService(
         const failedStep = await db.pipelineSteps.getLatestFailedStepName(
           doc.id,
         );
+        // flagReason and flaggedAt are non-null by invariant: the queue only
+        // contains flagged documents, and every flag has a reason (UR-074).
+        // If either is null the data is corrupt — throw rather than swallow.
+        if (doc.flagReason === null || doc.flaggedAt === null) {
+          throw new Error(
+            `Document ${doc.id} is in the flagged queue but has no flagReason or flaggedAt`,
+          );
+        }
         return {
           documentId: doc.id,
           description: doc.description,
-          date: doc.date ?? '',
+          date: doc.date,
           archiveReference: archiveReference(doc.date, doc.description),
-          flagReason: doc.flagReason ?? '',
-          flaggedAt: doc.flaggedAt?.toISOString() ?? '',
+          flagReason: doc.flagReason,
+          flaggedAt: doc.flaggedAt.toISOString(),
           submitterIdentity: doc.submitterIdentity,
-          pipelineStatus: failedStep ?? '',
+          pipelineStatus: failedStep,
         };
       }),
     );
@@ -107,7 +115,7 @@ export function createCurationService(
       data: {
         documentId: doc.id,
         description: doc.description,
-        date: doc.date ?? '',
+        date: doc.date,
         archiveReference: archiveReference(doc.date, doc.description),
         documentType: doc.documentType,
         people: doc.people ?? [],
@@ -173,7 +181,7 @@ export function createCurationService(
       data: {
         documentId: doc.id,
         description: doc.description,
-        date: doc.date ?? '',
+        date: doc.date,
         archiveReference: archiveReference(doc.date, doc.description),
         documentType: doc.documentType,
         people: doc.people ?? [],

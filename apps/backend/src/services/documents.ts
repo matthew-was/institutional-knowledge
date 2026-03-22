@@ -74,7 +74,7 @@ export interface UploadFileResult {
 export interface FinalizeUploadResult {
   documentId: string;
   description: string;
-  date: string;
+  date: string | null;
   archiveReference: string;
   status: 'finalized';
 }
@@ -267,7 +267,7 @@ export function createDocumentService(
         existingRecord: {
           documentId: existing.id,
           description: existing.description,
-          date: existing.date ?? '',
+          date: existing.date,
           archiveReference: archiveReference(
             existing.date,
             existing.description,
@@ -328,7 +328,7 @@ export function createDocumentService(
       data: {
         documentId: uploadId,
         description: doc.description,
-        date: doc.date ?? '',
+        date: doc.date,
         archiveReference: ref,
         status: 'finalized',
       },
