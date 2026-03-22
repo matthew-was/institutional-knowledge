@@ -12,7 +12,7 @@
     "typecheck": "pnpm -r typecheck",
     "typecheck:backend": "pnpm --filter backend typecheck",
     "lint": "pnpm -r exec biome check",
-    "lint:backend": "pnpm --filter backend exec biome check",
+    "lint:backend": "pnpm --filter backend lint",
     "testAll": "pnpm lint && pnpm typecheck && pnpm test",
     "testAll:backend": "pnpm lint:backend && pnpm typecheck:backend && pnpm test:backend"
   },
