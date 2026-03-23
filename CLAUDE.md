@@ -114,9 +114,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. All 19 backend tasks done + null-date audit fix (PR open). All merged to main except null-date chore.
-- **Design status**: All design documents approved (ADR-001 to ADR-049). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Merge null-date chore PR, then Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend tasks revision complete (2026-03-23).
+- **Design status**: All design documents approved (ADR-001 to ADR-051). See [documentation/approvals.md](documentation/approvals.md).
+- **Next actionable step**: Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -131,7 +131,7 @@ This is the **Institutional Knowledge** project — a family document archiving 
 ### Monorepo Layout (ADR-015)
 
 ```text
-apps/frontend/        # Next.js
+apps/frontend/        # Hono custom server + Next.js (React UI)
 apps/backend/         # Express
 packages/shared/      # Shared TS types + Zod schemas
 services/processing/  # Python (own virtualenv, Dockerfile)
@@ -156,7 +156,7 @@ documentation/
 │   ├── system-diagrams.md        ← Visual diagrams (4 levels of detail)
 │   └── developer-context.md      ← Developer background
 ├── decisions/
-│   └── architecture-decisions.md ← All 49 ADRs (ADR-001 to ADR-049)
+│   └── architecture-decisions.md ← All 51 ADRs (ADR-001 to ADR-051)
 ├── requirements/
 │   ├── user-requirements.md      ← 138 requirements with Architectural Flags
 │   └── phase-1-user-stories.md   ← 101 user stories for Phase 1
@@ -185,13 +185,15 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Current next step:** Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
 
+**frontend-tasks.md rebuilt 2026-03-23** — 18 tasks; Hono custom server architecture; three-tier testing model; Base UI + Tailwind CSS (ADR-051); Temporal API via `@js-temporal/polyfill` (ADR-050).
+
 ### Key Output Locations
 
 As agents complete their phases, outputs are written here:
 
 ```text
 documentation/tasks/
-├── frontend-tasks.md     ← 21 tasks (Next.js frontend)
+├── frontend-tasks.md     ← 18 tasks (Hono custom server + Next.js frontend)
 ├── python-tasks.md       ← 23 tasks (Python processing service)
 └── backend-tasks.md      ← 19 tasks (Express backend)
 ```

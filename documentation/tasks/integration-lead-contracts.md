@@ -199,20 +199,28 @@ interface UploadFileResponse {
 
 **Notes**: Express writes the file to the staging area (ADR-017), computes the MD5 hash,
 checks against the `file_hash` unique constraint on the `documents` table, and updates status
-to `uploaded`. On duplicate detection (409), the response body includes the existing document's
-details for the `DuplicateConflictAlert` component:
+to `uploaded`. On duplicate detection (409), the response body uses the standard error
+envelope with `errorData` nested under `data`:
 
-```typescript
-interface DuplicateConflictResponse {
-  error: 'duplicate_detected';
-  existingRecord: {
-    documentId: string;
-    description: string;
-    date: string;
-    archiveReference: string;
-  };
+```json
+{
+  "error": "duplicate_detected",
+  "data": {
+    "existingRecord": {
+      "documentId": "string (UUID v7)",
+      "description": "string",
+      "date": "string | null",
+      "archiveReference": "string"
+    }
+  }
 }
 ```
+
+The `DuplicateConflictResponse` schema in `packages/shared/src/schemas/documents.ts`
+represents only the `data` payload (`{ existingRecord: { ... } }`). The `error` field
+belongs to the envelope produced by `sendServiceError` in `routes/routeUtils.ts`, not
+the payload. Frontend code must read `response.data.existingRecord`, not
+`response.existingRecord`.
 
 ---
 

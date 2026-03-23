@@ -23,7 +23,7 @@ The table below lists approved documents in precedence order. In case of contrad
 | `documentation/decisions/architecture-decisions.md` | Approved | 2026/03/13 |
 | `documentation/project/architecture.md` | Approved | 2026/03/13 |
 | `documentation/project/system-diagrams.md` | Approved | 2026/03/02 |
-| `documentation/tasks/senior-developer-frontend-plan.md` | Approved | 2026/03/03 |
+| `documentation/tasks/senior-developer-frontend-plan.md` | Approved | 2026/03/03 (revised 2026/03/23) |
 | `documentation/tasks/senior-developer-python-plan.md` | Approved | 2026/03/03 |
 | `documentation/tasks/integration-lead-contracts.md` | Approved | 2026/03/03 |
 | `documentation/tasks/integration-lead-backend-plan.md` | Approved | 2026/03/03 |
@@ -84,4 +84,9 @@ The table below lists approved documents in precedence order. In case of contrad
 2026/03/13 - architecture-decisions.md approved - Head of Development - ADR-048 is additive; no contradictions with existing ADRs (ADR-001 to ADR-047); closes ADR-032 contract validation risk; re-approved immediately
 2026/03/13 - architecture.md unapproved - Head of Development - upstream cascade from ADR-048; architecture.md updated to reflect ADR-048 (ADR range, technology stack row, monorepo comment, cross-cutting table row)
 2026/03/13 - architecture.md approved - Head of Development - ADR-048 is a contract tooling decision; no component boundaries, data flows, or ownership rules affected; minor additive updates only; re-approved immediately
+2026/03/19 - architecture-decisions.md unapproved - Developer - ADR-049 added (config-driven graph traversal depth limit); requires re-approval
+2026/03/19 - architecture-decisions.md approved - Developer - ADR-049 is additive; aligns with ADR-001 (Infrastructure as Configuration); no impact on existing ADRs or runtime architecture; re-approved immediately
+2026/03/23 - senior-developer-frontend-plan.md revised - Developer - Hono custom server architecture added; three-tier testing model; framework agnosticism constraints; corrected DuplicateConflictResponse wire shape; nullable date fields; Base UI + Tailwind CSS (ADR-051); Temporal API (ADR-050); revision reviewed and approved via Senior Developer Frontend agent self-review
+2026/03/23 - architecture-decisions.md unapproved - Developer - ADR-050 (Temporal API) and ADR-051 (Base UI + Tailwind CSS) added; requires re-approval
+2026/03/23 - architecture-decisions.md approved - Developer - ADR-050 and ADR-051 are additive frontend decisions; no impact on backend, Python service, or existing ADRs; re-approved immediately
 ```

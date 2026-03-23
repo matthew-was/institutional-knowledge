@@ -263,7 +263,6 @@ export function createDocumentService(
       }
 
       const errorData: DuplicateConflictResponse = {
-        error: 'duplicate_detected',
         existingRecord: {
           documentId: existing.id,
           description: existing.description,
