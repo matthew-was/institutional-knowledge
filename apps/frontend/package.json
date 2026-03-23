@@ -18,29 +18,29 @@
     "@js-temporal/polyfill": "^0.5.1",
     "hono": "^4.12.9",
     "ky": "^1.14.3",
-    "nconf": "^0.13.0",
+    "nconf": "catalog:",
     "next": "^16.2.1",
-    "pino": "^10.3.1",
+    "pino": "catalog:",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "swr": "^2.4.1",
     "tailwindcss": "^4.2.2",
-    "zod": "^4.3.6"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.8",
+    "@biomejs/biome": "catalog:",
     "@playwright/test": "^1.58.2",
     "@testing-library/react": "^16.3.2",
-"@testing-library/user-event": "^14.6.1",
-    "@types/node": "^24",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "catalog:",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@types/supertest": "^7.2.0",
+    "@types/supertest": "catalog:",
     "@vitejs/plugin-react": "^6.0.1",
     "msw": "^2.12.14",
-    "supertest": "^7.2.2",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.2",
-    "vitest": "^4.1.1"
+    "supertest": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

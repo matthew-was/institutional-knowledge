@@ -5,9 +5,8 @@
 #   merged. Enable branch protection in GitHub repository settings:
 #     Settings → Branches → Add rule → Branch name pattern: main
 #     Check: "Require status checks to pass before merging"
-#     Add status checks: lint-and-typecheck, test-backend
-#   Add test-frontend and test-python to the required checks list as those
-#   services are implemented.
+#     Add status checks: lint-and-typecheck, test-backend, test-frontend
+#   Add test-python to the required checks list when that service is implemented.
 #
 # Required GitHub Actions secrets (none at this time):
 #   The backend integration test database uses hardcoded credentials defined
@@ -125,40 +124,36 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Frontend tests — placeholder, enabled when apps/frontend/ is scaffolded
+  # Frontend tests
   # ---------------------------------------------------------------------------
-  # test-frontend:
-  #   name: Test frontend
-  #   runs-on: ubuntu-latest
-  #
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Set up pnpm
-  #       uses: pnpm/action-setup@v4
-  #       with:
-  #         run_install: false
-  #
-  #     - name: Set up Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version-file: .nvmrc
-  #         cache: pnpm
-  #
-  #     - name: Install dependencies
-  #       run: pnpm install --frozen-lockfile
-  #
-  #     - name: Run frontend tests
-  #       run: pnpm --filter frontend test --run
-  #
-  #     - name: Upload frontend coverage report
-  #       if: always()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: frontend-coverage
-  #         path: apps/frontend/coverage/
-  #         if-no-files-found: ignore
+  test-frontend:
+    name: Test frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @institutional-knowledge/shared build
+
+      - name: Run frontend tests
+        run: pnpm --filter frontend test
 
   # ---------------------------------------------------------------------------
   # Python tests — placeholder, enabled when services/processing/ is scaffolded
