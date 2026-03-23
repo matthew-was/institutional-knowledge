@@ -17,29 +17,32 @@
     "lint": "biome check src/"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^8.4.3",
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@institutional-knowledge/shared": "workspace:*",
-    "express": "^5.0.0",
+    "express": "^5.2.1",
     "json5": "^2.2.3",
-    "knex": "^3.1.0",
+    "knex": "3.1.0",
     "multer": "^2.1.1",
-    "nconf": "^0.13.0",
+    "nconf": "catalog:",
     "pg": "^8.20.0",
-    "pino": "^10.3.1",
+    "pino": "catalog:",
     "pino-http": "^11.0.0",
     "uuid": "^13.0.0",
-    "zod": "^4.3.6"
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "@types/express": "^5.0.6",
     "@types/multer": "2.1.0",
     "@types/nconf": "^0.10.7",
-    "@types/node": "^24",
-    "@types/pg": "^8.18.0",
-    "@types/supertest": "^7.2.0",
-    "@vitest/coverage-v8": "^4.0.18",
-    "supertest": "^7.2.2",
+    "@types/node": "catalog:",
+    "@types/pg": "^8.20.0",
+    "@types/supertest": "catalog:",
+    "@vitest/coverage-v8": "^4.1.1",
+    "supertest": "catalog:",
     "tsx": "^4.21.0",
-    "vitest": "^4.0.18"
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

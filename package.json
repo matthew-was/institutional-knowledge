@@ -9,15 +9,19 @@
     "test": "pnpm -r test",
     "test:backend": "pnpm --filter backend test",
     "test:backend:coverage": "pnpm --filter backend test:coverage",
+    "test:frontend": "pnpm --filter frontend test",
+    "test:frontend:e2e": "pnpm --filter frontend test:e2e",
     "typecheck": "pnpm -r typecheck",
     "typecheck:backend": "pnpm --filter backend typecheck",
-    "lint": "pnpm -r exec biome check",
+    "typecheck:frontend": "pnpm --filter frontend typecheck",
+    "lint": "pnpm -r lint",
     "lint:backend": "pnpm --filter backend lint",
+    "lint:frontend": "pnpm --filter frontend lint",
     "testAll": "pnpm lint && pnpm typecheck && pnpm test",
-    "testAll:backend": "pnpm lint:backend && pnpm typecheck:backend && pnpm test:backend"
+    "testAll:backend": "pnpm lint:backend && pnpm typecheck:backend && pnpm test:backend",
+    "testAll:frontend": "pnpm lint:frontend && pnpm typecheck:frontend && pnpm test:frontend"
   },
-  "devDependencies": {
-    "@biomejs/biome": "2.4.6",
-    "typescript": "5.9.3"
+  "pnpm": {
+    "ignoredBuiltDependencies": ["msw", "sharp"]
   }
 }

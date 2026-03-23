@@ -31,10 +31,10 @@ Specifically:
 - Create `apps/frontend/package.json` with dependencies: `next`, `react`, `react-dom`,
   `hono`, `@hono/node-server`, `swr`, `ky`, `nconf`, `zod`, `pino`,
   `@js-temporal/polyfill` (ADR-050 — calendar date logic; removed when Node 26 + Safari
-  native support land), `@base-ui-components/react` (ADR-051 — headless interactive
+  native support land), `@base-ui/react` (ADR-051 — headless interactive
   component primitives), `tailwindcss` (ADR-051 — all styling; no CSS modules), and
   devDependencies: `vitest`, `@vitejs/plugin-react`, `@testing-library/react`,
-  `@testing-library/react-hooks`, `@testing-library/user-event`, `msw`, `supertest`,
+  `@testing-library/user-event`, `msw`, `supertest`,
   `@playwright/test`, `typescript`, `@types/react`, `@types/node`, `biome`
 - Create `apps/frontend/tsconfig.json` extending the root tsconfig; target Node for the
   `server/` sub-system; strict mode enabled
@@ -73,7 +73,25 @@ with no errors; `pnpm biome check apps/frontend/src apps/frontend/server` passes
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-23):
+
+- Automated checks: confirmed — all six parts of the acceptance condition verified by reading
+  the implementation files and the second code review (2026-03-23 20:38). Directory structure
+  complete (eight directories, each with `.gitkeep`); `tailwind.config.ts` present with
+  correct content paths; `global.css` uses Tailwind v4 `@import "tailwindcss"` directive;
+  no CSS module files; `tsconfig.json` overrides to `"target": "ES2024"` and
+  `"lib": ["ES2024", "DOM", "DOM.Iterable"]` resolving the `PromiseWithResolvers` error
+  from the first review; Biome check passes; no `app/api/` directory.
+- Manual checks: none required
+- User need: satisfied — US-086 requires upload, curation, and vocabulary management in a
+  single web application, unpolished but functional in Phase 1. This scaffold task correctly
+  establishes the structural precondition: a buildable, lint-clean monorepo package with all
+  required framework dependencies installed, the Hono server layer stubs in place, and the
+  three-tier test infrastructure configured. No pages or components are in scope for this
+  task; their absence is correct.
+- Outcome: done
 
 ---
 
