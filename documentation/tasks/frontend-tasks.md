@@ -2,782 +2,134 @@
 
 ## Status
 
-Draft — 2026-03-04
+Draft — 2026-03-23
 
 ## Source plan
 
-`documentation/tasks/senior-developer-frontend-plan.md` (Approved 2026-03-03)
+`documentation/tasks/senior-developer-frontend-plan.md` (revised 2026-03-23)
+
+Additional context: `documentation/tasks/frontend-tasks-revision-2026-03-23.md`
 
 ## Flagged issues
 
-None. All open questions (OQ-001 to OQ-004) are resolved in the approved plan. OQ-005
-(C3 query proxy) is deferred to Phase 2 and requires no Phase 1 action.
+None — all open questions resolved; DuplicateConflictResponse wire shape corrected upstream
+(revision §0); three-tier testing model defined in `development-principles.md`; Hono custom
+server architecture documented in the revised plan.
 
 ---
 
 ## Tasks
 
-### Task 1: Next.js project scaffolding and custom server setup
+### Task 1: Scaffold the Next.js frontend application
 
-**Description**: Create the `apps/frontend/` directory and initialise a Next.js application
-using the App Router. The project must use TypeScript. Biome must be configured for
-linting and formatting (ADR-046). The custom Next.js server file (`server.ts`) must be
-created at the root of `apps/frontend/` — this is required by ADR-044. The custom server
-wraps Next.js and must be the entry point (i.e. `node server.ts` or equivalent, not
-`next start`). Configure the `package.json` scripts (`dev`, `build`, `start`) to use
-the custom server. Add `swr` as a production dependency for client-side data fetching
-in the curation UI. Add `pino` as a production dependency for server-side logging. The
-project must sit within the pnpm monorepo workspace defined at the repository root.
-Set `"type": "module"` in `package.json` (ESM — resolved by ADR-047). All imports must use
-explicit `.js` extensions. Use `import.meta.url` in place of `__dirname`/`__filename`.
-Do not configure any application routes, components, or API routes in this task — only
-the project skeleton, tooling, and server entry point.
+**Description**: Create the Next.js frontend application at `apps/frontend/` within the
+existing monorepo. This task establishes the project skeleton only — no pages, components,
+or API routes.
 
-**Depends on**: Platform Engineer scaffolding phase complete
+Specifically:
+
+- Create `apps/frontend/package.json` with dependencies: `next`, `react`, `react-dom`,
+  `hono`, `@hono/node-server`, `swr`, `ky`, `nconf`, `zod`, `pino`,
+  `@js-temporal/polyfill` (ADR-050 — calendar date logic; removed when Node 26 + Safari
+  native support land), `@base-ui-components/react` (ADR-051 — headless interactive
+  component primitives), `tailwindcss` (ADR-051 — all styling; no CSS modules), and
+  devDependencies: `vitest`, `@vitejs/plugin-react`, `@testing-library/react`,
+  `@testing-library/react-hooks`, `@testing-library/user-event`, `msw`, `supertest`,
+  `@playwright/test`, `typescript`, `@types/react`, `@types/node`, `biome`
+- Create `apps/frontend/tsconfig.json` extending the root tsconfig; target Node for the
+  `server/` sub-system; strict mode enabled
+- Create `apps/frontend/biome.json` — consistent with `apps/backend/biome.json` in
+  formatting conventions; no unused variables; consistent import ordering
+- Create `apps/frontend/next.config.ts` — minimal config; no file-based API routes
+  (`app/api/` directory must not be created at any point)
+- Create `apps/frontend/tailwind.config.ts` — minimal Tailwind v4 config; content paths
+  include `src/**/*.{ts,tsx}`
+- Create `src/styles/global.css` importing Tailwind base, components, and utilities; no
+  other CSS files are created — all styling uses Tailwind utility classes
+- Create the directory structure:
+  - `src/app/` — Next.js App Router pages (empty stubs)
+  - `src/components/` — shared presentational components (empty)
+  - `src/lib/` — utilities and schemas (empty)
+  - `src/styles/` — global CSS (Tailwind entry point only; no module files)
+  - `server/routes/` — Hono route handlers (empty)
+  - `server/handlers/` — business logic handlers (empty)
+  - `server/requests/` — request functions (empty)
+  - `server/config/` — config module (empty)
+- Create `apps/frontend/vitest.config.ts` — configure Vitest with React plugin; separate
+  configs or include patterns for browser-side tests (jsdom environment) and server-side
+  tests (node environment)
+- Create `apps/frontend/playwright.config.ts` — minimal Playwright config pointing at the
+  running server
+
+**Depends on**: none
 
 **Complexity**: S
 
-**Acceptance condition**: Running `pnpm dev` (or equivalent) from `apps/frontend/` starts
-the Next.js custom server without errors. A Biome config file exists in `apps/frontend/`
-and `pnpm biome check` passes on the scaffolded files. The `server.ts` file exists and is
-the entry point for `start` and `dev` scripts. Confirmed by a developer running these
-commands locally.
+**Acceptance condition**: `apps/frontend/` exists in the monorepo with the correct directory
+structure; `tailwind.config.ts` exists and `src/styles/global.css` imports Tailwind; no CSS
+module files exist anywhere in `apps/frontend/`; `pnpm --filter frontend tsc --noEmit` passes
+with no errors; `pnpm biome check apps/frontend/src apps/frontend/server` passes; no
+`app/api/` directory exists.
 
-**Condition type**: manual
+**Condition type**: automated
 
 **Status**: not_started
 
 ---
 
-### Task 2: Frontend configuration module
+### Task 2: Hono custom server setup
 
-**Description**: Create the `Config` class in `apps/frontend/src/config/index.ts`. This
-class loads and validates the merged nconf configuration at startup using nconf and Zod.
-It must fail fast on invalid or missing configuration (i.e. throw at startup, not at
-first use). The validated config singleton must be importable by server-side code
-(API route handlers and Server Components). It must never be imported into Client
-Components; this is an architectural constraint, not enforced at runtime but must be
-documented in a comment.
+**Description**: Implement the Hono custom server entry point at
+`apps/frontend/server/server.ts` and all supporting infrastructure. This is the deliberate
+framework boundary — all `/api/*` routes are Hono handlers; Next.js handles all non-API
+traffic as a catch-all.
 
-The following nconf keys must be defined and validated:
+Specifically:
 
-- `server.port` — `number`, required
-- `express.baseUrl` — `string`, required
-- `express.internalKey` — `string`, required
-- `upload.maxFileSizeMb` — `number`, required, must be positive
-- `upload.acceptedExtensions` — `string[]`, required, must be non-empty
-
-Create `apps/frontend/config.json5` with sensible development defaults:
-`server.port: 3000`, `express.baseUrl: "http://localhost:4000"`,
-`express.internalKey: "change-me-in-development"`, `upload.maxFileSizeMb: 50`,
-`upload.acceptedExtensions: [".pdf", ".tif", ".tiff", ".jpg", ".jpeg", ".png"]`.
-
-The config module must support an optional `config.override.json5` file that is
-merged over `config.json5` at startup (volume-mounted at runtime per the
-configuration-patterns skill).
+- Implement `server/config/index.ts`: a `Config` class that loads and validates
+  configuration using nconf and Zod at startup (fail-fast on invalid config). Required
+  nconf keys:
+  - `server.port` (number) — port the Hono server listens on
+  - `express.baseUrl` (string) — internal URL of the Express backend
+  - `express.internalKey` (string) — shared key for Hono to Express calls (ADR-044)
+  - `upload.maxFileSizeMb` (number) — maximum file size in megabytes
+  - `upload.acceptedExtensions` (string[]) — accepted file extensions
+  - Config reads from `apps/frontend/config.json5` (base) and
+    `apps/frontend/config.override.json5` (optional runtime override), following the
+    configuration-patterns skill
+- Implement `server/server.ts`:
+  - Initialise Next.js with `next({ dev, customServer: true })`; call `nextApp.prepare()`
+    before mounting routes
+  - Create a Hono app instance
+  - Mount auth middleware on `/api/*` as a no-op in Phase 1 (wired now for Phase 2
+    readiness); the middleware passes all requests through without modification
+  - Register all API route stubs (empty route handlers returning 501 for now; actual
+    implementations added in later tasks)
+  - Mount Next.js as a catch-all: `app.all('*', ...)` calls `nextHandler` for all
+    non-API traffic
+  - Start the HTTP server on `config.server.port`
+- Implement `server/requests/client.ts`: a pre-configured Ky instance that sets
+  `express.baseUrl` as the base URL and `x-internal-key` header (value from
+  `express.internalKey`) on every outbound request. This is the only place the internal
+  key is injected.
+- Create `apps/frontend/config.json5` with sensible local development defaults
+- Write a Tier 2 test suite (`server/__tests__/server.test.ts`) using supertest:
+  - Smoke test: the server starts and returns a non-error status for at least one known
+    route
+  - Security assertion: make a request to any route and assert that the `x-internal-key`
+    value does not appear in any response header; confirms the internal key never leaks
+    to browser clients
+  - Auth middleware no-op: requests to `/api/*` without any auth header are not rejected
+    in Phase 1
 
 **Depends on**: Task 1
 
-**Complexity**: S
-
-**Acceptance condition**: A Vitest unit test exists that (a) confirms the Config class
-throws at construction when a required key is missing or invalid (e.g. negative
-`maxFileSizeMb`), and (b) confirms it returns correct typed values when given a valid
-config object. The test does not read from disk — it injects config values directly.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 3: Internal API client helper
-
-**Description**: Create `apps/frontend/src/lib/apiClient.ts`. This module exports a
-helper function that wraps the native `fetch` API and automatically injects the
-`x-internal-key` header (value read from Config) and the `express.baseUrl` base URL
-on every call to the Express backend. All Next.js API route handlers must use this
-helper rather than calling `fetch` directly, so that the internal key is never
-accidentally omitted.
-
-The helper must accept: a path string (relative to `express.baseUrl`), an options
-object compatible with the `fetch` RequestInit type, and return a `Promise<Response>`.
-
-This module is server-side only. It imports Config; it must not be imported into
-Client Components.
-
-**Depends on**: Task 2
-
-**Complexity**: S
-
-**Acceptance condition**: A Vitest unit test exists that mocks `fetch` and confirms:
-(a) the `x-internal-key` header is present on every call, (b) the base URL from config
-is prepended to the path, (c) any additional headers passed by the caller are merged
-and not overwritten. Three test cases minimum: GET with no additional headers, POST
-with a custom header, POST with a body.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 4: Zod schemas for upload and duplicate response
-
-**Description**: Create `apps/frontend/src/lib/schemas.ts` and define the following
-Zod schemas for the C1 upload flow:
-
-- `UploadFormSchema` — validates client-side form state before submission. Fields:
-  - `file` — must be present (`File` object, non-null); extension must be one of
-    `.pdf`, `.tif`, `.tiff`, `.jpg`, `.jpeg`, `.png` (case-insensitive); size must
-    not exceed `maxFileSizeMb` megabytes (the schema must accept `maxFileSizeMb` as
-    a parameter, e.g. via a factory function, so it is testable without config access)
-  - `date` — non-empty string, must match `YYYY-MM-DD` format and be a valid
-    calendar date (e.g. `1962-13-32` is invalid)
-  - `description` — non-empty, non-whitespace-only string
-
-- `DuplicateResponseSchema` — validates the response body when the API returns HTTP
-  409. Fields:
-  - `existingRecord.description` — string
-  - `existingRecord.date` — string
-  - `existingRecord.archiveReference` — string
-
-**Depends on**: Task 1
-
-**Complexity**: S
-
-**Acceptance condition**: Vitest unit tests exist for `UploadFormSchema` covering: valid
-input passes; empty date fails; syntactically invalid date (e.g. `"1962-13-32"`)
-fails; empty description fails; whitespace-only description fails; unsupported file
-extension fails; file exceeding size limit fails; file within size limit passes.
-`DuplicateResponseSchema` is tested with a valid payload (passes) and a payload missing
-`archiveReference` (fails). All edge cases listed must have a corresponding test case.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 5: Filename parsing utility
-
-**Description**: Create the `parseFilename` pure utility function in
-`apps/frontend/src/lib/parseFilename.ts`. The function accepts a filename string
-(including extension) and returns `{ date: string | null; description: string | null }`.
-
-Parsing rules (from the approved plan):
-
-1. Strip the file extension from the filename stem.
-2. Match the stem against the pattern `YYYY-MM-DD - <description>` (a hyphen-separated
-   date followed by ` - ` followed by a non-empty description segment).
-3. If the pattern matches, attempt to construct a `Date` object from the parsed date
-   parts. If it is a valid calendar date, return the ISO date string (`YYYY-MM-DD`) in
-   `date`; if it is not a valid calendar date (e.g. month 13), return `null` for `date`.
-4. If the description segment is present and non-empty, return it in `description`;
-   otherwise return `null` for `description`.
-5. If the pattern does not match, return `{ date: null, description: null }`.
-
-The function must be a pure function with no side effects and no imports other than
-from the TypeScript standard library.
-
-**Depends on**: Task 1
-
-**Complexity**: S
-
-**Acceptance condition**: Vitest unit tests exist covering: a conforming filename with
-valid calendar date returns correct date and description; a conforming filename with
-invalid calendar date (e.g. month 13) returns `null` for date and the description for
-description; a non-conforming filename returns `{ date: null, description: null }`;
-an empty string returns `{ date: null, description: null }`; a filename with only an
-extension (no stem) returns `{ date: null, description: null }`. Minimum five test
-cases, each covering a distinct branch.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 6: Application layout, navigation, and root redirect
-
-**Description**: Create the root Next.js App Router layout at
-`apps/frontend/src/app/layout.tsx`. This layout wraps every page and renders the
-`AppNav` Server Component in a persistent navigation header. Create the `AppNav`
-component at `apps/frontend/src/components/layout/AppNav.tsx`. `AppNav` is a static
-Server Component with no props and no client-side state. It renders navigation links
-to `/upload` (labelled "Document Intake") and `/curation` (labelled "Curation").
-
-Create the root page at `apps/frontend/src/app/page.tsx`. This page must redirect to
-`/upload` using Next.js `redirect()` so that the application opens on the intake form
-when the root URL is visited.
-
-Create the curation sub-layout at `apps/frontend/src/app/curation/layout.tsx` that
-renders `CurationNav`. Create `CurationNav` at
-`apps/frontend/src/components/layout/CurationNav.tsx`. `CurationNav` renders navigation
-links to `/curation/documents` (labelled "Document Queue") and `/curation/vocabulary`
-(labelled "Vocabulary Queue"). `CurationNav` may be a Server Component or Client
-Component — the plan does not mandate a choice.
-
-**Depends on**: Task 1
-
-**Complexity**: S
-
-**Acceptance condition**: A developer visiting `http://localhost:3000/` in a browser is
-redirected to `http://localhost:3000/upload`. The `AppNav` header is visible on the
-`/upload` page with links to `/upload` and `/curation`. Visiting `/curation` shows the
-`CurationNav` with links to `/curation/documents` and `/curation/vocabulary`. Verified
-by a developer running the application locally and navigating these routes.
-
-**Condition type**: manual
-
-**Status**: not_started
-
----
-
-### Task 7: Document upload form — components and client-side logic
-
-**Description**: Implement the C1 upload form components. All components live under
-`apps/frontend/src/components/`.
-
-Create the following components:
-
-- `FilePickerInput` (Client Component, `intake/FilePickerInput.tsx`) — a file `<input>`
-  restricted to `accept=".pdf,.tif,.tiff,.jpg,.jpeg,.png"`. On file selection, calls
-  `parseFilename` on the selected file's name and emits the selected `File` object plus
-  the parsed `{ date, description }` to the parent via a callback prop. If parsing
-  returns non-null values, the parent form pre-populates its state.
-
-- `MetadataFields` (Client Component, `intake/MetadataFields.tsx`) — controlled inputs
-  for `date` (type `date`) and `description` (type `text`, or `<textarea>`). Receives
-  current values and an `onChange` callback as props. Exposes any per-field validation
-  error messages for display.
-
-- `ValidationFeedback` (Client Component, `intake/ValidationFeedback.tsx`) — renders
-  per-field error messages from client-side Zod validation. Also renders a top-level
-  server-side rejection message (duplicate, server-side format error, network error).
-  When the server returns HTTP 409, renders `DuplicateConflictAlert` with the existing
-  record data.
-
-- `DuplicateConflictAlert` (Client Component, `intake/DuplicateConflictAlert.tsx`) —
-  displayed inside `ValidationFeedback` on HTTP 409. Props:
-  `existingRecord: { description: string; date: string; archiveReference: string }`.
-  Renders the description, date, and archive reference of the conflicting document.
-
-- `SubmitButton` (Client Component, `intake/SubmitButton.tsx`) — disabled while any
-  client-side validation error exists or while `submitting` is `true`. Shows a loading
-  indicator (e.g. text change or spinner) during submission.
-
-- `UploadSuccessMessage` (Client Component, `intake/UploadSuccessMessage.tsx`) —
-  displays the submission confirmation on `/upload/success`. Receives a document record
-  (description, date, archiveReference) and renders these fields.
-
-- `DocumentUploadForm` (Client Component, `intake/DocumentUploadForm.tsx`) — the
-  primary interactive component for C1. Composes all the above sub-components. Manages
-  the following state internally:
-  - `selectedFile: File | null`
-  - `date: string`
-  - `description: string`
-  - `clientErrors: Record<string, string>`
-  - `serverError: string | null`
-  - `submitting: boolean`
-
-  Props: `maxFileSizeMb: number`.
-
-  On submit: (1) runs `UploadFormSchema` against all fields; if errors, sets
-  `clientErrors` and stops; (2) sets `submitting: true`; (3) posts
-  `multipart/form-data` to `/api/documents/upload`; (4) on HTTP 201, navigates to
-  `/upload/success` passing the document record; (5) on HTTP 409, validates the
-  response body with `DuplicateResponseSchema` and renders `DuplicateConflictAlert`;
-  (6) on any other error, sets `serverError` with the response body message; (7) sets
-  `submitting: false` on completion regardless of outcome.
-
-**Depends on**: Task 4, Task 5, Task 6
-
 **Complexity**: M
 
-**Acceptance condition**: Vitest + React Testing Library component tests exist covering:
-(a) selecting a conforming filename pre-populates `date` and `description` in the form;
-(b) selecting a non-conforming filename leaves both fields empty; (c) selecting a file
-with an invalid calendar date in the filename leaves the date field empty with no error;
-(d) submitting with an empty date field shows the date field error; (e) submitting with
-a whitespace-only description shows the description field error; (f) submitting a valid
-form calls `fetch` with a `multipart/form-data` POST to `/api/documents/upload`;
-(g) when the mocked API returns HTTP 409, `DuplicateConflictAlert` is rendered with the
-correct existing record fields; (h) the submit button is disabled while `submitting` is
-`true`; (i) a 4xx/5xx response shows the server error message; (j) `DuplicateConflictAlert`
-renders description, date, and archive reference from its props. Minimum one test per
-lettered case above.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 8: Upload pages — server-side page components
-
-**Description**: Create the Next.js page components for the upload flow:
-
-- `apps/frontend/src/app/upload/page.tsx` — React Server Component. Reads
-  `upload.maxFileSizeMb` from the Config singleton at render time. Renders
-  `DocumentUploadForm` passing `maxFileSizeMb` as a prop.
-
-- `apps/frontend/src/app/upload/success/page.tsx` — React Server Component (or Client
-  Component if query parameter reading requires it). Renders `UploadSuccessMessage`
-  with the document record passed from the upload form (via query parameters or
-  `sessionStorage` — implementation choice for the Implementer, either is acceptable).
-  If no document record is present (user navigated directly to this URL without
-  submitting), redirect to `/upload`.
-
-**Depends on**: Task 6, Task 7
-
-**Complexity**: S
-
-**Acceptance condition**: A developer can complete a successful upload flow in a running
-local application: visit `/upload`, fill in the form, submit, and be redirected to
-`/upload/success` where the document description, date, and archive reference are
-displayed. Directly visiting `/upload/success` without a prior submission redirects to
-`/upload`. Confirmed by manual developer walkthrough.
-
-**Condition type**: manual
-
-**Status**: not_started
-
----
-
-### Task 9: Next.js API route — composite document upload (DOC-004)
-
-**Description**: Create the Next.js API route handler at
-`apps/frontend/src/app/api/documents/upload/route.ts`. This handler implements the
-composite browser upload contract DOC-004.
-
-The handler must:
-
-1. Accept a `multipart/form-data` POST from the browser containing the file and
-   metadata fields (date, description).
-2. Call Express `POST /api/documents` via `apiClient` to initiate the document record
-   (DOC-001). Use the `x-internal-key` header (injected automatically by `apiClient`).
-3. Call Express `POST /api/documents/:uploadId/upload` via `apiClient` to upload the
-   file bytes (DOC-002).
-4. Call Express `POST /api/documents/:uploadId/finalize` via `apiClient` to finalize
-   the record (DOC-003).
-5. If step 2 or step 3 fails, call Express `DELETE /api/documents/:uploadId` via
-   `apiClient` (DOC-005) to clean up the initiated record, then return an appropriate
-   error response to the browser.
-6. On success, return HTTP 201 with the document record from the finalize response.
-7. On HTTP 409 from Express (duplicate detection), return HTTP 409 to the browser with
-   the existing record payload from the Express response body.
-8. On HTTP 400/422 from Express, return the same status and error body to the browser.
-9. On 5xx from Express or network error, log using Pino at `error` level and return
-   HTTP 500 with a generic message ("Something went wrong. Please try again.").
-
-The `x-internal-key` header is injected by `apiClient` — the handler must not set it
-manually (to ensure the single point of injection is `apiClient`).
-
-**Depends on**: Task 3
-
-**Complexity**: M
-
-**Acceptance condition**: Vitest integration tests using Mock Service Worker (MSW) exist
-covering: (a) happy path — MSW returns 201 from all three Express endpoints; handler
-returns 201 with document record; (b) duplicate — MSW returns 409 from DOC-001 initiate;
-handler returns 409 with existing record payload; (c) DOC-002 file upload fails — MSW
-returns 500 from the file upload endpoint; handler calls the DOC-005 cleanup endpoint
-and returns 500 to the browser; (d) DOC-003 finalize fails — MSW returns 500; handler
-calls cleanup and returns 500; (e) all outbound Express calls from the handler include
-the `x-internal-key` header (assert on MSW captured request headers).
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 10: Curation document queue — components
-
-**Description**: Implement the document curation queue components under
-`apps/frontend/src/components/curation/`.
-
-Create the following components:
-
-- `DocumentQueueList` (Client Component, `curation/DocumentQueueList.tsx`) — fetches
-  the document queue on mount using `useSWR` with the SWR key
-  `/api/curation/documents`. Renders a list of `DocumentQueueItem` components. Calls
-  `mutate()` on the SWR key after a flag is cleared to re-fetch. If the initial fetch
-  fails, displays an error state with a retry button (not an empty list). If the queue
-  is empty, displays an empty-state message.
-
-- `DocumentQueueItem` (component, `curation/DocumentQueueItem.tsx`) — a single entry
-  in the queue. Displays: document description, date, flag reason (full text, including
-  failing pages where applicable per UR-051/UR-055), and submitter identity. Provides a
-  "Clear flag" action button (rendered as `ClearFlagButton`) and a "Edit metadata" link
-  to `/curation/documents/:id`. The DOC-006 contract also returns `pipelineStatus` (a
-  summary string of pipeline progress) per document — display this field alongside the
-  flag reason so the curator can see where processing reached before the flag was raised.
-
-- `ClearFlagButton` (Client Component, `curation/ClearFlagButton.tsx`) — posts to
-  `/api/curation/documents/:id/clear-flag`. On success, calls a callback prop to
-  trigger queue re-fetch (the parent `DocumentQueueList` passes `mutate` as the
-  callback). Displays a loading state during the request. On error, displays an inline
-  error message.
-
-All Zod response schema validation for the document queue API response
-(`GET /api/curation/documents`) must be applied before the data is used in component
-state. Define the response schema in `apps/frontend/src/lib/schemas.ts` (alongside the
-upload schemas from Task 4) matching the DOC-006 contract shape.
-
-**Depends on**: Task 6
-
-**Complexity**: M
-
-**Acceptance condition**: Vitest + React Testing Library component tests exist covering:
-(a) `DocumentQueueList` renders a list of flagged documents from a mocked SWR response,
-showing description, date, flag reason, pipeline status, and submitter identity for each; (b) empty queue
-shows an empty-state message; (c) fetch failure shows error state with a retry button
-(not an empty list); (d) `ClearFlagButton` shows loading state while the request is
-in-flight; (e) after a successful clear-flag call, the queue re-fetch callback is
-invoked; (f) a failed clear-flag call shows an inline error message.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 11: Curation document queue — page and API routes
-
-**Description**: Create the page and API routes for the document curation queue.
-
-Page:
-
-- `apps/frontend/src/app/curation/page.tsx` — navigation hub page. Renders links to
-  `/curation/documents` and `/curation/vocabulary`. Does not display queue data.
-- `apps/frontend/src/app/curation/documents/page.tsx` — renders `DocumentQueueList`.
-  This is a Client Component page (or a Server Component that renders a Client
-  Component) because the queue re-fetches without page navigation.
-
-Next.js API routes:
-
-- `apps/frontend/src/app/api/curation/documents/route.ts` — `GET` handler. Forwards to
-  Express `GET /api/curation/documents` via `apiClient` (DOC-006). Returns the queue
-  data. On Express error, returns the error status and message.
-- `apps/frontend/src/app/api/curation/documents/[id]/clear-flag/route.ts` — `POST`
-  handler. Forwards to Express `POST /api/documents/:id/clear-flag` via `apiClient`
-  (DOC-008). Returns 200 on success.
-
-All outbound calls must use `apiClient` so the `x-internal-key` header is injected.
-
-**Depends on**: Task 3, Task 10
-
-**Complexity**: S
-
-**Acceptance condition**: Vitest integration tests using MSW exist covering: (a) the GET
-`/api/curation/documents` route forwards the request to Express and returns the queue
-data on success; (b) the POST `.../clear-flag` route forwards to Express and returns 200
-on success; (c) all outbound Express calls include the `x-internal-key` header.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 12: Document metadata edit — components
-
-**Description**: Implement the document metadata edit form components under
-`apps/frontend/src/components/curation/`.
-
-Create the following components:
-
-- `MetadataEditFields` (Client Component, `curation/MetadataEditFields.tsx`) —
-  controlled inputs for each editable metadata field:
-  - `date` — `<input type="date">` (same pattern as the intake form)
-  - `description` — `<textarea>`
-  - `documentType` — `<input type="text">` (free-text string, per OQ-003 resolution)
-  - `people` — `<input type="text">` displaying a comma-separated string; the parent
-    form splits on submit and joins for display (per OQ-002 resolution)
-  - `organisations` — `<input type="text">`, same comma-separated pattern as `people`
-  - `landReferences` — `<input type="text">`, same comma-separated pattern as `people`
-
-  Receives current values and `onChange` callbacks as props. Shows per-field
-  validation errors for any failed `MetadataEditSchema` check.
-
-- `DocumentMetadataForm` (Client Component, `curation/DocumentMetadataForm.tsx`) —
-  pre-populated from the document record passed as a prop. On submit, validates fields
-  with `MetadataEditSchema` (defined in Task 13), then sends a PATCH to
-  `/api/curation/documents/:id/metadata`. On success, displays an inline success
-  message. On error, displays an inline error message. Does not trigger re-embedding
-  (UR-062) — no additional calls are made on save.
-
-Define `MetadataEditSchema` in `apps/frontend/src/lib/schemas.ts` (Task 13 is the
-Zod schemas task for curation). For the purposes of this task, the schema file can
-be extended from the one created in Task 4.
-
-The `organisations` field is required by the approved plan (added after Integration
-Lead review). It must be included alongside `people` and `landReferences` in both
-`MetadataEditFields` and the submit handler.
-
-**Depends on**: Task 6
-
-**Complexity**: M
-
-**Acceptance condition**: Vitest + React Testing Library component tests exist covering:
-(a) `DocumentMetadataForm` pre-populates all fields (date, description, documentType,
-people, organisations, landReferences) from the document record prop; (b) submitting
-with an empty description shows the description field error and does not call the API;
-(c) a successful PATCH response shows an inline success message; (d) a failed PATCH
-response shows an inline error message; (e) comma-separated `people` input is split
-into an array in the submitted payload (assert on the fetch body captured by MSW or a
-mock); (f) comma-separated `organisations` input is split into an array in the submitted
-payload; (g) metadata save does not make any additional API calls beyond the PATCH.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 13: Curation Zod schemas and document metadata API routes
-
-**Description**: This task has two parts that belong together because the API route
-schemas and the form schemas must agree on field shapes.
-
-**Part A — Zod schemas for curation** (extend `apps/frontend/src/lib/schemas.ts`):
-
-- `MetadataEditSchema` — validates the metadata edit form before the PATCH call:
-  - `date` — optional; if provided, must be a valid calendar date in `YYYY-MM-DD`
-    format; may be empty (undated documents are valid)
-  - `description` — non-empty, non-whitespace-only string
-  - `documentType` — non-empty string
-  - `people` — `string[]`; each element must be non-empty
-  - `organisations` — `string[]`; each element must be non-empty
-  - `landReferences` — `string[]`; each element must be non-empty
-
-- Response schemas for DOC-006 (document queue list item), DOC-007 (single document
-  detail), matching the contract shapes defined in `integration-lead-contracts.md`.
-
-**Part B — API routes**:
-
-- `apps/frontend/src/app/api/curation/documents/[id]/route.ts` — `GET` handler.
-  Forwards to Express `GET /api/documents/:id` via `apiClient` (DOC-007). Returns
-  the document record.
-- `apps/frontend/src/app/api/curation/documents/[id]/metadata/route.ts` — `PATCH`
-  handler. Forwards to Express `PATCH /api/documents/:id/metadata` via `apiClient`
-  (DOC-009). Returns the updated document record on success.
-
-**Depends on**: Task 3, Task 4
-
-**Complexity**: S
-
-**Acceptance condition**: (a) Vitest unit tests for `MetadataEditSchema` cover: valid
-input with all fields passes; empty description fails; whitespace-only description
-fails; invalid date format fails; valid date passes; empty `people` array element fails.
-(b) Vitest integration tests using MSW cover: the GET `[id]` route returns the document
-record from Express; the PATCH metadata route forwards the body to Express and returns
-the updated record; all outbound calls include `x-internal-key`.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 14: Document metadata edit — page
-
-**Description**: Create the document metadata edit page at
-`apps/frontend/src/app/curation/documents/[id]/page.tsx`. This page fetches the
-document record server-side using `fetch` in the page component body (React Server
-Component data fetching pattern). The returned data is passed as props to
-`DocumentMetadataForm`. If the fetch returns 404, render a "document not found" message
-or redirect to `/curation/documents`.
-
-The fetch in the page component must use `apiClient` — the internal key must be
-included.
-
-**Depends on**: Task 12, Task 13
-
-**Complexity**: S
-
-**Acceptance condition**: A developer navigating to `/curation/documents/:id` in a
-running local application (with Express returning a mock or seeded document record)
-sees the metadata edit form pre-populated with the document's current values. Submitting
-a corrected value updates the record and shows a success message. Verified by manual
-developer walkthrough with a seeded test document.
-
-**Condition type**: manual
-
-**Status**: not_started
-
----
-
-### Task 15: Vocabulary review queue — components
-
-**Description**: Implement the vocabulary review queue components under
-`apps/frontend/src/components/curation/`.
-
-Create the following components:
-
-- `VocabularyQueueList` (Client Component, `curation/VocabularyQueueList.tsx`) —
-  fetches the vocabulary candidate queue on mount using `useSWR` with the SWR key
-  `/api/curation/vocabulary`. Renders a list of `VocabularyQueueItem` components.
-  After a successful accept or reject action, calls `mutate()` to re-fetch and remove
-  the acted-on item. If the fetch fails, shows an error state with a retry button.
-  If the queue is empty, shows an empty-state message.
-
-- `VocabularyQueueItem` (component, `curation/VocabularyQueueItem.tsx`) — a single
-  row in the queue. Displays: term name, category, confidence score (numeric), and
-  source document description. Provides `AcceptCandidateButton` and
-  `RejectCandidateButton`.
-
-- `AcceptCandidateButton` (Client Component, `curation/AcceptCandidateButton.tsx`) —
-  posts to `/api/curation/vocabulary/:termId/accept`. On success, calls a callback
-  prop to trigger queue re-fetch. Displays a loading state during the request. On
-  error, displays an inline error message.
-
-- `RejectCandidateButton` (Client Component, `curation/RejectCandidateButton.tsx`) —
-  posts to `/api/curation/vocabulary/:termId/reject`. Same pattern as
-  `AcceptCandidateButton`.
-
-All API response data must be validated with Zod schemas at the frontend boundary before
-being used in component state. Define the VOC-001 response schema in
-`apps/frontend/src/lib/schemas.ts`.
-
-**Depends on**: Task 6
-
-**Complexity**: M
-
-**Acceptance condition**: Vitest + React Testing Library component tests exist covering:
-(a) `VocabularyQueueList` renders candidates from a mocked SWR response with term name,
-category, confidence, and source document description visible for each; (b) empty queue
-shows an empty-state message; (c) fetch failure shows error state with a retry button;
-(d) `AcceptCandidateButton` shows loading state during the request; (e) a successful
-accept triggers the queue re-fetch callback; (f) a failed accept shows an inline error;
-(g) `RejectCandidateButton` shows loading state; (h) a successful reject triggers the
-re-fetch callback; (i) a failed reject shows an inline error.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 16: Vocabulary review queue — page and API routes
-
-**Description**: Create the vocabulary review queue page and API routes.
-
-Page:
-
-- `apps/frontend/src/app/curation/vocabulary/page.tsx` — renders `VocabularyQueueList`.
-
-Next.js API routes:
-
-- `apps/frontend/src/app/api/curation/vocabulary/route.ts` — `GET` handler. Forwards
-  to Express `GET /api/curation/vocabulary` via `apiClient` (VOC-001). Returns the
-  candidate list.
-- `apps/frontend/src/app/api/curation/vocabulary/[termId]/accept/route.ts` — `POST`
-  handler. Forwards to Express `POST /api/curation/vocabulary/:termId/accept` via
-  `apiClient` (VOC-002). Returns 200 on success.
-- `apps/frontend/src/app/api/curation/vocabulary/[termId]/reject/route.ts` — `POST`
-  handler. Forwards to Express `POST /api/curation/vocabulary/:termId/reject` via
-  `apiClient` (VOC-003). Returns 200 on success.
-
-All outbound calls must use `apiClient`.
-
-**Depends on**: Task 3, Task 15
-
-**Complexity**: S
-
-**Acceptance condition**: Vitest integration tests using MSW exist covering: (a) the
-GET `/api/curation/vocabulary` route returns the candidate list from Express; (b) the
-accept route forwards to Express and returns 200; (c) the reject route forwards to
-Express and returns 200; (d) all outbound Express calls include the `x-internal-key`
-header.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 17: Manual vocabulary term entry — components and Zod schema
-
-**Description**: Implement the manual vocabulary term entry form components.
-
-Define `AddTermSchema` in `apps/frontend/src/lib/schemas.ts`:
-
-- `term` — string, required, non-empty
-- `category` — string, required, non-empty, free-text (not an enumeration)
-- `description` — string, optional
-- `aliases` — array of strings, optional (defaults to empty array); each element
-  must be non-empty if present
-- `relationships` — array of `{ targetTermId: string; relationshipType: string }`,
-  optional; `targetTermId` and `relationshipType` must each be non-empty strings
-
-Create the following components under `apps/frontend/src/components/curation/`:
-
-- `TermRelationshipsInput` (Client Component, `curation/TermRelationshipsInput.tsx`) —
-  allows the user to add, edit, and remove relationship entries. Each entry has a
-  `targetTermId` text input and a `relationshipType` text input (free-text string;
-  indicative types per ADR-038: owned_by, transferred_to, witnessed_by, adjacent_to,
-  employed_by, referenced_in, performed_by, succeeded_by — but any string is valid).
-  Emits the current `relationships` array to the parent form via a callback prop.
-
-- `AddVocabularyTermForm` (Client Component, `curation/AddVocabularyTermForm.tsx`) —
-  form for manually entering a new vocabulary term. Composes `TermRelationshipsInput`.
-  On submit, validates fields with `AddTermSchema`, then posts to
-  `/api/curation/vocabulary/terms`. After a successful submission, redirects to
-  `/curation/vocabulary` or shows an inline success message (Implementer's choice,
-  either is acceptable per the plan). On error, shows an inline error message.
-
-**Depends on**: Task 6
-
-**Complexity**: M
-
-**Acceptance condition**: (a) Vitest unit tests for `AddTermSchema` cover: valid input
-with all fields passes; empty `term` fails; empty `category` fails; optional
-`description` absent passes; empty `aliases` element fails; relationship with empty
-`targetTermId` fails; relationship with empty `relationshipType` fails. (b) Vitest +
-React Testing Library component tests for `AddVocabularyTermForm` cover: submitting a
-valid form calls fetch with the correct payload; empty `term` shows a validation error
-and does not call the API; empty `category` shows a validation error and does not call
-the API; successful submission shows success or redirects; failed submission shows an
-inline error message.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 18: Manual vocabulary term entry — page and API route
-
-**Description**: Create the manual vocabulary term entry page and API route.
-
-Page:
-
-- `apps/frontend/src/app/curation/vocabulary/new/page.tsx` — renders
-  `AddVocabularyTermForm`. No data fetching on load.
-
-Next.js API route:
-
-- `apps/frontend/src/app/api/curation/vocabulary/terms/route.ts` — `POST` handler.
-  Forwards to Express `POST /api/curation/vocabulary/terms` via `apiClient` (VOC-004).
-  Returns the created term record on success (HTTP 201). On validation error from
-  Express, returns the error status and body. On 5xx, logs via Pino and returns HTTP 500
-  with a generic message.
-
-**Depends on**: Task 3, Task 17
-
-**Complexity**: S
-
-**Acceptance condition**: Vitest integration tests using MSW exist covering: (a) the
-POST `/api/curation/vocabulary/terms` route forwards the request body to Express and
-returns 201 with the created term; (b) an Express validation error (422) is forwarded
-to the browser; (c) an Express 5xx causes a 500 response to the browser with a generic
-message; (d) the outbound Express call includes the `x-internal-key` header. A manual
-walkthrough confirms that a developer can navigate to `/curation/vocabulary/new`, fill
-in the form, submit, and either be redirected to `/curation/vocabulary` or see a success
-message.
+**Acceptance condition**: `server/server.ts` and `server/config/index.ts` exist and are
+correctly structured; the pre-configured Ky instance exists in `server/requests/client.ts`
+with base URL and `x-internal-key` set; Tier 2 supertest tests pass including the internal
+key non-leak assertion; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: both
 
@@ -785,128 +137,840 @@ message.
 
 ---
 
-### Task 19: Pino logging in API route handlers
+### Task 3: Shared utilities and frontend-only schemas
 
-**Description**: Add Pino structured logging to all Next.js API route handlers. Pino
-is a server-side dependency only — it must not be imported into Client Components.
+**Description**: Implement the shared utility functions and the three frontend-only form
+validation schemas. These are prerequisites for all UI and server implementation tasks.
 
-Create a shared logger instance in `apps/frontend/src/lib/logger.ts` that exports a
-configured Pino logger. All API route handlers import from this module rather than
-creating their own Pino instances.
+Specifically:
 
-Apply the following log levels consistently across all API route handlers:
+- Implement `src/lib/temporal.ts`: re-exports `Temporal` from `@js-temporal/polyfill`.
+  This is the single import point for `Temporal` across all frontend code — no other file
+  imports from `@js-temporal/polyfill` directly. When native support lands (Node 26 +
+  Safari), only this file changes. See ADR-050.
+- Implement `src/lib/fetchWrapper.ts`: a thin project utility function wrapping plain
+  `fetch`. Sets consistent `content-type: application/json` and base path on every call.
+  Passed as the `fetcher` argument to `useSWR` and `useSWRMutation`. Must not contain any
+  Next.js or Hono imports.
+- Implement `src/lib/parseFilename.ts`: a pure function that parses a filename stem against
+  the pattern `YYYY-MM-DD - short description`. Returns
+  `{ date: string; description: string } | null`. Uses `Temporal.PlainDate.from()` with
+  try/catch for calendar date validation (e.g. `2026-02-30` is caught as invalid).
+  Import `Temporal` from `src/lib/temporal.ts`. Rules per UR-006:
+  - If pattern matches and parsed date is a valid calendar date, return the ISO date string
+    and description segment
+  - If parsed date is not a valid calendar date, return the description without a date
+  - If pattern does not match, return `null`
+- Implement `src/lib/schemas.ts`: contains only the three frontend form validation schemas.
+  A comment at the top states that all response schemas are imported from
+  `@institutional-knowledge/shared`. Schemas:
+  - `UploadFormSchema` — validates file (extension and size), date (YYYY-MM-DD format and
+    valid calendar date), and description (non-empty, non-whitespace-only). File size limit
+    is injected as a parameter (makes the schema testable without config access). Extension
+    check is case-insensitive. Uses `z.uuid()` (not `z.string().uuid()`) for any UUID
+    fields (Zod v4 form).
+  - `MetadataEditSchema` — derived from the shared `UpdateDocumentMetadataRequest` schema
+    imported from `@institutional-knowledge/shared`; extends with frontend-specific
+    transformation rules (comma-separated string splitting for `people`, `organisations`,
+    `landReferences`). Date is optional (null or empty is valid). Description must be
+    non-empty non-whitespace-only if provided. Must not redefine fields independently.
+  - `AddTermSchema` — derived from the shared `AddVocabularyTermRequest` schema imported
+    from `@institutional-knowledge/shared`. The `relationships` array entries use
+    `targetTermId: z.uuid()` (Zod v4 form — not `z.string().uuid()`).
+- Write Tier 1 tests (Vitest, no React Testing Library):
+  - `parseFilename`: conforming filenames, non-conforming filenames, valid calendar date,
+    invalid calendar date (date omitted, description returned), empty string,
+    extension-only filenames
+  - `UploadFormSchema`: valid inputs, empty date, invalid date format, invalid calendar
+    date, empty description, whitespace-only description, unsupported file extension,
+    oversized file, exactly at size limit
+  - `MetadataEditSchema`: valid inputs, null date pre-population (no validation error),
+    empty description, comma-separated array inputs
+  - `AddTermSchema`: valid inputs, missing required fields, UUID validation via `z.uuid()`
+    for `targetTermId`
+  - `fetchWrapper`: mock `window.fetch` directly; assert consistent `content-type` header
+    and base path are set on every call
 
-- `info` — successful document submission, successful flag clear, successful term
-  accept/reject, successful metadata save, successful manual term creation
-- `warn` — unexpected 4xx responses from Express (responses that should not occur given
-  client-side validation), client-side validation bypass attempts
-- `error` — 5xx responses from Express, network failures reaching Express, config
-  validation failures at startup
-
-This task applies logging to all API route handlers created in Tasks 9, 11, 13, 16,
-and 18. Each handler must be updated to use the shared logger.
-
-**Depends on**: Task 9, Task 11, Task 13, Task 16, Task 18
-
-**Complexity**: S
-
-**Acceptance condition**: A code review confirms that: (a) every API route handler file
-imports from `apps/frontend/src/lib/logger.ts` and logs at the correct level for each
-outcome (info/warn/error per the rules above); (b) Pino is not imported in any Client
-Component file; (c) a 5xx response path in at least one handler logs at `error` level
-(verified by reading the code). No automated test is required for log output in Phase 1;
-this is a code-quality verification by reading the implementation.
-
-**Condition type**: manual
-
-**Status**: not_started
-
----
-
-### Task 20: Error handling — queue fetch failure states and 5xx browser messages
-
-**Description**: Ensure consistent error handling across all curation queue pages and
-the upload flow, for cases not covered by the component tests in earlier tasks.
-
-Verify and, where not already implemented, add:
-
-1. **Queue fetch failure**: `DocumentQueueList` and `VocabularyQueueList` must show a
-   distinct error state with a retry button when the initial SWR fetch fails, not an
-   empty queue. This distinguishes "no items in queue" from "failed to load". (This
-   is required by the approved plan and must be present in the final implementation.)
-
-2. **5xx browser messages**: All client-side error handlers (in `DocumentUploadForm`,
-   `ClearFlagButton`, `AcceptCandidateButton`, `RejectCandidateButton`,
-   `AddVocabularyTermForm`, `DocumentMetadataForm`) must display "Something went wrong.
-   Please try again." for 5xx responses. Internal server details must not be exposed
-   to the browser.
-
-3. **Network error (fetch failure)**: All client-side forms and buttons that call
-   Next.js API routes must handle `fetch` throwing (network unreachable) and display
-   a message indicating the server could not be reached.
-
-This task is a cross-cutting sweep. If the earlier component tasks (7, 10, 12, 15, 17)
-already implement these behaviours correctly, this task confirms it by reading the code
-and adding any missing cases.
-
-**Depends on**: Task 7, Task 10, Task 12, Task 15, Task 17
-
-**Complexity**: S
-
-**Acceptance condition**: Vitest + React Testing Library tests exist (or are added in
-this task) for: (a) `DocumentQueueList` shows a retry button on fetch failure, not an
-empty list; (b) `VocabularyQueueList` shows a retry button on fetch failure; (c)
-`DocumentUploadForm` shows a generic error message on a 5xx response; (d)
-`DocumentUploadForm` shows a "server could not be reached" message when `fetch` throws.
-Cases (a) and (b) may already be covered by Tasks 10 and 15 — if so, this task
-confirms they exist; no duplication required.
-
-**Condition type**: automated
-
-**Status**: not_started
-
----
-
-### Task 21: End-to-end MSW integration test suite
-
-**Description**: Write an MSW-based integration test suite that exercises the full
-request/response flow through the Next.js API routes for all major happy-path and
-error-path scenarios. Tests run in Vitest. No test database or running Express server
-is needed — MSW intercepts all outbound `fetch` calls to Express.
-
-The suite must cover at minimum:
-
-- C1 upload happy path: browser POST to `/api/documents/upload` → three Express calls
-  (DOC-001, DOC-002, DOC-003) → 201 returned to browser with document record
-- C1 upload duplicate: DOC-001 returns 409 → handler returns 409 with existing record
-- C1 upload partial failure with cleanup: DOC-002 returns 500 → cleanup DOC-005 is
-  called → 500 returned to browser
-- Document queue fetch: GET `/api/curation/documents` → DOC-006 response forwarded
-- Clear flag: POST `.../clear-flag` → DOC-008 forwarded → 200 returned
-- Document detail fetch: GET `/api/curation/documents/:id` → DOC-007 forwarded
-- Metadata PATCH: PATCH `.../metadata` → DOC-009 forwarded → updated record returned
-- Vocabulary queue fetch: GET `/api/curation/vocabulary` → VOC-001 forwarded
-- Accept candidate: POST `.../accept` → VOC-002 forwarded → 200 returned
-- Reject candidate: POST `.../reject` → VOC-003 forwarded → 200 returned
-- Add manual term: POST `/api/curation/vocabulary/terms` → VOC-004 forwarded → 201
-- All scenarios: assert that `x-internal-key` header is present on each outbound
-  Express call (captured by MSW request handlers)
-
-Tests in earlier tasks (9, 11, 13, 16, 18) cover individual routes. This task
-assembles a consolidated suite that verifies the end-to-end contract compliance
-including the internal key assertion on every route.
-
-**Depends on**: Task 9, Task 11, Task 13, Task 16, Task 18
+**Depends on**: Task 1
 
 **Complexity**: M
 
-**Acceptance condition**: The Vitest integration test suite runs to completion with all
-scenarios listed above passing. Each scenario asserts on: correct HTTP status code
-returned to the browser, correct response body shape (validated against the Zod
-response schemas), and presence of `x-internal-key` on the forwarded Express call.
-Confirmed by running `pnpm test` (or equivalent) in `apps/frontend/`.
+**Acceptance condition**: All three schemas exist in `src/lib/schemas.ts`; only
+`UploadFormSchema`, `MetadataEditSchema`, and `AddTermSchema` are defined there (no
+response schema redefinitions); `src/lib/temporal.ts` exists and re-exports `Temporal`
+from `@js-temporal/polyfill`; `parseFilename` and `fetchWrapper` exist in `src/lib/`;
+all Tier 1 tests pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 4: Application layout and navigation
+
+**Description**: Implement the root application layout, navigation component, root
+redirect, and page shell. These are the structural elements shared across all pages.
+
+Specifically:
+
+- Implement `src/app/layout.tsx` (Server Component): root layout; renders `AppNav` in the
+  header; applies global CSS from `src/styles/global.css`
+- Implement `src/styles/global.css`: baseline reset and global typography styles
+- Implement `src/components/AppNav/AppNav.tsx` (Server Component): top-level navigation
+  header rendered on every page. Links: `/upload` (Document Intake) and `/curation`
+  (Curation). No props, no client-side state. Satisfies US-086.
+- Implement `src/app/page.tsx`: root redirect to `/upload` (React Server Component using
+  Next.js `redirect()`)
+- Implement `src/app/upload/page.tsx`: page stub that reads `maxFileSizeMb` from the
+  frontend config at render time and passes it as a prop to `DocumentUploadForm` (to be
+  implemented in Task 5)
+- Implement `src/app/admin/curation/layout.tsx`: shared layout for all `/curation/*`
+  pages; renders `CurationNav`
+- Implement `src/app/admin/curation/page.tsx`: curation landing page; renders navigation
+  links to `/curation/documents` and `/curation/vocabulary`; no queue data
+- Implement `src/components/CurationNav/CurationNav.tsx`: navigation between curation
+  sections; links to `/curation/documents` and `/curation/vocabulary`
+- Write Tier 1 tests (Vitest + React Testing Library, static props):
+  - `AppNav`: renders navigation links for `/upload` and `/curation`; correct ARIA roles;
+    accessible by keyboard
+  - `CurationNav`: renders links for `/curation/documents` and `/curation/vocabulary`
+
+**Depends on**: Tasks 1, 3
+
+**Complexity**: S
+
+**Acceptance condition**: Layout renders with `AppNav`; root `/` redirects to `/upload`;
+curation layout renders `CurationNav`; Tier 1 RTL tests for `AppNav` and `CurationNav`
+pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: both
+
+**Status**: not_started
+
+---
+
+### Task 5: Document upload form — components and client-side validation
+
+**Description**: Implement the document upload form components and client-side validation
+for the C1 intake UI. This task covers the presentational components and form state only.
+The API call is wired in Task 6.
+
+Specifically:
+
+- Implement `src/components/FilePickerInput/FilePickerInput.tsx` (Client Component):
+  file `<input>` element restricted to `accept=".pdf,.tif,.tiff,.jpg,.jpeg,.png"`.
+  On file selection, calls `parseFilename` (from Task 3) and emits the selected `File`
+  object and parsed metadata to the parent form state via callbacks. Accessibility: proper
+  label association, ARIA attributes.
+- Implement `src/components/MetadataFields/MetadataFields.tsx` (Client Component):
+  controlled inputs for `date` (type `date`) and `description` (type `text`). Receives
+  pre-populated values from filename parsing and allows user editing. Exposes validation
+  state to the parent form.
+- Implement `src/components/ValidationFeedback/ValidationFeedback.tsx` (Client Component):
+  renders per-field error messages from Zod client-side validation. Also surfaces
+  server-side rejection messages. Renders `DuplicateConflictAlert` when the API returns a
+  duplicate detection error.
+- Implement `src/components/DuplicateConflictAlert/DuplicateConflictAlert.tsx` (Client
+  Component): displayed inside `ValidationFeedback` when a 409 duplicate is detected.
+  Props: `existingRecord: { description: string; date: string | null; archiveReference:
+  string }`. If `date` is `null`, display "Undated". The `existingRecord` data is read
+  from `response.data.existingRecord` (not `response.existingRecord`) per the corrected
+  409 wire shape (`{ error: 'duplicate_detected', data: { existingRecord: { ... } } }`).
+- Implement `src/components/SubmitButton/SubmitButton.tsx` (Client Component): disabled
+  while validation errors exist or while submission is in progress; shows a loading state
+  during the API call.
+- Implement `src/components/DocumentUploadForm/DocumentUploadForm.tsx` (Client Component):
+  orchestrates all sub-components. State: `selectedFile`, `date`, `description`,
+  `clientErrors`, `serverError`, `submitting`. Receives `maxFileSizeMb: number` as a prop.
+  Runs `UploadFormSchema` (from Task 3) client-side before submission. API integration
+  wired in Task 6.
+- Write Tier 1 tests (Vitest + React Testing Library, static props):
+  - `DuplicateConflictAlert`: renders description, date, and archive reference; renders
+    "Undated" when `date` is `null`
+  - `FilePickerInput`: renders file input; accessible label; `accept` attribute is correct
+  - `SubmitButton`: renders in enabled, disabled, and loading states; ARIA attributes
+
+**Depends on**: Tasks 3, 4
+
+**Complexity**: M
+
+**Acceptance condition**: All five components exist and are correctly structured; Tier 1
+RTL tests pass including the `null` date to "Undated" assertion on `DuplicateConflictAlert`;
+`pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 6: Document upload — Hono route, handler, and request functions
+
+**Description**: Implement the composite document upload operation across all three custom
+server layers (route handler, handler, request functions) and wire the upload form to the
+Hono API route via `useSWRMutation`.
+
+**Custom server layers**:
+
+- `server/requests/documents.ts`: four request functions (no framework imports; use the
+  pre-configured Ky instance from Task 2):
+  - `initiateUpload(payload)` calls Express `POST /api/documents/initiate` (DOC-001);
+    returns typed `InitiateUploadResponse` or throws classified error; all response schemas
+    imported from `@institutional-knowledge/shared`
+  - `uploadFileBytes(uploadId, file)` calls Express
+    `POST /api/documents/:uploadId/upload` (DOC-002) with `multipart/form-data`; on 409
+    returns the duplicate error with `existingRecord` read from `response.data.existingRecord`
+  - `finalizeUpload(uploadId)` calls Express
+    `POST /api/documents/:uploadId/finalize` (DOC-003)
+  - `deleteUpload(uploadId)` calls Express `DELETE /api/documents/:uploadId` (DOC-005);
+    used for cleanup on failure; swallows errors (best-effort)
+- `server/handlers/uploadHandler.ts`: composite upload handler (no framework imports):
+  - Receives parsed file, date, description
+  - Calls `initiateUpload`, then `uploadFileBytes`, then `finalizeUpload` in sequence
+  - If `uploadFileBytes` returns a 409 duplicate, calls `deleteUpload` (best-effort) and
+    re-throws the duplicate error with the `existingRecord` payload
+  - If any other step fails, calls `deleteUpload` (best-effort) and re-throws
+  - Returns the `FinalizeUploadResponse` on success
+- `server/routes/documents.ts`: Hono route handler for `POST /api/documents/upload`:
+  - Parses `multipart/form-data` request; extracts `file`, `date`, `description`
+  - Calls `uploadHandler`
+  - Returns HTTP 201 with `FinalizeUploadResponse` on success
+  - Returns HTTP 409 with envelope
+    `{ error: 'duplicate_detected', data: { existingRecord: { ... } } }` on duplicate
+  - Returns HTTP 400/422/5xx on other errors
+  - Logs using Pino (info on success, error on 5xx, warn on 4xx)
+
+**UI layer**:
+
+- Wire `DocumentUploadForm` to call `POST /api/documents/upload` via `useSWRMutation` /
+  `fetchWrapper`
+- On HTTP 201: navigate to `/upload/success` with the returned document record
+- On HTTP 409: extract `response.data.existingRecord`; render `DuplicateConflictAlert`
+- On HTTP 400/422/5xx: set `serverError` with the error message from the response body
+
+**Tests**:
+
+- Tier 2 — UI behaviour (Vitest + RTL + MSW; MSW intercepts at Hono route boundary
+  `POST /api/documents/upload`):
+  - Submitting valid form triggers POST; on 201 response navigates to success page
+  - API 409 response renders `DuplicateConflictAlert` with data from
+    `response.data.existingRecord`; submit button re-enabled
+  - Server error (5xx) shows generic error message; submit button re-enabled
+  - Submit button shows loading state during in-flight request
+- Tier 2 — Custom server route handler (Vitest + supertest against Hono app; MSW intercepts
+  at Express boundary `http://[express.baseUrl]/api/documents/*`):
+  - `POST /api/documents/upload`: returns 201 with finalized response on full success
+  - Returns 409 with correct envelope when upload step returns duplicate; `existingRecord`
+    nested under `data`
+  - Returns error status on Express failure; cleanup endpoint called
+- Tier 2 — Handler tests (Vitest; import handler directly; mock request functions):
+  - Three-step sequence called in order
+  - `deleteUpload` called when `uploadFileBytes` fails
+  - `deleteUpload` called when `finalizeUpload` fails
+  - Duplicate 409 from `uploadFileBytes`: `deleteUpload` called; duplicate error re-thrown
+    with `existingRecord`
+  - Typed success return on happy path
+
+**Depends on**: Tasks 2, 3, 5
+
+**Complexity**: L
+
+**Acceptance condition**: All three server layers implemented; handler cleanup logic
+verified by Tier 2 handler tests (delete called on each failure path); 409 envelope reads
+`response.data.existingRecord` confirmed by Tier 2 route handler test; UI form wires to
+API via `useSWRMutation`; all Tier 2 tests pass; `pnpm biome check` and
+`pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 7: Upload success page and UploadSuccessMessage component
+
+**Description**: Implement the `/upload/success` page and the `UploadSuccessMessage`
+component that displays the submission confirmation after a successful document upload.
+
+Specifically:
+
+- Implement `src/components/UploadSuccessMessage/UploadSuccessMessage.tsx` (Client
+  Component): receives the document record returned by the API and renders the description,
+  date, and archive reference. If `date` is `null`, display "Undated". Props:
+  `{ description: string; date: string | null; archiveReference: string }`.
+- Implement `src/app/upload/success/page.tsx`: reads the document record from query
+  parameters or session storage (implementer choice) and passes it to
+  `UploadSuccessMessage`. Provides a link back to `/upload` for uploading another document.
+- Write Tier 1 tests (Vitest + React Testing Library, static props):
+  - `UploadSuccessMessage`: renders description and archive reference; renders "Undated"
+    when `date` is `null`; renders date string when `date` is non-null
+
+**Depends on**: Tasks 4, 6
+
+**Complexity**: S
+
+**Acceptance condition**: `/upload/success` page exists; `UploadSuccessMessage` renders
+correctly with a non-null date; renders "Undated" for `null` date confirmed by Tier 1 RTL
+test; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 8: Document curation queue — components
+
+**Description**: Implement the presentational components for the document curation queue
+page. Data fetching is wired in Task 9. This task covers the components and their Tier 1
+tests only.
+
+Specifically:
+
+- Implement
+  `src/app/admin/curation/documents/components/DocumentQueueItem.tsx` (Client Component):
+  a single row in the queue. Shows description, date (displays "Undated" when `date` is
+  `null`), flag reason (full text including failing pages per UR-051, UR-055), `flaggedAt`
+  timestamp, and submitter identity (UR-126). Provides a "Clear flag" action button (wired
+  in Task 9) and a link to `/curation/documents/:id` for the metadata edit form. Props
+  derived from `DocumentQueueItem` imported from `@institutional-knowledge/shared`.
+- Implement `src/components/ClearFlagButton/ClearFlagButton.tsx` (Client Component): posts
+  a flag-clear request to the API; shows loading state; on success triggers queue re-fetch
+  (wired in Task 9); on error displays an inline error message. Props:
+  `{ documentId: string; onSuccess: () => void }`.
+- Write Tier 1 tests (Vitest + React Testing Library, static props):
+  - `DocumentQueueItem`: renders description, date, flag reason, and submitter identity;
+    renders "Undated" when `date` is `null`; renders date string when non-null; contains a
+    link to `/curation/documents/:id`
+  - `ClearFlagButton`: renders in default, loading, and error states; accessible button
+    label
+
+**Depends on**: Tasks 3, 4
+
+**Complexity**: S
+
+**Acceptance condition**: `DocumentQueueItem` and `ClearFlagButton` exist; Tier 1 RTL
+tests pass including `null` date to "Undated" assertion on `DocumentQueueItem`; `pnpm
+biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 9: Document curation queue — Hono route, handler, request functions, and data fetching
+
+**Description**: Implement the document queue data fetching and the clear-flag operation
+across all three custom server layers, and wire the curation queue page with `useSWR`.
+
+**Custom server layers**:
+
+- `server/requests/curation.ts`: two request functions (no framework imports; use the
+  pre-configured Ky instance):
+  - `fetchDocumentQueue(params?)` calls Express `GET /api/curation/documents` (DOC-006);
+    response schema (`DocumentQueueResponse`) imported from `@institutional-knowledge/shared`
+  - `clearDocumentFlag(documentId)` calls Express
+    `POST /api/documents/:id/clear-flag` (DOC-008); response schema imported from shared
+- `server/handlers/curationHandler.ts` (document section): thin wrappers; these operations
+  have no orchestration logic; handlers delegate directly to request functions
+- `server/routes/curation.ts`: two Hono route handlers:
+  - `GET /api/curation/documents` returns 200 with `DocumentQueueResponse`
+  - `POST /api/curation/documents/:id/clear-flag` returns 200 on success; propagates 404
+    and 409 from Express with structured error body
+
+**UI layer**:
+
+- Implement
+  `src/app/admin/curation/documents/_hooks/useDocumentQueue.ts`: custom hook using `useSWR`
+  with `fetchWrapper` as fetcher; SWR key is `/api/curation/documents`. Returns
+  `{ items, isLoading, error, mutate }`.
+- Implement `src/app/admin/curation/documents/page.tsx`: curation documents page that
+  renders `DocumentQueueList` using the hook. Shows loading state; shows empty state when
+  queue is empty; shows error state with retry button when fetch fails (distinguishes "no
+  items" from "failed to load").
+- Implement `DocumentQueueList` component: receives items from the hook and renders a list
+  of `DocumentQueueItem` components; passes `onSuccess` callback to `ClearFlagButton` that
+  calls `mutate()` to re-fetch.
+
+**Tests**:
+
+- Tier 2 — UI behaviour (Vitest + RTL + MSW; MSW intercepts at Hono route boundary
+  `GET /api/curation/documents` and
+  `POST /api/curation/documents/:id/clear-flag`):
+  - `useDocumentQueue` hook: fetches on mount; returns items in `items`; shows empty state
+    on empty response; shows error state with message on fetch failure
+  - `ClearFlagButton` wired: triggers POST; loading state shown; queue re-fetches on
+    success (mutate called); inline error shown on API failure
+- Tier 2 — Custom server route handler (Vitest + supertest; MSW at Express boundary
+  `http://[express.baseUrl]/api/curation/documents` and
+  `http://[express.baseUrl]/api/documents/:id/clear-flag`):
+  - `GET /api/curation/documents`: returns 200 with queue data from Express
+  - `POST /api/curation/documents/:id/clear-flag`: propagates 200, 404, and 409 correctly
+
+**Depends on**: Tasks 2, 3, 8
+
+**Complexity**: M
+
+**Acceptance condition**: Document queue page fetches and renders items on mount; clear-flag
+triggers re-fetch of queue confirmed by Tier 2 hook test; all Tier 2 tests pass;
+`pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 10: Document detail page and metadata edit form — components
+
+**Description**: Implement the document detail page and the `DocumentMetadataForm`
+component for editing a document's metadata. The API call is wired in Task 11.
+
+Specifically:
+
+- Implement `src/app/admin/curation/documents/[id]/page.tsx` (React Server Component):
+  fetches the document record server-side using `fetch` in the page component body
+  (DOC-007 via the Hono route `GET /api/curation/documents/:id`). Passes the document
+  data as props to `DocumentMetadataForm`. Handles 404 — renders an error message if the
+  document is not found.
+- Implement `src/components/MetadataEditFields/MetadataEditFields.tsx` (Client Component):
+  controlled inputs for `date`, `description`, `documentType` (free-text string per
+  OQ-003), `people`, `organisations`, and `landReferences`. The `people`, `organisations`,
+  and `landReferences` fields use comma-separated text inputs (split into arrays on submit,
+  joined for display per OQ-002). Date field handles `null` initial value without treating
+  it as a validation error on render — an empty date field is valid.
+- Implement
+  `src/components/DocumentMetadataForm/DocumentMetadataForm.tsx` (Client Component):
+  editable form using `MetadataEditFields`. Pre-populated from the document record received
+  as props. On submit, validates with `MetadataEditSchema` (from Task 3). API call wired
+  in Task 11. Shows success message on save; shows inline error on API failure.
+- Write Tier 1 tests (Vitest + React Testing Library, static props):
+  - `MetadataEditFields`: renders all fields; comma-separated display for array fields;
+    date field renders empty with no error when initial date is `null`
+  - `DocumentMetadataForm` (static): renders all fields pre-populated from props; submit
+    button accessible
+
+**Depends on**: Tasks 3, 4
+
+**Complexity**: M
+
+**Acceptance condition**: Document detail page fetches document server-side; form renders
+pre-populated fields; null date pre-population does not trigger validation error confirmed
+by Tier 1 RTL test; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 11: Document detail — Hono routes, handler, and request functions
+
+**Description**: Implement the fetch-document-detail and update-metadata operations across
+all three custom server layers. Wire `DocumentMetadataForm` to the PATCH API via
+`useSWRMutation`.
+
+**Custom server layers**:
+
+- `server/requests/curation.ts` (extend): two request functions:
+  - `fetchDocumentDetail(documentId)` calls Express `GET /api/documents/:id` (DOC-007);
+    response schema (`DocumentDetailResponse`) imported from
+    `@institutional-knowledge/shared`; `date` field is `string | null`
+  - `updateDocumentMetadata(documentId, patch)` calls Express
+    `PATCH /api/documents/:id/metadata` (DOC-009); request body from
+    `UpdateDocumentMetadataRequest` imported from `@institutional-knowledge/shared`
+- `server/handlers/curationHandler.ts` (extend): thin wrappers for the two operations;
+  no orchestration logic
+- `server/routes/curation.ts` (extend): two Hono route handlers:
+  - `GET /api/curation/documents/:id` returns 200 with `DocumentDetailResponse`; 404
+    propagated from Express
+  - `PATCH /api/curation/documents/:id/metadata` returns 200 with
+    `UpdateDocumentMetadataResponse`; 400 and 404 propagated from Express
+
+**UI layer**:
+
+- Wire `DocumentMetadataForm` to call
+  `PATCH /api/curation/documents/:id/metadata` via `useSWRMutation` / `fetchWrapper`
+- On success: show inline success message
+- On error: show inline error message
+
+**Tests**:
+
+- Tier 2 — UI behaviour (Vitest + RTL + MSW; MSW intercepts at Hono route boundary
+  `PATCH /api/curation/documents/:id/metadata`):
+  - `DocumentMetadataForm` hook: pre-populates fields from document record prop; rejects
+    empty description on submit; sends PATCH with correctly split array fields; shows
+    success message on save; shows error on API failure
+  - Handles `null` initial date without treating it as a validation error
+- Tier 2 — Custom server route handler (Vitest + supertest; MSW at Express boundary
+  `http://[express.baseUrl]/api/documents/:id/metadata`):
+  - `GET /api/curation/documents/:id`: returns 200 with document detail; propagates 404
+  - `PATCH /api/curation/documents/:id/metadata`: returns 200 on success; propagates 400
+    and 404
+
+**Depends on**: Tasks 2, 3, 10
+
+**Complexity**: M
+
+**Acceptance condition**: Metadata PATCH sends correctly structured request body with array
+fields split from comma-separated input confirmed by Tier 2 UI test; null date handled
+without error; all Tier 2 tests pass; `pnpm biome check` and
+`pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 12: Vocabulary review queue — components
+
+**Description**: Implement the presentational components for the vocabulary review queue
+page. Data fetching and accept/reject operations are wired in Task 13.
+
+Specifically:
+
+- Implement
+  `src/app/admin/curation/vocabulary/components/VocabularyQueueItem.tsx` (Client
+  Component): a single row in the vocabulary queue. Shows term name, category, confidence
+  score (numeric, or "N/A" for null confidence), and source document description. Provides
+  Accept and Reject action buttons (wired in Task 13). Props derived from
+  `VocabularyCandidateItem` imported from `@institutional-knowledge/shared`.
+- Implement
+  `src/components/AcceptCandidateButton/AcceptCandidateButton.tsx` (Client Component):
+  posts an accept request to the API; shows loading state; on success triggers queue
+  re-fetch; on error shows inline error message. Props:
+  `{ termId: string; onSuccess: () => void }`.
+- Implement
+  `src/components/RejectCandidateButton/RejectCandidateButton.tsx` (Client Component):
+  posts a reject request to the API; shows loading state; on success triggers queue
+  re-fetch; on error shows inline error message. Props:
+  `{ termId: string; onSuccess: () => void }`.
+- Write Tier 1 tests (Vitest + React Testing Library, static props):
+  - `VocabularyQueueItem`: renders term, category, confidence, source document description;
+    renders "N/A" when confidence is `null`; contains Accept and Reject buttons
+  - `AcceptCandidateButton` and `RejectCandidateButton`: render in default, loading, and
+    error states; accessible button labels
+
+**Depends on**: Tasks 3, 4
+
+**Complexity**: S
+
+**Acceptance condition**: `VocabularyQueueItem`, `AcceptCandidateButton`, and
+`RejectCandidateButton` components exist; Tier 1 RTL tests pass; `pnpm biome check` and
+`pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 13: Vocabulary review queue — Hono routes, handler, request functions, and data fetching
+
+**Description**: Implement the vocabulary queue fetch and accept/reject operations across
+all three custom server layers. Wire the vocabulary queue page with `useSWR` and the action
+buttons with `useSWRMutation`.
+
+**Custom server layers**:
+
+- `server/requests/vocabulary.ts`: three request functions (no framework imports; use the
+  pre-configured Ky instance):
+  - `fetchVocabularyQueue(params?)` calls Express `GET /api/curation/vocabulary` (VOC-001);
+    response schema (`VocabularyQueueResponse`) imported from
+    `@institutional-knowledge/shared`
+  - `acceptVocabularyCandidate(termId)` calls Express
+    `POST /api/curation/vocabulary/:termId/accept` (VOC-002); response schema imported
+    from shared
+  - `rejectVocabularyCandidate(termId)` calls Express
+    `POST /api/curation/vocabulary/:termId/reject` (VOC-003); response schema imported
+    from shared
+- `server/handlers/vocabularyHandler.ts`: thin wrappers; no orchestration logic
+- `server/routes/vocabulary.ts`: three Hono route handlers:
+  - `GET /api/curation/vocabulary` returns 200 with `VocabularyQueueResponse`
+  - `POST /api/curation/vocabulary/:termId/accept` returns 200; propagates 404 and 409
+  - `POST /api/curation/vocabulary/:termId/reject` returns 200; propagates 404 and 409
+
+**UI layer**:
+
+- Implement
+  `src/app/admin/curation/vocabulary/_hooks/useVocabularyQueue.ts`: custom hook using
+  `useSWR`; SWR key is `/api/curation/vocabulary`. Returns
+  `{ candidates, isLoading, error, mutate }`.
+- Implement `src/app/admin/curation/vocabulary/page.tsx`: vocabulary queue page; renders
+  `VocabularyQueueList` using the hook; shows loading, empty, and error states.
+- Implement `VocabularyQueueList` component: renders a list of `VocabularyQueueItem`
+  components; passes `onSuccess` callback that calls `mutate()` to re-fetch after accept
+  or reject.
+
+**Tests**:
+
+- Tier 2 — UI behaviour (Vitest + RTL + MSW; MSW intercepts at Hono route boundary
+  `GET /api/curation/vocabulary`,
+  `POST /api/curation/vocabulary/:termId/accept`,
+  `POST /api/curation/vocabulary/:termId/reject`):
+  - `useVocabularyQueue` hook: fetches on mount; returns candidates; shows empty state;
+    shows error state on fetch failure
+  - `AcceptCandidateButton` wired: triggers POST; loading state shown; queue re-fetches on
+    success; inline error shown on API failure
+  - `RejectCandidateButton` wired: same pattern as accept
+- Tier 2 — Custom server route handler (Vitest + supertest; MSW at Express boundary
+  `http://[express.baseUrl]/api/curation/vocabulary/*`):
+  - `GET /api/curation/vocabulary`: returns 200 with vocabulary data from Express
+  - `POST /api/curation/vocabulary/:termId/accept`: propagates 200, 404, and 409
+  - `POST /api/curation/vocabulary/:termId/reject`: propagates 200, 404, and 409
+
+**Depends on**: Tasks 2, 3, 12
+
+**Complexity**: M
+
+**Acceptance condition**: Vocabulary queue page fetches and renders candidates on mount;
+accept and reject each trigger queue re-fetch confirmed by Tier 2 hook tests; all Tier 2
+tests pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 14: Manual vocabulary term entry — components and page
+
+**Description**: Implement the manual vocabulary term entry form components and page.
+The API call is wired in Task 15.
+
+Specifically:
+
+- Implement
+  `src/components/TermRelationshipsInput/TermRelationshipsInput.tsx` (Client Component):
+  sub-component of `AddVocabularyTermForm`. Allows the user to specify relationships
+  between the new term and existing vocabulary terms. Each relationship has a `targetTermId`
+  (UUID) and a `relationshipType` (free-text string — indicative types from ADR-038:
+  owned_by, transferred_to, witnessed_by, adjacent_to, employed_by, referenced_in,
+  performed_by, succeeded_by; not an exhaustive enumeration). Renders a dynamic list of
+  relationship inputs; user can add and remove entries.
+- Implement
+  `src/components/AddVocabularyTermForm/AddVocabularyTermForm.tsx` (Client Component):
+  form for manually entering a new vocabulary term (US-062, UR-089). Fields: term name
+  (string, required), category (free-text string, required), description (string,
+  optional), aliases (multi-value input for `string[]`, optional), relationships via
+  `TermRelationshipsInput` (optional). On submit, validates with `AddTermSchema` (from
+  Task 3). API call wired in Task 15. Shows success or error on completion.
+- Implement `src/app/admin/curation/vocabulary/new/page.tsx`: page rendering
+  `AddVocabularyTermForm`. No data fetching on load.
+- Write Tier 1 tests (Vitest + React Testing Library, static props):
+  - `TermRelationshipsInput`: renders with no entries; renders an entry with targetTermId
+    and relationshipType fields; add and remove controls present and accessible
+  - `AddVocabularyTermForm` (static): renders all fields; required field labels accessible
+
+**Depends on**: Tasks 3, 4
+
+**Complexity**: M
+
+**Acceptance condition**: `AddVocabularyTermForm` and `TermRelationshipsInput` exist; Tier
+1 RTL tests pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 15: Manual vocabulary term entry — Hono route, handler, and request function
+
+**Description**: Implement the add-vocabulary-term operation across all three custom server
+layers and wire `AddVocabularyTermForm` to the Hono API route via `useSWRMutation`.
+
+**Custom server layers**:
+
+- `server/requests/vocabulary.ts` (extend): one request function:
+  - `addVocabularyTerm(payload)` calls Express
+    `POST /api/curation/vocabulary/terms` (VOC-004); request body from
+    `AddVocabularyTermRequest` imported from `@institutional-knowledge/shared`; response
+    schema (`AddVocabularyTermResponse`) imported from shared
+- `server/handlers/vocabularyHandler.ts` (extend): thin wrapper for add-term; no
+  orchestration logic
+- `server/routes/vocabulary.ts` (extend): one Hono route handler:
+  - `POST /api/curation/vocabulary/terms` returns 201 on success; propagates 400
+    (missing required fields), 409 (normalised term already exists), and 404 (referenced
+    targetTermId not found) from Express with structured error body
+
+**UI layer**:
+
+- Wire `AddVocabularyTermForm` to call `POST /api/curation/vocabulary/terms` via
+  `useSWRMutation` / `fetchWrapper`
+- On success: redirect to `/curation/vocabulary` or show inline success message
+  (implementer choice — either is acceptable)
+- On error: show inline error message
+
+**Tests**:
+
+- Tier 2 — UI behaviour (Vitest + RTL + MSW; MSW intercepts at Hono route boundary
+  `POST /api/curation/vocabulary/terms`):
+  - Form hook: submits correctly structured payload; shows validation errors for missing
+    required fields; `targetTermId` validated as UUID using `z.uuid()` (not
+    `z.string().uuid()`); shows success on completion; shows inline error on API failure
+- Tier 2 — Custom server route handler (Vitest + supertest; MSW at Express boundary
+  `http://[express.baseUrl]/api/curation/vocabulary/terms`):
+  - `POST /api/curation/vocabulary/terms`: returns 201 on success; propagates 400, 409,
+    and 404 correctly
+
+**Depends on**: Tasks 2, 3, 14
+
+**Complexity**: M
+
+**Acceptance condition**: Add-term route implemented; `targetTermId` validated with
+`z.uuid()` (not `z.string().uuid()`) confirmed by Tier 2 UI test; all Tier 2 tests pass;
+`pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 16: Request function contract sweep — Tier 1 unit tests
+
+**Description**: Write a single dedicated Tier 1 test file that imports every request
+function across all request function modules and asserts the contract for each outbound
+Express call. This is a cross-cutting quality gate that ensures no request function silently
+drifts from its contract after future changes. It does not replace the per-task Tier 2
+tests.
+
+For every request function, the test file:
+
+- Mocks the pre-configured Ky instance (from `server/requests/client.ts`) at the import
+  level
+- Asserts correct URL constructed (full path including any path parameters)
+- Asserts correct HTTP method (GET, POST, PATCH, DELETE)
+- Asserts `x-internal-key` header is present on every call
+- Asserts correct request body or query parameter structure for methods that carry a body
+
+Request functions to cover:
+
+| Function | Method | Express path | Contract |
+| --- | --- | --- | --- |
+| `initiateUpload` | POST | `/api/documents/initiate` | DOC-001 |
+| `uploadFileBytes` | POST | `/api/documents/:uploadId/upload` | DOC-002 |
+| `finalizeUpload` | POST | `/api/documents/:uploadId/finalize` | DOC-003 |
+| `deleteUpload` | DELETE | `/api/documents/:uploadId` | DOC-005 |
+| `fetchDocumentQueue` | GET | `/api/curation/documents` | DOC-006 |
+| `fetchDocumentDetail` | GET | `/api/documents/:id` | DOC-007 |
+| `clearDocumentFlag` | POST | `/api/documents/:id/clear-flag` | DOC-008 |
+| `updateDocumentMetadata` | PATCH | `/api/documents/:id/metadata` | DOC-009 |
+| `fetchVocabularyQueue` | GET | `/api/curation/vocabulary` | VOC-001 |
+| `acceptVocabularyCandidate` | POST | `/api/curation/vocabulary/:termId/accept` | VOC-002 |
+| `rejectVocabularyCandidate` | POST | `/api/curation/vocabulary/:termId/reject` | VOC-003 |
+| `addVocabularyTerm` | POST | `/api/curation/vocabulary/terms` | VOC-004 |
+
+Test file location: `server/requests/__tests__/contractSweep.test.ts`.
+
+**Depends on**: Tasks 6, 9, 11, 13, 15
+
+**Complexity**: M
+
+**Acceptance condition**: `server/requests/__tests__/contractSweep.test.ts` exists and
+covers all 12 request functions listed above; each test asserts URL, method,
+`x-internal-key` presence, and body or param structure; all tests pass; `pnpm biome check`
+and `pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 17: E2E tests — critical happy paths and key error paths
+
+**Description**: Write a small Playwright E2E test suite covering the critical happy paths
+and key error paths that can only be verified with the full component tree, Hono custom
+server, and Next.js assembled together.
+
+Architecture: Playwright drives a real browser against a running Hono custom server (which
+mounts Next.js). Express backend calls are intercepted at the network boundary using a
+lightweight mock HTTP server or MSW in Node server mode, so the test suite does not depend
+on a running Express backend or database.
+
+Test scenarios:
+
+**C1 — Document intake**:
+
+- Happy path: navigate to `/upload`; select a supported file with a conforming filename;
+  verify date and description are pre-populated from the filename; submit the form; verify
+  the success page renders with the correct archive reference
+- Duplicate detection: submit a file that the mock Express returns a 409 for; verify
+  `DuplicateConflictAlert` renders with the correct `existingRecord` data from
+  `response.data.existingRecord`; verify the form remains interactive (submit re-enabled)
+
+**Curation — Document queue**:
+
+- Happy path: navigate to `/curation/documents`; verify the queue renders with mock items;
+  click "Clear flag" on an item; verify the item is removed from the queue (re-fetch
+  triggered)
+
+**Curation — Metadata edit**:
+
+- Happy path: navigate to `/curation/documents/:id`; verify form is pre-populated from
+  mock document detail; edit the description; save; verify success message displayed
+
+**Curation — Vocabulary queue**:
+
+- Happy path: navigate to `/curation/vocabulary`; verify candidates render; click Accept
+  on one; verify item removed from queue
+
+Keep the count to these five scenarios — Tier 2 tests cover the bulk of confidence.
+Additional edge cases belong at Tier 2.
+
+**Depends on**: Tasks 7, 9, 11, 13
+
+**Complexity**: L
+
+**Acceptance condition**: Playwright test suite exists at `e2e/` or
+`apps/frontend/e2e/`; all five scenarios pass against a running Hono custom server with
+mocked Express backend; `pnpm --filter frontend exec playwright test` command exists in
+`package.json` and passes.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+### Task 18: Frontend configuration file and Docker setup
+
+**Description**: Finalise the frontend configuration files and Docker setup for the
+`apps/frontend/` service.
+
+Specifically:
+
+- Create `apps/frontend/config.json5`: base configuration for local development. Required
+  keys:
+  - `server.port: 3000`
+  - `express.baseUrl: "http://backend:4000"` (Docker Compose service name)
+  - `express.internalKey: "change-me-in-production"`
+  - `upload.maxFileSizeMb: 50`
+  - `upload.acceptedExtensions: [".pdf", ".tif", ".tiff", ".jpg", ".jpeg", ".png"]`
+- Create `apps/frontend/Dockerfile`: multi-stage build; build stage installs all
+  dependencies and compiles Next.js; production stage copies only the built output and
+  production dependencies; entry point starts the Hono custom server (not `next start`);
+  follows the same Docker patterns used by `apps/backend/Dockerfile`
+- Update `docker-compose.yml` (root): add the `frontend` service; set environment
+  variables and config volume mount; expose port 3000; depends on `backend` service
+- Verify the `express.internalKey` is not present in any HTTP response by running the
+  Tier 2 server test from Task 2 as part of the Docker smoke test
+
+**Depends on**: Tasks 2, 3, 6, 9, 11, 13, 15
+
+**Complexity**: M
+
+**Acceptance condition**: `config.json5` exists with all required keys; `Dockerfile` builds
+without error (`docker build`); `docker-compose.yml` includes the `frontend` service; the
+`express.internalKey` does not appear in any response header (verified by Tier 2 test from
+Task 2).
+
+**Condition type**: both
 
 **Status**: not_started
 

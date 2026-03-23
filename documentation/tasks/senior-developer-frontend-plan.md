@@ -2,15 +2,17 @@
 
 ## Status
 
-Approved — 2026-03-03
+Approved — 2026-03-03. Revised — 2026-03-23 (Hono custom server architecture, three-tier
+testing model, framework agnosticism constraints, corrected `DuplicateConflictResponse` wire
+shape, nullable `date` fields).
 
 ---
 
 ## Integration Lead contracts notice
 
 All 12 API calls in this plan have been matched to approved contracts in
-`documentation/tasks/integration-lead-contracts.md` (Approved 2026-03-03). Open questions
-OQ-001 through OQ-004 are resolved. Implementation may proceed.
+`documentation/tasks/integration-lead-contracts.md` (Approved 2026-03-03, updated 2026-03-23).
+Open questions OQ-001 through OQ-004 are resolved. Implementation may proceed.
 
 ---
 
@@ -30,10 +32,140 @@ The web UI query (US-073, C3) is Phase 2 and is explicitly out of scope for this
 Bulk ingestion progress display is also out of scope for Phase 1. Bulk ingestion runs via the
 CLI in Phase 1 (ADR-018, ADR-019); the summary report is written to stdout and a timestamped
 file (UR-024), not to the web UI. No Phase 1 user story requires a web view for bulk run
-status or report download. The
-Next.js custom server requirement (ADR-044) is in scope as a structural concern; the C3 query
-proxy path (ADR-045) is noted as a server-side concern but not planned here because no Phase 1
-query UI is delivered.
+status or report download.
+
+The frontend uses a **Hono custom server** that mounts Next.js as a catch-all for page
+traffic. All `/api/*` routes are Hono route handlers — not Next.js file-based API routes.
+This is the deliberate architectural boundary per ADR-044 and the decisions finalised
+2026-03-23. The C3 query proxy path (ADR-045) is noted as a server-side concern but not
+planned here because no Phase 1 query UI is delivered.
+
+---
+
+## Custom server architecture
+
+### Overview
+
+The frontend is a **Hono custom server** (`apps/frontend/server/server.ts`) that:
+
+1. Mounts auth middleware globally on `/api/*` (no-op in Phase 1; wired now for Phase 2)
+2. Registers all `/api/*` routes as Hono route handlers
+3. Mounts Next.js as a catch-all handler for all non-API traffic (page routes, static assets)
+
+This structure is documented in ADR-044. The key consequence is that there are **no Next.js
+file-based API routes** — the `app/api/` directory does not exist. All API handling lives in
+`server/routes/`.
+
+### Three-layer structure
+
+Each API operation is implemented across three layers, each with a single responsibility:
+
+| Layer | Location | Responsibility |
+| --- | --- | --- |
+| Route handler | `server/routes/` | Thin: parse request, call handler, shape response. Only Hono imports here. |
+| Handler | `server/handlers/` | Business logic and orchestration. No knowledge of HTTP or request libraries. No framework imports. |
+| Request functions | `server/requests/` | Thin: URL construction, HTTP call via Ky instance, `x-internal-key` header injection, response parsing, error classification. No framework imports. |
+
+The `x-internal-key` header lives exclusively in the request functions layer. It is never set
+or seen by browser-side code.
+
+### `server.ts` pattern
+
+```typescript
+// server/server.ts
+const nextApp = next({ dev: process.env.NODE_ENV !== 'production', customServer: true });
+const nextHandler = nextApp.getRequestHandler();
+await nextApp.prepare();
+
+const app = new Hono();
+
+app.use('/api/*', authMiddleware); // Phase 2 — no-op in Phase 1, wired now
+app.post('/api/documents/upload', uploadRoute);
+// ... all API routes
+
+app.all('*', (c) => {
+  // Next.js handles all page traffic
+  nextHandler(c.env.incoming, c.env.outgoing, parse(c.req.url, true));
+});
+```
+
+### Folder structure
+
+```text
+apps/frontend/
+  |- src/                          # Next.js UI
+  | |- app/
+  | | |- admin/
+  | | | |- curation/
+  | | | | |- _hooks/              # Co-located hook, types, and hook tests
+  | | | | | |- useDocumentQueue.types.ts
+  | | | | | |- useDocumentQueue.test.ts
+  | | | | | |- useDocumentQueue.ts
+  | | | | |- components/          # Sub-components used only by this page
+  | | | | |- page.module.css
+  | | | | |- page.tsx
+  | | | |- page.module.css
+  | | | |- page.tsx
+  | | |- layout.tsx
+  | | |- page.tsx
+  | |- components/                 # Shared presentational components (one directory per component)
+  | | |- Button/
+  | | | |- Button.tsx
+  | | | |- Button.module.css
+  | | | |- __tests__/
+  | | |   |- Button.test.tsx       # Tier 1 — RTL, static props, accessibility
+  | |- lib/                        # fetchWrapper, schemas.ts, pure utilities
+  | |- styles/
+  |   |- global.css
+  |- server/                       # Hono custom server
+    |- routes/                     # Hono route handlers (thin)
+    |- handlers/                   # Business logic handlers (no framework imports)
+    |- requests/                   # Request functions — Ky -> Express (no framework imports)
+    |- server.ts                   # Hono app entry point; mounts Next.js as catch-all
+```
+
+Notes:
+
+- `_hooks/` uses the Next.js `_` prefix convention for co-located non-route files
+- A top-level `hooks/` directory is not created speculatively — if a genuinely cross-cutting
+  hook emerges, decide its home at that point
+- `src/lib/schemas.ts` contains only the three frontend form validation schemas
+  (`UploadFormSchema`, `MetadataEditSchema`, `AddTermSchema`); all response schemas are
+  imported from `@institutional-knowledge/shared` (see Validation sections)
+- The `server/` directory is a peer to `src/`, not inside it — the two sub-systems are
+  genuinely separate
+
+### Framework agnosticism constraints
+
+The following layers must remain framework-agnostic (no Next.js, Hono, or Express imports):
+
+- Handler layer (`server/handlers/`) — pure TypeScript business logic
+- Request functions layer (`server/requests/`) — Ky is the HTTP library; no framework imports
+- Custom hooks (`src/app/*/_hooks/`) — plain React only; no Next.js imports
+- Presentational components — no Next.js imports beyond what React itself requires
+- `fetchWrapper` utility (`src/lib/fetchWrapper.ts`) — thin project utility wrapping plain
+  `fetch`; sets consistent `content-type` and base path; used as the fetcher argument passed
+  to `useSWR` and `useSWRMutation`
+
+The following layers are permitted to be framework-specific:
+
+- `server/routes/` — Hono route handlers; deliberate framework boundary; thin by design
+- `server/server.ts` — Hono app entry point; mounts Next.js; framework-specific but thin
+- Page components where RSC patterns are used (server-side data fetch, `redirect()`) —
+  acceptable because pages are the natural framework boundary
+
+Full constraints are documented in `documentation/process/development-principles.md` (updated
+2026-03-23). Do not restate them here — cross-reference only.
+
+### HTTP libraries
+
+- **Browser side** — `useSWR` for data fetching (GET requests, queue data) and
+  `useSWRMutation` for mutations (POST, PATCH, DELETE). Both call through `fetchWrapper`.
+  No plain `fetch` calls in hooks — all requests go through `useSWR`/`useSWRMutation`.
+  `fetchWrapper` is a project utility function, not a dependency.
+- **Custom server request functions** — **Ky**. A single pre-configured Ky instance shared
+  across all request functions sets `express.baseUrl` (from config) and the `x-internal-key`
+  header once. Ky is `fetch`-based, edge-compatible, and framework-agnostic.
 
 ---
 
@@ -104,6 +236,8 @@ Responsibility: displays the submission confirmation on the `/upload/success` pa
 the archive reference derived from the submitted metadata. Receives the document record
 returned by the API and renders the description, date, and archive reference.
 
+**Null date display**: if `date` is `null`, display "Undated" in place of the date value.
+
 #### `DuplicateConflictAlert` (Client Component)
 
 Responsibility: displayed inside `ValidationFeedback` when the API returns a duplicate
@@ -113,8 +247,10 @@ response (UR-135).
 
 Props:
 
-- `existingRecord: { description: string; date: string; archiveReference: string }` — the
-  conflicting document's details as returned by the API
+- `existingRecord: { description: string; date: string | null; archiveReference: string }` —
+  the conflicting document's details as returned by the API
+
+**Null date display**: if `date` is `null`, display "Undated" in place of the date value.
 
 ### Data fetching and state
 
@@ -128,15 +264,15 @@ The submission sequence when the user clicks Submit:
 1. `DocumentUploadForm` runs the Zod client-side schema against all fields; if errors exist
    it sets `clientErrors` and stops.
 2. If validation passes, `submitting` is set to `true` and a `multipart/form-data` POST is
-   sent to the Next.js API route `/api/documents/upload`.
-3. The Next.js API route handler decomposes this into the three Express calls internally
-   (initiate via DOC-001, upload file bytes via DOC-002, finalize via DOC-003) per the
-   composite browser upload contract DOC-004. The browser does not call three separate
-   Next.js routes.
+   sent to the Hono route `/api/documents/upload` via `useSWRMutation` / `fetchWrapper`.
+3. The Hono route handler delegates to the handler layer, which decomposes the request into
+   three Express calls (initiate via DOC-001, upload file bytes via DOC-002, finalize via
+   DOC-003) per the composite browser upload contract DOC-004. The browser does not call
+   three separate Hono routes.
 4. On success (HTTP 201), the page navigates to `/upload/success` with the returned document
    record passed via query parameters or session storage.
 5. On a duplicate detection error (HTTP 409), `serverError` is set and `DuplicateConflictAlert`
-   is rendered with the existing record data from the response body.
+   is rendered with the existing record data from `response.data.existingRecord`.
 6. On any other error (HTTP 400, 422, 5xx), `serverError` is set with the error message from
    the response body.
 7. `submitting` is set back to `false` on completion regardless of outcome.
@@ -144,9 +280,9 @@ The submission sequence when the user clicks Submit:
 **Note on the four-status upload lifecycle**: The architecture (ADR-007, ADR-017) defines an
 `initiated -> uploaded -> stored -> finalized` lifecycle for web UI uploads. Per OQ-001
 resolution, the four-status lifecycle is an Express-internal concern. The browser sends a
-single `multipart/form-data` POST to the Next.js API route `/api/documents/upload` (contract
-DOC-004). The Next.js handler orchestrates the three Express calls (DOC-001, DOC-002, DOC-003)
-internally. If any Express step fails, the Next.js handler calls the cleanup endpoint
+single `multipart/form-data` POST to the Hono route `/api/documents/upload` (contract
+DOC-004). The Hono handler orchestrates the three Express calls (DOC-001, DOC-002, DOC-003)
+internally. If any Express step fails, the handler calls the cleanup endpoint
 (DOC-005) and returns an appropriate error to the browser.
 
 **Filename parsing** is a pure client-side operation in `FilePickerInput`. On file selection:
@@ -164,13 +300,13 @@ so it can be unit tested independently of the component.
 
 ### API calls required
 
-| Call | Method | Next.js route | Forwards to | Purpose | Contract |
+| Call | Method | Hono route | Forwards to | Purpose | Contract |
 | --- | --- | --- | --- | --- | --- |
-| Browser upload (composite) | `POST` | `/api/documents/upload` | Express DOC-001, DOC-002, DOC-003 internally | Single browser POST; Next.js orchestrates the three-step Express lifecycle | DOC-004 |
-| Cleanup incomplete upload | `DELETE` | `/api/documents/:uploadId` | Express `DELETE /api/documents/:uploadId` | Called by the Next.js handler if initiate succeeds but a later step fails | DOC-005 |
+| Browser upload (composite) | `POST` | `/api/documents/upload` | Express DOC-001, DOC-002, DOC-003 internally | Single browser POST; Hono handler orchestrates the three-step Express lifecycle | DOC-004 |
+| Cleanup incomplete upload | `DELETE` | `/api/documents/:uploadId` | Express `DELETE /api/documents/:uploadId` | Called by the Hono handler if initiate succeeds but a later step fails | DOC-005 |
 
-The Next.js API route handler adds the `x-internal-key` header (ADR-044) before each Express
-call. The browser POST goes to the Next.js server only.
+The Ky instance in `server/requests/` sets the `x-internal-key` header (ADR-044) on every
+call to Express. The browser POST goes to the Hono server only.
 
 ### Validation
 
@@ -188,41 +324,86 @@ This schema enforces client-side validation only. Server-side validation is the 
 check (UR-004, UR-010). The server may reject a submission that passed client-side validation
 (e.g., MIME type mismatch, duplicate hash).
 
-#### `DuplicateResponseSchema` (response validation Zod schema)
+#### `DuplicateResponseSchema` (response validation)
 
-Applied when the API returns HTTP 409. Validates the shape of the existing record payload
-before it is rendered in `DuplicateConflictAlert`:
+This schema is **imported from `@institutional-knowledge/shared`**
+(`packages/shared/src/schemas/documents.ts`) — it must not be redefined in the frontend.
+The shared `DuplicateConflictResponse` represents only the `data` payload:
+`{ existingRecord: { ... } }`. The `error: 'duplicate_detected'` field belongs to the
+envelope, not the payload.
 
-- `existingRecord.description: string`
-- `existingRecord.date: string`
-- `existingRecord.archiveReference: string`
+The 409 wire shape is:
+
+```json
+{ "error": "duplicate_detected", "data": { "existingRecord": { ... } } }
+```
+
+Frontend code must read `response.data.existingRecord`, not `response.existingRecord`.
+
+The `existingRecord` fields include `date: string | null`. The `DuplicateConflictAlert`
+component must handle `null` dates explicitly (display "Undated").
 
 All API responses are validated with Zod at the frontend boundary before being used in
 component state.
 
 ### Testing approach
 
-**Unit tests** (Vitest, no React Testing Library):
+The C1 intake UI follows the three-tier testing model defined in
+`documentation/process/development-principles.md` (updated 2026-03-23). The tiers and their
+coverage for this area are:
 
-- `parseFilename` utility: conforming filenames, non-conforming filenames, valid calendar date,
-  invalid calendar date (should leave date empty, per UR-006), empty string, extension-only
-  filenames
+**Tier 1 — Unit tests** (Vitest, no React Testing Library):
+
+- `parseFilename` utility: conforming filenames, non-conforming filenames, valid calendar
+  date, invalid calendar date (should leave date empty, per UR-006), empty string,
+  extension-only filenames
 - `UploadFormSchema` Zod schema: valid inputs, empty date, invalid date, empty description,
   whitespace-only description, unsupported file extension, oversized file
+- `fetchWrapper` utility: mock `window.fetch` to assert `content-type` header and base path
+  are set consistently
+- `DuplicateConflictAlert` component: RTL with static props — renders description, date, and
+  archive reference; renders "Undated" when `date` is `null`
+- `FilePickerInput` component: RTL with static props — renders file input, accessibility
+- `UploadSuccessMessage` component: RTL with static props — renders description and archive
+  reference; renders "Undated" when `date` is `null`
 
-**Component tests** (Vitest + React Testing Library):
+**Tier 2 — Behaviour tests** (Vitest + React Testing Library + MSW):
 
-- `FilePickerInput`: selecting a conforming file pre-populates date and description; selecting
-  a non-conforming file leaves fields empty; selecting a file with invalid calendar date leaves
-  date empty with no error
-- `DocumentUploadForm`: submitting with empty date shows field error; submitting with
-  whitespace-only description shows field error; submitting valid form calls the API; API 409
-  response renders `DuplicateConflictAlert`; submit button is disabled during submission;
-  server error message is shown on 4xx/5xx responses
-- `DuplicateConflictAlert`: renders description, date, and archive reference from props
+*UI behaviour — custom hook and form tests*:
 
-Integration tests use Mock Service Worker (MSW) to mock the Next.js API routes. No test
-database is needed for frontend tests (per pipeline-testing-strategy skill).
+- MSW intercepts at the **Hono API route boundary** (e.g. `POST /api/documents/upload`)
+- `DocumentUploadForm` hook/state: submitting with empty date shows field error; submitting
+  with whitespace-only description shows field error; submitting valid form triggers the
+  POST; API 409 response renders `DuplicateConflictAlert` with `response.data.existingRecord`;
+  submit button is disabled during submission; server error message shown on 4xx/5xx
+- `FilePickerInput` wired with form state: selecting a conforming file pre-populates date
+  and description; selecting a non-conforming file leaves fields empty; selecting a file
+  with invalid calendar date leaves date empty with no error
+
+*Custom server — route handler tests* (supertest against Hono app):
+
+- MSW intercepts at the **Express boundary** (`http://localhost:4000/api/documents`, etc.)
+- `POST /api/documents/upload` route handler: delegates to handler, returns 201 on success,
+  propagates 409 with correct envelope on duplicate, propagates error on Express failure
+
+*Custom server — handler tests*:
+
+- Import the composite upload handler directly; mock the request functions
+- Three-step orchestration: initiate, upload, finalize in sequence
+- Cleanup called on failure of any step after initiate succeeds
+- Typed return values on success and each error path
+
+*Custom server — request function tests*:
+
+- Import each request function directly; mock the Ky instance
+- Correct URL construction, `x-internal-key` header present, correct body/query params,
+  expected error states returned as typed results
+
+**Tier 3 — E2E tests** (Playwright):
+
+- Critical happy path: select file, fill metadata, submit, see success page
+- Duplicate detection path: submit duplicate file, see `DuplicateConflictAlert`
+- Keep count small; Tier 2 covers the bulk of confidence
 
 ---
 
@@ -259,7 +440,8 @@ The `/curation` root page serves as a navigation hub linking to `/curation/docum
   (US-080, UR-126); ordered by flag timestamp ascending (UR-081)
 - `DocumentQueueItem` — a single row or card in the queue list; shows description, date, flag
   reason (full, including failing pages per UR-051, UR-055), and submitter identity; provides a
-  "Clear flag" action button and a "Edit metadata" link to `/curation/documents/:id`
+  "Clear flag" action button and a "Edit metadata" link to `/curation/documents/:id`.
+  **Null date display**: if `date` is `null`, display "Undated" in place of the date value.
 - `ClearFlagButton` (Client Component) — posts a flag-clear request to the API; on success,
   triggers re-fetch of the queue; displays a loading state during the request; on error,
   displays an inline error message
@@ -269,7 +451,10 @@ The `/curation` root page serves as a navigation hub linking to `/curation/docum
 - `DocumentMetadataForm` (Client Component) — editable form for document type, date, people,
   organisations, land references, and description (US-082, UR-114); pre-populated from the
   document record fetched via the API; on submit, PATCHes the metadata via the API; does not
-  trigger re-embedding (UR-062); displays a success message or error message on completion
+  trigger re-embedding (UR-062); displays a success message or error message on completion.
+  **Null date display**: the date field is pre-populated from the API response; if `date` is
+  `null`, the field is left empty (undated documents are valid). The form must handle a `null`
+  initial value without treating it as a validation error on render.
 - `MetadataEditFields` — controlled inputs for each editable field; uses the same `date` input
   pattern as the intake form for the date field; description uses a `<textarea>`; document type
   uses a text input (free-text string, per OQ-003 resolution); people, organisations, and land
@@ -327,7 +512,7 @@ Data is fetched client-side on page mount and after mutations. The page uses `us
 client-side data fetching rather than React Server Component streaming, because the queue must
 re-render without full page navigation after flag-clear actions.
 
-Fetch: `GET /api/curation/documents` -> Next.js API route -> Express backend.
+Fetch: `GET /api/curation/documents` -> Hono route handler -> Express backend.
 After `ClearFlagButton` succeeds: call `mutate()` on the SWR key to re-fetch the queue list.
 After `DocumentMetadataForm` save succeeds: display success message; no queue re-fetch needed
 (metadata edit does not affect queue membership unless the document was removed).
@@ -359,7 +544,7 @@ data is not a concern in this single-user context.
 
 #### Document curation queue
 
-| Call | Method | Next.js route | Forwards to | Purpose | Contract |
+| Call | Method | Hono route | Forwards to | Purpose | Contract |
 | --- | --- | --- | --- | --- | --- |
 | Fetch document queue | `GET` | `/api/curation/documents` | Express `GET /api/curation/documents` | List all flagged documents, ordered by flag timestamp | DOC-006 |
 | Clear a flag | `POST` | `/api/curation/documents/:id/clear-flag` | Express `POST /api/documents/:id/clear-flag` | Clear the flag on a document, marking it ready to resume | DOC-008 |
@@ -368,15 +553,15 @@ data is not a concern in this single-user context.
 
 #### Vocabulary review queue
 
-| Call | Method | Next.js route | Forwards to | Purpose | Contract |
+| Call | Method | Hono route | Forwards to | Purpose | Contract |
 | --- | --- | --- | --- | --- | --- |
 | Fetch vocabulary queue | `GET` | `/api/curation/vocabulary` | Express `GET /api/curation/vocabulary` | List pending vocabulary candidates | VOC-001 |
 | Accept a candidate | `POST` | `/api/curation/vocabulary/:termId/accept` | Express `POST /api/curation/vocabulary/:termId/accept` | Accept a candidate term into the vocabulary | VOC-002 |
 | Reject a candidate | `POST` | `/api/curation/vocabulary/:termId/reject` | Express `POST /api/curation/vocabulary/:termId/reject` | Reject a candidate term (adds to rejected list) | VOC-003 |
 | Add a manual term | `POST` | `/api/curation/vocabulary/terms` | Express `POST /api/curation/vocabulary/terms` | Create a new vocabulary term manually | VOC-004 |
 
-All API route handlers in `apps/frontend/src/app/api/` add the `x-internal-key` header before
-forwarding to Express (ADR-044). The browser never sees or sends this header.
+The Ky instance in `server/requests/` sets the `x-internal-key` header on every call to
+Express (ADR-044). The browser never sees or sends this header.
 
 ### Validation
 
@@ -396,7 +581,12 @@ Applied in `DocumentMetadataForm` before the PATCH call:
 - `landReferences` — JSON string array (`string[]`); each element must be a non-empty string;
   same comma-separated input pattern as `people` (per OQ-002 resolution)
 
-#### `AddTermSchema` (Zod schema)
+`MetadataEditSchema` is derived from the shared `UpdateDocumentMetadataRequest` schema
+imported from `@institutional-knowledge/shared`. It may extend the shared shape with
+frontend-specific transformation rules (e.g. comma-separated string splitting). It must not
+redefine the shared fields independently.
+
+#### `AddTermSchema` (Zod schema, `apps/frontend/src/lib/schemas.ts`)
 
 Applied in `AddVocabularyTermForm` before the POST call (per OQ-004 resolution):
 
@@ -404,39 +594,79 @@ Applied in `AddVocabularyTermForm` before the POST call (per OQ-004 resolution):
 - `category` — string, required; free-text (not an enumeration in Phase 1)
 - `description` — string, optional
 - `aliases` — array of strings, optional (defaults to empty array)
-- `relationships` — array of `{ targetTermId: string, relationshipType: string }`, optional;
-  relationship types are free-text strings
+- `relationships` — array of `{ targetTermId: z.uuid(), relationshipType: string }`, optional;
+  relationship types are free-text strings. Use `z.uuid()` (Zod v4 form) — not
+  `z.string().uuid()`.
+
+`AddTermSchema` is derived from the shared `AddVocabularyTermRequest` schema imported from
+`@institutional-knowledge/shared`.
 
 #### API response validation
 
-All API responses consumed by the curation UI are validated with Zod schemas at the frontend
-boundary before being stored in component state or rendered. Response schemas match the
-TypeScript interfaces defined in the approved contracts (DOC-006, DOC-007, DOC-008, DOC-009,
-VOC-001, VOC-002, VOC-003, VOC-004).
+All API responses consumed by the curation UI are **imported from `@institutional-knowledge/shared`**
+and must not be redefined in the frontend. The response schemas for DOC-006, DOC-007, DOC-008,
+DOC-009, VOC-001, VOC-002, VOC-003, and VOC-004 are all defined in the shared package.
+
+The `src/lib/schemas.ts` file contains only `UploadFormSchema`, `MetadataEditSchema`, and
+`AddTermSchema` — the three frontend form validation schemas. A comment at the top of the
+file notes that all response schemas are imported from `@institutional-knowledge/shared`.
 
 ### Testing approach
 
-**Unit tests** (Vitest):
+The curation UI follows the three-tier testing model defined in
+`documentation/process/development-principles.md` (updated 2026-03-23). The tiers and their
+coverage for this area are:
 
-- Any pure utility functions derived from curation business rules (e.g., flag timestamp sort
-  order, queue item display formatting)
+**Tier 1 — Unit tests** (Vitest, no React Testing Library):
 
-**Component tests** (Vitest + React Testing Library):
+- Pure utility functions: flag timestamp sort order, queue item display formatting
+- `MetadataEditSchema` Zod schema: valid inputs, empty description, missing required fields,
+  comma-separated array parsing
+- `AddTermSchema` Zod schema: valid inputs, missing required fields, UUID validation via
+  `z.uuid()` for `targetTermId`
+- Presentational component tests (RTL, static props):
+  - `DocumentQueueItem`: renders description, date, flag reason, submitter identity; renders
+    "Undated" when `date` is `null`
+  - `VocabularyQueueItem`: renders term, category, confidence, source document description
+  - `ClearFlagButton`, `AcceptCandidateButton`, `RejectCandidateButton`: rendering and
+    accessibility in default state
 
-- `DocumentQueueList`: renders flagged documents from a mocked API response; shows description,
-  date, flag reason, submitter identity; shows empty state when queue is empty
-- `ClearFlagButton`: shows loading state during request; removes item from list on success;
-  shows inline error on API failure
-- `DocumentMetadataForm`: pre-populates fields from document record prop; rejects empty
-  description on submit; shows success message on save; shows error message on API failure
-- `VocabularyQueueList`: renders candidates with term, category, confidence, source document;
-  shows empty state
-- `AcceptCandidateButton` and `RejectCandidateButton`: loading state; success removes item;
-  error shown inline
-- `AddVocabularyTermForm`: submits form data to API; shows validation errors for required
+**Tier 2 — Behaviour tests** (Vitest + React Testing Library + MSW):
+
+*UI behaviour — custom hook tests*:
+
+- MSW intercepts at the **Hono API route boundary**
+  (e.g. `/api/curation/documents`, `/api/curation/vocabulary`)
+- `DocumentQueueList` hook: fetches on mount; shows empty state when queue is empty; shows
+  error state with retry on fetch failure
+- `ClearFlagButton` hook: shows loading state during request; triggers queue re-fetch on
+  success via `mutate()`; shows inline error on API failure
+- `DocumentMetadataForm` hook: pre-populates fields from document record prop; rejects empty
+  description on submit; shows success message on save; shows error on API failure; handles
+  `null` initial date without treating it as a validation error
+- `VocabularyQueueList` hook: fetches on mount; shows empty state; re-fetches after accept
+  or reject
+- `AcceptCandidateButton` and `RejectCandidateButton` hooks: loading state; success removes
+  item via `mutate()`; error shown inline
+- `AddVocabularyTermForm` hook: submits form data to API; shows validation errors for required
   fields; shows success on completion
 
-Integration tests use MSW to mock the Next.js API routes.
+*Custom server — route handler tests* (supertest against Hono app):
+
+- MSW intercepts at the **Express boundary** (`http://localhost:4000/api/curation/*`, etc.)
+- Each curation Hono route handler: correct status propagation, error propagation from Express
+
+*Custom server — handler and request function tests*:
+
+- Same pattern as C1: import handlers directly, mock request functions; import request
+  functions directly, mock the Ky instance
+
+**Tier 3 — E2E tests** (Playwright):
+
+- Critical happy path: view document queue, clear a flag, verify item removed
+- Metadata edit: open document detail, edit description, save, verify success
+- Vocabulary queue: accept candidate, verify removed; reject candidate, verify removed
+- Keep count small
 
 ---
 
@@ -444,7 +674,7 @@ Integration tests use MSW to mock the Next.js API routes.
 
 ### Configuration
 
-The Next.js frontend reads its own scoped configuration file at startup via `nconf`. It does
+The Hono custom server reads its own scoped configuration file at startup via `nconf`. It does
 not read the Express or Python configuration files. The configuration follows the pattern
 defined in the configuration-patterns skill: a base `config.json5` in `apps/frontend/` built
 into the Docker image, and an optional `config.override.json5` volume-mounted at runtime.
@@ -453,21 +683,22 @@ into the Docker image, and an optional `config.override.json5` volume-mounted at
 
 | Key | Type | Purpose | Example value |
 | --- | --- | --- | --- |
-| `server.port` | `number` | Port the Next.js custom server listens on | `3000` |
+| `server.port` | `number` | Port the Hono custom server listens on | `3000` |
 | `express.baseUrl` | `string` | Internal URL of the Express backend | `http://backend:4000` |
-| `express.internalKey` | `string` | Shared key for Next.js -> Express calls (ADR-044) | `change-me-in-production` |
+| `express.internalKey` | `string` | Shared key for Hono -> Express calls (ADR-044) | `change-me-in-production` |
 | `upload.maxFileSizeMb` | `number` | Maximum file size accepted at the client boundary | `50` |
 | `upload.acceptedExtensions` | `string[]` | Accepted file extensions for the file picker and client-side validation | `[".pdf", ".tif", ".tiff", ".jpg", ".jpeg", ".png"]` |
 
-The `express.internalKey` must never be sent to the browser. It is used only in Next.js API
-route handlers (server-side code). The browser submits to Next.js API routes only; the
-internal key is added server-side.
+The `express.internalKey` must never be sent to the browser. It is set once on the
+pre-configured Ky instance in `server/requests/` and is used only by the request functions
+layer (server-side code). The browser submits to Hono routes only; the internal key is
+added server-side within the request functions.
 
-**Config class pattern**: A `Config` class in `apps/frontend/src/config/index.ts` loads and
-validates the merged configuration using nconf and Zod at startup (fail-fast on invalid
-config). The validated config singleton is imported by API route handlers and Server
-Components. It must never be imported into Client Components, because Client Component code
-is bundled into the browser.
+**Config class pattern**: A `Config` class in `apps/frontend/server/config/index.ts` loads
+and validates the merged configuration using nconf and Zod at startup (fail-fast on invalid
+config). The validated config singleton is imported by Hono route handlers, handlers, and
+request functions. It must never be imported into Client Components, because Client Component
+code is bundled into the browser.
 
 **OQ-005 deferred to Phase 2**: The C3 query proxy infrastructure (ADR-045) is not scaffolded
 in Phase 1. No `python.baseUrl` or `python.internalKey` config keys are required. If the web
@@ -475,17 +706,18 @@ UI query page is delivered in Phase 2, these keys will be added at that time.
 
 ### Authentication
 
-Phase 1 has no user authentication (UR-121, ADR-044). The Next.js custom server performs no
-auth checks on incoming browser requests.
+Phase 1 has no user authentication (UR-121, ADR-044). The Hono custom server performs no
+auth checks on incoming browser requests. The auth middleware is wired as a no-op in Phase 1
+so that it is in place when Phase 2 requires it.
 
-The shared-key header (`x-internal-key`) is applied to all outbound calls from the Next.js
-server to Express and (in future phases) to the Python service (ADR-044). This header is set
-in Next.js API route handlers, not by the browser.
+The shared-key header (`x-internal-key`) is applied to all outbound calls from the Hono
+custom server to Express and (in future phases) to the Python service (ADR-044). This header
+is set by the pre-configured Ky instance in `server/requests/` — not per-call in route
+handlers, and never by browser-side code.
 
-All Next.js API route handlers must include a step to attach the `x-internal-key` header
-before forwarding to Express. This must be enforced consistently — every API route handler
-must include it. A shared helper function in `apps/frontend/src/lib/apiClient.ts` should
-centralise the header injection so that it cannot be accidentally omitted.
+All request functions in `server/requests/` use the pre-configured Ky instance. The Ky
+instance sets `express.baseUrl` and `x-internal-key` once, so the header injection cannot
+be accidentally omitted from individual request functions.
 
 ### Error handling
 
@@ -496,7 +728,7 @@ at which point re-validation runs.
 **Server-side rejection (4xx)**: The API returns a structured error body. The frontend
 displays the server error message inline. Specifically:
 
-- HTTP 409 (duplicate): renders `DuplicateConflictAlert` with the existing record details
+- HTTP 409 (duplicate): renders `DuplicateConflictAlert` with `response.data.existingRecord`
 - HTTP 400 / 422 (validation failure): displays the field-level or top-level error message
   from the response body; must be actionable (UR-135)
 - HTTP 413 (file too large, if the server enforces a lower limit than the client): displays
@@ -504,7 +736,7 @@ displays the server error message inline. Specifically:
 
 **Server-side errors (5xx)**: Display a generic message: "Something went wrong. Please try
 again." Do not expose internal server details. Log the error using Pino (server-side logger
-in API route handlers).
+in Hono route handlers).
 
 **Network errors (fetch failure)**: Display a message indicating that the server could not
 be reached. Provide a retry option where appropriate.
@@ -513,7 +745,7 @@ be reached. Provide a retry option where appropriate.
 state with a retry button rather than an empty queue, to distinguish "no items" from "failed
 to load".
 
-**Pino logging**: The Next.js custom server and API route handlers log using Pino. Log levels:
+**Pino logging**: The Hono custom server and route handlers log using Pino. Log levels:
 
 - `info`: successful submissions, flag clears, term actions
 - `warn`: client-side validation bypass attempts (submission that passed client but failed
@@ -524,26 +756,29 @@ Pino is a server-side dependency only. It must not be bundled into Client Compon
 
 ### Dependency injection
 
-The Next.js frontend does not have the same service layer complexity as the Express backend.
-The composition pattern is simpler:
+The frontend has two distinct sub-systems, each with its own composition pattern:
+
+**Custom server** (`server/`):
 
 - A `Config` singleton (validated at startup) is imported by server-side code only.
-- An `apiClient` helper in `apps/frontend/src/lib/apiClient.ts` wraps `fetch` with the
-  `x-internal-key` header and base URL from config. All API route handlers use this helper
-  rather than calling `fetch` directly.
-- API route handlers are thin: they parse the incoming request, call `apiClient`, and return
-  the response. Business logic is not placed in API route handlers.
-- Client Components receive data as props from Server Components (for initial render) or via
-  client-side fetch through the Next.js API routes (for mutations and re-fetches).
+- A **pre-configured Ky instance** in `server/requests/` sets `express.baseUrl` and the
+  `x-internal-key` header once. All request functions use this shared instance rather than
+  constructing HTTP calls directly. This is the single point where the internal key is
+  injected — centralising it ensures consistent auth and makes request functions testable
+  by mocking the Ky instance.
+- Request functions are imported by handlers; handlers are imported by route handlers.
+  Route handlers are thin: parse request, call handler, shape response. Business logic
+  does not appear in route handlers.
 
-The `apiClient` helper is the single point where the internal key is injected. Centralising
-it here ensures consistent auth on every internal call and makes it easy to test API route
-handlers by mocking `apiClient`.
+**UI** (`src/`):
 
-`useSWR` (`swr` package) is used for client-side queue data fetching in the curation UI.
-The SWR key for each queue is the Next.js API route path (e.g. `/api/curation/documents`).
-After mutations (`ClearFlagButton`, `AcceptCandidateButton`, `RejectCandidateButton`), the
-relevant SWR key is invalidated via `mutate()` to trigger a re-fetch.
+- Client Components receive data as props from Server Components (for initial render) or
+  via client-side fetch through the Hono API routes (for mutations and re-fetches).
+- `useSWR` and `useSWRMutation` are called only within custom hook files — never directly
+  in components. Hooks call through `fetchWrapper`, not directly through any HTTP client.
+  `fetchWrapper` is a thin project utility function in `src/lib/fetchWrapper.ts`.
+- The SWR key for each queue is the Hono route path (e.g. `/api/curation/documents`).
+  After mutations, the relevant SWR key is invalidated via `mutate()` to trigger a re-fetch.
 
 ---
 
@@ -551,7 +786,7 @@ relevant SWR key is invalidated via `mutate()` to trigger a re-fetch.
 
 | ID | Question | Status | Resolution |
 | --- | --- | --- | --- |
-| OQ-001 | Does the browser call three separate Next.js API routes (initiate, upload, finalize) or a single route that Next.js decomposes internally? | Resolved | Single browser POST to `/api/documents/upload` (DOC-004); Next.js orchestrates three Express calls internally (DOC-001, DOC-002, DOC-003). |
+| OQ-001 | Does the browser call three separate Hono routes (initiate, upload, finalize) or a single route that the Hono handler decomposes internally? | Resolved | Single browser POST to `/api/documents/upload` (DOC-004); Hono handler orchestrates three Express calls internally (DOC-001, DOC-002, DOC-003). |
 | OQ-002 | What is the storage shape for `people` and `land references` metadata fields? | Resolved | PostgreSQL `text[]` arrays; Express API accepts/returns JSON string arrays; frontend uses comma-separated text inputs. |
 | OQ-003 | What is the valid set of values for `documentType`? | Resolved | Free-text string in Phase 1; not a controlled enumeration. |
 | OQ-004 | What is the exact schema for a vocabulary term? | Resolved | Per ADR-028: term (string, required), category (free-text string, required), description (string, optional), aliases (string array, optional), relationships (array of `{ targetTermId, relationshipType }`, optional; types are free-text strings). |
@@ -562,12 +797,15 @@ relevant SWR key is invalidated via `mutate()` to trigger a re-fetch.
 ## Handoff checklist
 
 - [x] Integration Lead has reviewed all flagged API calls (all 12 calls listed in this plan)
-- [x] OQ-001 resolved: single browser POST; Next.js orchestrates Express lifecycle internally
+- [x] OQ-001 resolved: single browser POST; Hono handler orchestrates Express lifecycle internally
 - [x] OQ-002 resolved: `people` and `land_references` are PostgreSQL `text[]`, JSON string arrays
 - [x] OQ-003 resolved: `document_type` is a free-text string in Phase 1
 - [x] OQ-004 resolved: vocabulary term schema per ADR-028; category and relationship types are free-text strings
 - [x] OQ-005 deferred to Phase 2; no Phase 1 action required
-- [x] Developer has approved this plan
+- [x] Developer has approved this plan (2026-03-03)
+- [x] Plan revised 2026-03-23: Hono custom server architecture, three-tier testing model,
+  framework agnosticism constraints, corrected `DuplicateConflictResponse` wire shape,
+  nullable `date` fields, response schemas imported from shared package
 
 ---
 

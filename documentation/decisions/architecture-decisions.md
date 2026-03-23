@@ -1615,3 +1615,124 @@ The shared-key pattern applies to all internal service boundaries:
 - `SearchErrorType` gains `'depth_exceeded'`
 
 **Source**: Resolved 2026-03-19, implementation phase (Task 13). Cross-references ADR-001 (Infrastructure as Configuration), ADR-037 (GraphStore interface), ADR-048 (Zod-to-OpenAPI pipeline).
+
+---
+
+### ADR-050: Temporal API for Frontend Date Logic
+
+**Decision**: The frontend (`apps/frontend/`) uses the TC39 `Temporal` API for all calendar
+date logic. The `@js-temporal/polyfill` package is installed as a runtime dependency and
+bootstrapped once in `apps/frontend/src/lib/temporal.ts`. All frontend code imports
+`Temporal` from this module rather than from the global. The backend (`apps/backend/`)
+continues to use `Date` for timestamp generation and Knex row mapping; backend migration to
+`Temporal` is deferred to Phase 2.
+
+**Context**: `Temporal` reached TC39 Stage 4 (ES2026) in early 2026. Chrome 144+ (January
+2026) and Firefox 139+ (May 2025) ship it natively; Safari full support is expected late
+2026. Node.js 24 (the project's current target) has `Temporal` behind `--harmony-temporal`
+only — it is not available unflagged. Node.js 26 is expected to ship it unflagged.
+
+The frontend has clear calendar date use cases: `parseFilename` validates `YYYY-MM-DD`
+strings from filenames (requires detecting invalid calendar dates such as 2026-02-30);
+display components must format `string | null` date fields from API responses.
+`Temporal.PlainDate` handles both cleanly. The backend use cases are different — all `Date`
+usage there is timestamp generation (`new Date()`) and Knex row mapping (`.toISOString()`),
+which do not benefit from `Temporal.PlainDate` and involve the Knex boundary that returns
+JS `Date` objects for `timestamp` columns.
+
+**Polyfill approach**: `@js-temporal/polyfill` is the TC39 reference implementation — its
+API is identical to the native. The bootstrap module (`src/lib/temporal.ts`) exports
+`Temporal` from the polyfill; once Node 26 is adopted and Safari support lands, this file
+is updated to re-export from the global and the polyfill dependency is removed. No other
+files change.
+
+**Backend deferral**: The backend uses `new Date()` / `.toISOString()` in services and
+repositories for DB timestamp columns. Migrating requires a decision on how to handle the
+Knex boundary (Knex returns `Date` objects for `timestamp` columns). Non-trivial with no
+Phase 1 benefit. Deferred to Phase 2; tracked in `project_pending_principles.md`.
+
+**Options considered**:
+
+1. Use `@js-temporal/polyfill` now, remove when native support lands — chosen. Clean
+   migration path; API identical to native; polyfill removed when no longer needed.
+2. Use `Date` for Phase 1, migrate in Phase 2 — `parseFilename` calendar date validation
+   is awkward with `Date` (invalid dates like `2026-02-30` parse silently); would require
+   rewriting date logic twice.
+3. Adopt `Temporal` across frontend and backend now — impractical given the Knex boundary
+   complexity; no Phase 1 backend benefit.
+
+**Consequences**:
+
+- `@js-temporal/polyfill` added to `apps/frontend/` dependencies
+- `apps/frontend/src/lib/temporal.ts` created; all frontend code imports `Temporal` from
+  here — not from the global
+- `parseFilename` uses `Temporal.PlainDate.from()` with try/catch for calendar date
+  validation
+- Display components use `Temporal.PlainDate` for formatting; `null` dates display as
+  "Undated"
+- `development-principles.md` documents the rule: frontend uses `Temporal.PlainDate` for
+  all calendar date logic; backend continues to use `Date`
+
+**Source**: Resolved 2026-03-23, frontend implementation planning. Cross-references
+ADR-001 (Infrastructure as Configuration), ADR-015 (monorepo layout).
+
+---
+
+### ADR-051: Base UI and Tailwind CSS for Frontend Components
+
+**Decision**: The frontend uses **Base UI** (`@base-ui-components/react`) for interactive
+component primitives and **Tailwind CSS** for all styling. No CSS modules are used. Both are
+introduced at scaffold time (Task 1) so that every component task builds on them from the
+start. Phase 1 uses the primitives functionally with minimal styling — the application is
+deliberately unpolished (UR-119). Phase 2 adds a cohesive visual design on top of the
+existing Tailwind utility classes without structural changes to components.
+
+**Context**: The project needs interactive components (dialogs, selects, popovers, menus)
+with correct keyboard navigation and ARIA semantics. Building these from scratch is
+significant work and error-prone for accessibility. A headless primitive library handles
+the behaviour layer; Tailwind handles the styling layer. Both choices must be consistent
+with the framework agnosticism principle — Base UI is a React library with no framework
+coupling; Tailwind is pure CSS utility classes with no runtime JavaScript.
+
+**Base UI**: reached v1.0 (stable) in February 2026, backed by MUI with a dedicated
+engineering team. It is the intended successor to Radix UI, built by the same original
+authors with improved component APIs. Headless and unstyled — the styling layer is entirely
+owned by the project. 35 accessible components covering all interactive patterns needed in
+Phase 1 (dialog, select, menu, popover, checkbox, radio, tabs, tooltip).
+
+**Tailwind CSS**: Tailwind v4 is compatible with Next.js App Router and React Server
+Components. Utility-first — no stylesheet authoring, no class name conflicts. Adding
+Tailwind at scaffold time costs nothing; retrofitting it in Phase 2 would require touching
+every component to replace CSS module class names.
+
+**Why not HeroUI**: HeroUI v3 (the React Aria-powered version) is in beta as of March 2026
+(v3.0.0-beta.8); v3 is not yet production-stable. The stable v1.0 release was for the
+React Native variant. Revisit in Phase 2 when v3 stabilises — React Aria is a strong
+accessibility foundation and HeroUI v3 would be worth evaluating for the Phase 2 polish
+pass.
+
+**Why not shadcn/ui**: shadcn/ui copies components into the codebase (good for ownership)
+but depends on Radix UI primitives. The original Radix team has shifted focus to Base UI,
+raising long-term maintenance questions for shadcn/ui. Base UI is the direct successor and
+the cleaner dependency.
+
+**Phase 2 intent**: Phase 2 adds visual polish — a consistent colour palette, typography
+scale, spacing system, and component-level design tokens — all expressed as Tailwind
+configuration and utility classes. No component restructuring required; only styling changes.
+
+**Consequences**:
+
+- `@base-ui-components/react` and `tailwindcss` added to `apps/frontend/` dependencies
+- `apps/frontend/tailwind.config.ts` created at scaffold; `src/styles/global.css` imports
+  Tailwind base, components, and utilities
+- No CSS module files created anywhere in the frontend
+- Interactive components (dialogs, selects, menus, popovers) use Base UI primitives;
+  simple HTML elements (`<button>`, `<input>`, `<ul>`) used directly where no primitive
+  is needed
+- All styling via Tailwind utility classes
+- Phase 2 polish work is confined to Tailwind config and class updates — no component
+  restructuring
+
+**Source**: Resolved 2026-03-23, frontend implementation planning. Cross-references
+ADR-001 (Infrastructure as Configuration), ADR-015 (monorepo layout), ADR-050 (Temporal
+API).

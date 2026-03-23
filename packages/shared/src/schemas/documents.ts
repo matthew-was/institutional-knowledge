@@ -77,7 +77,6 @@ export type UploadFileResponse = z.infer<typeof UploadFileResponse>;
 
 export const DuplicateConflictResponse = z
   .object({
-    error: z.literal('duplicate_detected'),
     existingRecord: z.object({
       documentId: z
         .uuid()

@@ -138,6 +138,105 @@ schema (e.g. `.refine(s => s.trim().length > 0)` for non-whitespace strings), it
 there — not in the service. Service-level guards that duplicate schema constraints are dead
 code once the middleware enforces them.
 
+**Frontend testing strategy — three tiers:**
+
+The frontend has two sub-systems — the UI (browser) and the custom server (Node.js) — each
+with its own layering. The three-tier model maps tests to the layer they exercise.
+
+**Architecture context**:
+
+UI sub-system (browser):
+
+| Layer | Responsibility |
+| --- | --- |
+| Presentational component | Props → rendered output, accessibility. No state, no API calls. |
+| Custom hook | State management and business logic. Uses useSWR for data fetching and useSWRMutation for mutations — both call through `fetchWrapper`. |
+| Page / wrapper component | Wires a hook to a presentational component. Thin. |
+
+Custom server sub-system (Node.js):
+
+| Layer | Responsibility |
+| --- | --- |
+| Route handler | Thin — parse request, call handler, shape response. |
+| Handler | Business logic and orchestration. No HTTP or framework imports. |
+| Request functions | Thin — URL construction, Ky HTTP call, `x-internal-key` header injection, response parsing, error classification. No framework imports. |
+
+The `x-internal-key` header lives exclusively in the custom server request functions. It is
+never set or seen by browser-side code.
+
+**Tier 1 — Unit tests**: pure functions and presentational components. No state, no API
+calls, no running server.
+
+- Pure utility functions: `parseFilename`, Zod form schemas, formatting/sorting utilities
+- Presentational component tests: React Testing Library (RTL) with static props — rendering,
+  accessibility (ARIA roles, keyboard navigation), conditional display logic
+- `fetchWrapper` utility: mock `window.fetch` directly to assert consistent `content-type`
+  header and base path on every call
+- Custom server pure helper functions (error classifiers, response mappers) if standalone
+  with no I/O; otherwise covered by Tier 2
+
+Tooling: Vitest, RTL (for components). No MSW needed at this tier.
+
+**Tier 2 — Behaviour tests**: stateful behaviour and the custom server's internal layers.
+This is where the bulk of confidence lives.
+
+*UI behaviour — custom hook tests*:
+
+- Use `renderHook` from RTL
+- MSW intercepts calls from `fetchWrapper` to the **Hono API route paths**
+  (e.g. `/api/curation/documents`, `/api/documents/upload`)
+- Assert on state transitions: idle → loading → success, idle → loading → error,
+  mutation → re-fetch, partial failure handling
+
+*Custom server — route handler tests*:
+
+- Drive requests into the route handler using supertest against a minimal Hono test app
+- Mock the handler layer (or intercept at the HTTP level with MSW) to isolate the route handler
+  from the Express backend
+- Assert on: response status, response body shape, error propagation
+
+*Custom server — handler tests*:
+
+- Import the handler function directly (it has no knowledge of HTTP)
+- Mock the request functions it calls
+- Assert on: orchestration logic, error classification, typed return values
+- The composite upload handler is the primary target — three sequential calls with cleanup on
+  failure is non-trivial logic that warrants thorough handler-level testing
+
+*Custom server — request function tests*:
+
+- Import the request function directly
+- Mock the Ky instance at the call boundary
+- Assert on: correct URL, `x-internal-key` header present, correct request body/query params,
+  expected error states returned as typed results, unexpected errors re-thrown
+
+Tooling: Vitest, RTL (`renderHook`), MSW (UI behaviour), supertest (custom server route
+handlers).
+
+**Tier 3 — E2E tests (small in number)**: full stack — real browser, real Hono custom server,
+Express backend mocked at the network boundary.
+
+- Playwright drives a real browser against a running Hono custom server
+- MSW (service worker or Node server mode) intercepts outbound calls from the custom server
+  to Express
+- Cover critical happy paths and key error paths only — these are expensive to write and
+  maintain
+
+Tooling: Playwright, MSW.
+
+**MSW intercept boundary** — must be explicit in every test file:
+
+| Tier | MSW intercepts | Example URL pattern |
+| --- | --- | --- |
+| Tier 2 — hook tests | `fetchWrapper` → Hono API route | `/api/documents/upload` |
+| Tier 2 — custom server handler tests | Request functions → Express | `http://localhost:4000/api/documents` |
+| Tier 3 — E2E | Custom server → Express | `http://localhost:4000/api/documents` |
+
+**SWR fetcher placement**: fetchers passed to useSWR/useSWRMutation may be defined inline in
+the hook file or in a co-located `[hookName].requests.ts` file. Start inline; extract to a
+shared helper only if repetition across hooks warrants it. If extracted, the fetcher functions
+must be unit tested independently at Tier 1.
+
 ### 9. Document During Build
 
 Documentation written as decisions are made, not after. Architecture decisions recorded in [decisions/architecture-decisions.md](../decisions/architecture-decisions.md). Unresolved questions tracked in [decisions/unresolved-questions.md](../decisions/unresolved-questions.md).
@@ -207,6 +306,11 @@ The following are explicitly prohibited:
 | Inline conditional to compute HTTP status from `errorType` (e.g. `errorType === 'not_found' ? 404 : 409`) instead of a `Record<ErrorType, number>` map | The `Record` form is TypeScript-exhaustiveness-checked; an inline conditional silently omits new error types when the union grows | Error Response Pattern |
 | Synchronous `fs.*` calls (`fs.mkdirSync`, `fs.writeFileSync`, `fs.readFileSync`, etc.) | Blocks the Node.js event loop; all file operations must use `node:fs/promises` | Production-Ready Patterns |
 | Instantiating a concrete service implementation directly in integration tests (e.g. `new LocalStorageService(basePath, stagingPath, log)`) instead of using the factory function (e.g. `createStorageService(config, log)`) | Bypasses the factory entirely; `storage/index.ts` (and equivalent index files) goes untested and the test would pass even if the factory were broken | Infrastructure as Configuration |
+| Redefining a response schema in `apps/frontend/src/lib/schemas.ts` that is already defined in `packages/shared/src/schemas/` | Creates a duplicate definition that can silently drift from the backend source of truth; import from `@institutional-knowledge/shared` instead | Schema Placement / Type Safety |
+| Importing Next.js, Hono, or Express in a custom hook, handler, or request function | Couples business logic to the framework; violates the framework agnosticism constraint — only route handler files and `server.ts` may import framework-specific APIs | Frontend Framework Agnosticism |
+| Calling useSWR or useSWRMutation directly in a component (not inside a custom hook) | Scatters data-fetching logic across components; preventing framework replacement would require touching every component rather than just hook files | Frontend Framework Agnosticism |
+| Plain `fetch` calls inside a custom hook (bypassing useSWR/useSWRMutation) | Inconsistent request handling; loses the caching, deduplication, and revalidation guarantees that useSWR provides | Frontend Framework Agnosticism |
+| Setting the `x-internal-key` header outside of the request functions layer (e.g. in a hook or component) | The internal key must never appear in browser-side code; it is a server-to-server credential and must remain confined to the custom server request functions | Security / Frontend Framework Agnosticism |
 
 ---
 
@@ -387,6 +491,21 @@ define the API contract that consumers depend on. They must appear in the OpenAP
 Defining them locally in a route file makes them invisible to the spec generator and creates
 drift between the code and the documented contract.
 
+**Frontend schema rule**: the frontend must import contract schemas from
+`@institutional-knowledge/shared` rather than redefine them. `apps/frontend/src/lib/schemas.ts`
+contains only the three frontend form validation schemas that are purely frontend concerns:
+
+| Schema | Reason |
+| --- | --- |
+| `UploadFormSchema` | Validates a browser `File` object — not an API contract |
+| `MetadataEditSchema` | Derived from `UpdateDocumentMetadataRequest`; extends it with frontend-specific transformation rules (e.g. comma-separated string inputs) |
+| `AddTermSchema` | Derived from `AddVocabularyTermRequest`; extends it with frontend-specific rules |
+
+A comment at the top of `schemas.ts` must note that all response schemas are imported from
+`@institutional-knowledge/shared` and that the schemas in this file are extensions or
+frontend-only concerns, not independent definitions. Redefining a response schema locally
+creates a duplicate that can silently drift from the backend source of truth.
+
 ---
 
 ## Logging Standard
@@ -485,3 +604,75 @@ const id = uuidv7();
 UUID v4 is not prohibited in other parts of the project (frontend, Python service) where DB
 primary key performance is not a concern. If v4 is used elsewhere for a valid reason, no change
 is required.
+
+---
+
+## Frontend Framework Agnosticism
+
+The frontend is built with React, Next.js, and Hono because they are pragmatic choices, not
+because the architecture depends on them. The following constraints prevent framework coupling
+from accumulating in the wrong layers.
+
+**What must stay framework-agnostic**:
+
+- Custom hook logic — no Next.js imports; hooks are plain React
+- Handler layer (custom server) — no Next.js, no Hono, no Express imports; pure TypeScript
+  business logic
+- Request functions (custom server) — no framework imports; Ky is the HTTP library; this layer
+  has no knowledge of Next.js, Hono, or any server framework
+- Presentational components — no Next.js imports beyond what React itself requires
+- `fetchWrapper` utility (browser side) — a thin project utility wrapping plain `fetch`; sets
+  consistent `content-type` and base path; used only as the fetcher argument to useSWR and
+  useSWRMutation; no framework coupling
+
+**What is permitted to be framework-specific**:
+
+- Hono route handler files — the deliberate framework boundary; thin by design and the only
+  place Hono-specific API patterns appear
+- `server.ts` — the Hono app entry point; mounts the API router, applies auth middleware, and
+  mounts Next.js as a catch-all for all non-API traffic
+- Page components where RSC patterns are used — acceptable because pages are the natural
+  framework boundary
+
+**Why**: if Hono were replaced, or if Next.js were replaced with a static React build, the
+handler layer, request functions, hooks, and components should require zero changes. Only the
+route handler files, `server.ts`, and pages would need rewriting — and those are intentionally
+thin.
+
+useSWR and useSWRMutation are kept at the boundary: they are called only within custom hook
+files, never directly in components. Replacing them would be a change confined to hook files.
+
+**HTTP libraries**:
+
+- Browser side: useSWR for data fetching (GET requests) and useSWRMutation for mutations
+  (POST, PATCH, DELETE). Both call through `fetchWrapper`. No plain `fetch` calls in hooks
+  — all requests go through useSWR/useSWRMutation for consistency.
+- Custom server request functions: **Ky**. A single pre-configured Ky instance shared across
+  all request functions sets the backend base URL (`express.baseUrl` from config) and the
+  `x-internal-key` header once. Ky is `fetch`-based, edge-compatible, and framework-agnostic.
+
+**Component library and styling**:
+
+- Interactive component primitives (dialog, select, menu, popover, checkbox, tabs,
+  tooltip) use **Base UI** (`@base-ui-components/react`). Simple HTML elements
+  (`<button>`, `<input>`, `<ul>`) are used directly where no primitive is needed.
+- All styling uses **Tailwind CSS** utility classes. No CSS modules anywhere in the
+  frontend. `src/styles/global.css` imports Tailwind base, components, and utilities;
+  `tailwind.config.ts` lives at `apps/frontend/`.
+- Phase 1 is deliberately unpolished (UR-119) — components are functional with minimal
+  Tailwind classes. Phase 2 adds visual polish (colour palette, typography, spacing) via
+  Tailwind config and class updates only; no component restructuring required.
+- See ADR-051.
+
+**Date handling**:
+
+- Frontend uses `Temporal.PlainDate` (via `@js-temporal/polyfill`) for all calendar date
+  logic — parsing, validation, and display. Import `Temporal` from
+  `apps/frontend/src/lib/temporal.ts`, not from the global.
+- `parseFilename` uses `Temporal.PlainDate.from()` with try/catch to detect invalid
+  calendar dates (e.g. `2026-02-30`). `Date` cannot do this reliably.
+- API response `date` fields are `string | null`. Convert to `Temporal.PlainDate` at the
+  component boundary; display `null` as "Undated".
+- Backend continues to use `Date` for DB timestamp operations (Knex boundary). Backend
+  migration to `Temporal` is deferred to Phase 2 (see ADR-050 and
+  `project_pending_principles.md`).
