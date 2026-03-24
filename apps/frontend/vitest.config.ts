@@ -20,7 +20,12 @@ export default defineConfig({
         test: {
           name: 'node',
           include: ['**/*.test.{ts,tsx}'],
-          exclude: ['**/*.browser.test.{ts,tsx}', 'node_modules/**', 'dist/**', '.next/**'],
+          exclude: [
+            '**/*.browser.test.{ts,tsx}',
+            'node_modules/**',
+            'dist/**',
+            '.next/**',
+          ],
           environment: 'node',
         },
       },

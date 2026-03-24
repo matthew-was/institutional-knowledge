@@ -314,6 +314,15 @@ The following are explicitly prohibited:
 
 ---
 
+## pnpm Catalog Convention
+
+A package belongs in the pnpm catalog (`pnpm-workspace.yaml` under `catalog:`) if and only
+if it is declared by more than one workspace member. Single-package dependencies stay in
+that package's own `package.json`. This keeps the catalog meaningful and prevents
+version drift across packages without cataloging backend-only or frontend-only dependencies.
+
+---
+
 ## Dependency Composition Pattern
 
 Dependencies are composed at the top of the call chain (`server.ts`) and then narrowed as they are passed down. Each factory receives only the interface it actually uses.
