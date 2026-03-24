@@ -151,7 +151,28 @@ key non-leak assertion; `pnpm biome check` and `pnpm --filter frontend tsc --noE
 
 **Condition type**: both
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-24):
+
+- Automated checks: confirmed — all three Tier 2 supertest tests exist and cover the
+  stated conditions. The smoke test confirms the server starts and the route stub is
+  registered (`POST /api/documents/upload` returns 501 with `{ error: 'not_implemented' }`).
+  The security test reads `testConfig.express.internalKey` and asserts its value is absent
+  from all response header values — directly testing the key non-leak condition. The auth
+  no-op test confirms requests without an auth header receive neither 401 nor 403. The test
+  file uses `parseConfig` with an inline fixture object (not the real `config.json5`),
+  making it independent of the deployed config file. `pnpm biome check` and
+  `pnpm --filter frontend tsc --noEmit` confirmed clean by the code reviewer.
+- Manual checks: none required — the code review confirms both tool checks passed in the
+  review session with no errors or warnings.
+- User need: satisfied — US-086 requires upload, curation, and vocabulary management in a
+  single web application. This task establishes the deliberate framework boundary (Hono
+  handles `/api/*`; Next.js handles all other traffic) and the Express client factory that
+  injects `x-internal-key` on every outbound request. The internal key never leaks to
+  browser clients (verified by the security test). All structural preconditions for the
+  single-application requirement are in place.
+- Outcome: done
 
 ---
 
