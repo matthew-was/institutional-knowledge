@@ -1,0 +1,138 @@
+/**
+ * Frontend-only form validation schemas.
+ *
+ * Only UploadFormSchema, MetadataEditSchema, and AddTermSchema are defined here.
+ * All response schemas are imported from @institutional-knowledge/shared.
+ */
+
+import {
+  AddVocabularyTermRequest,
+  UpdateDocumentMetadataRequest,
+} from '@institutional-knowledge/shared';
+import { z } from 'zod';
+import { Temporal } from './temporal.js';
+
+// ---------------------------------------------------------------------------
+// UploadFormSchema
+// ---------------------------------------------------------------------------
+
+/**
+ * Factory function so the schema can be constructed with runtime config values
+ * (maxFileSizeMb, acceptedExtensions) without requiring config access in tests.
+ */
+export function createUploadFormSchema(
+  maxFileSizeMb: number,
+  acceptedExtensions: string[],
+) {
+  const maxBytes = maxFileSizeMb * 1024 * 1024;
+  const normalised = acceptedExtensions.map((e) => e.toLowerCase());
+
+  return z.object({
+    file: z
+      .instanceof(File)
+      .refine(
+        (f) => {
+          const ext = f.name.split('.').pop()?.toLowerCase() ?? '';
+          return normalised.includes(`.${ext}`);
+        },
+        {
+          message: `File extension must be one of: ${acceptedExtensions.join(', ')}`,
+        },
+      )
+      .refine((f) => f.size <= maxBytes, {
+        message: `File size must not exceed ${maxFileSizeMb} MB`,
+      }),
+
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, {
+        message: 'Date must be in YYYY-MM-DD format',
+      })
+      .refine(
+        (d) => {
+          try {
+            Temporal.PlainDate.from(d);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: 'Date is not a valid calendar date' },
+      ),
+
+    description: z
+      .string()
+      .min(1, { message: 'Description is required' })
+      .refine((s) => s.trim().length > 0, {
+        message: 'Description must not be whitespace only',
+      }),
+  });
+}
+
+export type UploadFormSchema = ReturnType<typeof createUploadFormSchema>;
+
+// ---------------------------------------------------------------------------
+// MetadataEditSchema
+// ---------------------------------------------------------------------------
+
+/**
+ * Preprocessor that converts a comma-separated string to a trimmed string array.
+ * If the value is already an array, it passes through unchanged.
+ */
+function arrayOrCommaSeparated() {
+  return z.preprocess((val) => {
+    if (Array.isArray(val)) {
+      return val;
+    }
+    if (typeof val === 'string') {
+      return val
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    }
+    return val;
+  }, z.array(z.string()).optional());
+}
+
+/**
+ * Derived from the shared UpdateDocumentMetadataRequest schema.
+ * Extends with preprocessing for array fields that accept comma-separated strings,
+ * and relaxes date/description to match frontend form usage (null/empty date valid).
+ */
+export const MetadataEditSchema = UpdateDocumentMetadataRequest.extend({
+  people: arrayOrCommaSeparated(),
+  organisations: arrayOrCommaSeparated(),
+  landReferences: arrayOrCommaSeparated(),
+  // Date is optional; null or empty string are both valid (undated document).
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .or(z.literal(''))
+    .nullable()
+    .optional(),
+  // Description must be non-empty non-whitespace-only if provided.
+  description: z.string().trim().min(1).optional(),
+});
+
+export type MetadataEditSchema = z.infer<typeof MetadataEditSchema>;
+
+// ---------------------------------------------------------------------------
+// AddTermSchema
+// ---------------------------------------------------------------------------
+
+/**
+ * Derived from the shared AddVocabularyTermRequest schema.
+ * Overrides targetTermId in relationship entries to use z.uuid() (Zod v4 form).
+ */
+export const AddTermSchema = AddVocabularyTermRequest.extend({
+  relationships: z
+    .array(
+      z.object({
+        targetTermId: z.uuid(),
+        relationshipType: z.string().min(1),
+      }),
+    )
+    .optional(),
+});
+
+export type AddTermSchema = z.infer<typeof AddTermSchema>;
