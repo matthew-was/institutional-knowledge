@@ -311,6 +311,7 @@ The following are explicitly prohibited:
 | Calling useSWR or useSWRMutation directly in a component (not inside a custom hook) | Scatters data-fetching logic across components; preventing framework replacement would require touching every component rather than just hook files | Frontend Framework Agnosticism |
 | Plain `fetch` calls inside a custom hook (bypassing useSWR/useSWRMutation) | Inconsistent request handling; loses the caching, deduplication, and revalidation guarantees that useSWR provides | Frontend Framework Agnosticism |
 | Setting the `x-internal-key` header outside of the request functions layer (e.g. in a hook or component) | The internal key must never appear in browser-side code; it is a server-to-server credential and must remain confined to the custom server request functions | Security / Frontend Framework Agnosticism |
+| Importing directly from `server/` via a relative path in any file under `src/` (e.g. `../../../../server/config/index`) | Couples the Next.js UI sub-system to the Hono custom server sub-system; if `server/` is restructured the import breaks silently; config values or other server-side data needed by pages must be exposed through a thin re-export in `src/lib/` (e.g. `src/lib/config.ts`) | Frontend Sub-system Boundary |
 
 ---
 

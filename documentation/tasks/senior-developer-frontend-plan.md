@@ -176,8 +176,8 @@ Full constraints are documented in `documentation/process/development-principles
 | Route | Page file | Purpose |
 | --- | --- | --- |
 | `/` | `app/page.tsx` | Root redirect to `/upload` |
-| `/upload` | `app/upload/page.tsx` | Single document upload form |
-| `/upload/success` | `app/upload/success/page.tsx` | Confirmation after a successful submission |
+| `/upload` | `app/(private)/upload/page.tsx` | Single document upload form |
+| `/upload/success` | `app/(private)/upload/success/page.tsx` | Confirmation after a successful submission |
 
 The application uses the Next.js App Router. All pages are React Server Components by default;
 interactive components (form, file picker, validation feedback) are Client Components
@@ -191,10 +191,14 @@ header, page shell) live in `apps/frontend/src/components/layout/`.
 
 #### `AppNav` (Server Component)
 
-Responsibility: top-level application navigation header rendered on every page via
-`app/layout.tsx`. Links `/upload` (Document Intake) and `/curation` (Curation). Satisfies
-the single-application requirement of US-086. Has no props and no client-side state — it is
-a static Server Component.
+Responsibility: top-level application navigation header rendered on every private page via
+`app/(private)/layout.tsx`. Links `/upload` (Document Intake) and `/curation` (Curation).
+Satisfies the single-application requirement of US-086. Has no props and no client-side
+state — it is a static Server Component.
+
+Note: `app/layout.tsx` is the outermost shell (`<html>`/`<body>` only). `AppNav` lives in
+`app/(private)/layout.tsx` so that future public pages (Phase 2: `/login` etc.) do not
+inherit the navigation. Route group folder names are stripped from URLs by Next.js.
 
 #### `DocumentUploadForm` (Client Component)
 
@@ -413,11 +417,11 @@ coverage for this area are:
 
 | Route | Page file | Purpose |
 | --- | --- | --- |
-| `/curation` | `app/curation/page.tsx` | Root curation landing page; navigation to sub-sections |
-| `/curation/documents` | `app/curation/documents/page.tsx` | Document curation queue (flagged documents) |
-| `/curation/documents/:id` | `app/curation/documents/[id]/page.tsx` | Individual document detail and metadata edit form |
-| `/curation/vocabulary` | `app/curation/vocabulary/page.tsx` | Vocabulary review queue (LLM candidates) |
-| `/curation/vocabulary/new` | `app/curation/vocabulary/new/page.tsx` | Manual vocabulary term entry form |
+| `/curation` | `app/(private)/curation/page.tsx` | Root curation landing page; navigation to sub-sections |
+| `/curation/documents` | `app/(private)/curation/documents/page.tsx` | Document curation queue (flagged documents) |
+| `/curation/documents/:id` | `app/(private)/curation/documents/[id]/page.tsx` | Individual document detail and metadata edit form |
+| `/curation/vocabulary` | `app/(private)/curation/vocabulary/page.tsx` | Vocabulary review queue (LLM candidates) |
+| `/curation/vocabulary/new` | `app/(private)/curation/vocabulary/new/page.tsx` | Manual vocabulary term entry form |
 
 The document curation queue and vocabulary review queue are distinct routes and views
 (US-079, UR-111). They must never be combined.
@@ -430,7 +434,7 @@ The `/curation` root page serves as a navigation hub linking to `/curation/docum
 #### Layout
 
 - `CurationNav` (Server Component or Client Component) — navigation links between curation
-  sections; displayed on all `/curation/*` pages via a shared layout at `app/curation/layout.tsx`
+  sections; displayed on all `/curation/*` pages via a shared layout at `app/(private)/curation/layout.tsx`
 
 #### Document curation queue
 
@@ -828,7 +832,7 @@ This section maps each in-scope Phase 1 user story to the plan components that a
 | US-081 (clear a flag) | `ClearFlagButton`, API call: DOC-008 |
 | US-082 (correct metadata) | `DocumentMetadataForm`, `/curation/documents/:id` page, API call: DOC-009 |
 | US-083 (no in-app document removal) | No delete/remove UI component exists anywhere in this plan |
-| US-086 (single web application) | All pages under a single Next.js application; `AppNav` in `app/layout.tsx` links `/upload` and `/curation`; `CurationNav` links within curation |
+| US-086 (single web application) | All pages under a single Next.js application; `AppNav` in `app/(private)/layout.tsx` links `/upload` and `/curation`; `CurationNav` links within curation |
 | US-087 (single session) | No concurrent session handling required; acknowledged limitation per requirement |
 | US-062 (add vocabulary terms manually) | `AddVocabularyTermForm`, `/curation/vocabulary/new` page, API call: VOC-004 |
 | US-063 (surface candidates in review queue) | `VocabularyQueueList` — displays candidates from API |
