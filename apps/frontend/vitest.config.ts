@@ -13,6 +13,7 @@ export default defineConfig({
           name: 'browser',
           include: ['**/*.browser.test.{ts,tsx}'],
           environment: 'jsdom',
+          setupFiles: ['./src/testing/setup.browser.ts'],
         },
       },
       {

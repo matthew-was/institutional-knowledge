@@ -281,39 +281,92 @@ redirect, and page shell. These are the structural elements shared across all pa
 
 Specifically:
 
-- Implement `src/app/layout.tsx` (Server Component): root layout; renders `AppNav` in the
-  header; applies global CSS from `src/styles/global.css`
-- Implement `src/styles/global.css`: baseline reset and global typography styles
-- Implement `src/components/AppNav/AppNav.tsx` (Server Component): top-level navigation
-  header rendered on every page. Links: `/upload` (Document Intake) and `/curation`
-  (Curation). No props, no client-side state. Satisfies US-086.
+This task establishes the Next.js route group structure that separates public and private
+pages without encoding that boundary in URLs. Route group folder names (parenthesised) are
+stripped from the URL by Next.js.
+
+Full `src/app/` layout after this task:
+
+```text
+src/app/
+├── layout.tsx              ← outermost layout: <html>/<body> shell + global.css only
+├── page.tsx                ← root redirect → /upload
+├── (public)/               ← Phase 2: unauthenticated pages (e.g. /login)
+└── (private)/
+    ├── layout.tsx          ← private shell: renders AppNav on every authenticated page
+    ├── upload/
+    │   └── page.tsx        ← URL: /upload
+    └── curation/
+        ├── layout.tsx      ← curation shell: renders CurationNav
+        └── page.tsx        ← URL: /curation
+```
+
+Specifically:
+
+- Implement `src/app/layout.tsx` (Server Component): outermost layout; renders `<html>`
+  and `<body>`; imports `src/styles/global.css`. Does **not** render `AppNav` — that is
+  the responsibility of `(private)/layout.tsx`, so future public pages do not inherit the nav.
+- Update `src/styles/global.css`: add baseline body reset and global typography after the
+  existing Tailwind import line.
 - Implement `src/app/page.tsx`: root redirect to `/upload` (React Server Component using
   Next.js `redirect()`)
-- Implement `src/app/upload/page.tsx`: page stub that reads `maxFileSizeMb` from the
-  frontend config at render time and passes it as a prop to `DocumentUploadForm` (to be
-  implemented in Task 5)
-- Implement `src/app/admin/curation/layout.tsx`: shared layout for all `/curation/*`
-  pages; renders `CurationNav`
-- Implement `src/app/admin/curation/page.tsx`: curation landing page; renders navigation
-  links to `/curation/documents` and `/curation/vocabulary`; no queue data
-- Implement `src/components/CurationNav/CurationNav.tsx`: navigation between curation
-  sections; links to `/curation/documents` and `/curation/vocabulary`
-- Write Tier 1 tests (Vitest + React Testing Library, static props):
-  - `AppNav`: renders navigation links for `/upload` and `/curation`; correct ARIA roles;
-    accessible by keyboard
-  - `CurationNav`: renders links for `/curation/documents` and `/curation/vocabulary`
+- Implement `src/app/(public)/` directory: empty placeholder for Phase 2 public pages
+  (e.g. `/login`). Add a `.gitkeep` file so the directory is committed.
+- Implement `src/app/(private)/layout.tsx` (Server Component): private shell layout;
+  renders `AppNav` in the header, then `{children}`. Applied to all private pages.
+- Implement `src/app/(private)/upload/page.tsx`: page stub that reads `maxFileSizeMb`
+  from the frontend config at render time and passes it as a prop to `DocumentUploadForm`
+  (to be implemented in Task 5). URL: `/upload`.
+- Implement `src/app/(private)/curation/layout.tsx` (Server Component): shared layout for
+  all `/curation/*` pages; renders `CurationNav`.
+- Implement `src/app/(private)/curation/page.tsx`: curation landing page; renders
+  navigation links to `/curation/documents` and `/curation/vocabulary`; no queue data.
+  URL: `/curation`.
+- Implement `src/components/AppNav/AppNav.tsx` (Server Component): top-level navigation
+  header. Links: `/upload` (Document Intake) and `/curation` (Curation). No props, no
+  client-side state. Satisfies US-086.
+- Implement `src/components/CurationNav/CurationNav.tsx` (Server Component): navigation
+  between curation sections; links to `/curation/documents` and `/curation/vocabulary`.
+- Write Tier 1 tests (Vitest + React Testing Library + `vitest-axe`, jsdom environment;
+  test files named `*.browser.test.tsx`):
+  - `AppNav`: renders navigation links for `/upload` and `/curation`; correct `href`
+    values; `<nav>` has `aria-label`; `vitest-axe` reports no accessibility violations
+  - `CurationNav`: renders links for `/curation/documents` and `/curation/vocabulary`;
+    correct `href` values; `<nav>` has `aria-label`; `vitest-axe` reports no violations
+- Add `vitest-axe` to `apps/frontend/devDependencies` and run `pnpm install`. This
+  package is the Vitest-compatible port of `jest-axe` and runs full axe-core audit rules
+  in jsdom tests. All future component test files must follow this pattern.
 
 **Depends on**: Tasks 1, 3
 
 **Complexity**: S
 
-**Acceptance condition**: Layout renders with `AppNav`; root `/` redirects to `/upload`;
-curation layout renders `CurationNav`; Tier 1 RTL tests for `AppNav` and `CurationNav`
-pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
+**Acceptance condition**: Root `src/app/layout.tsx` renders only the `<html>`/`<body>`
+shell; `(private)/layout.tsx` renders `AppNav`; root `/` redirects to `/upload`;
+`(private)/curation/layout.tsx` renders `CurationNav`; Tier 1 RTL + `vitest-axe` tests
+for `AppNav` and `CurationNav` pass with no accessibility violations; `pnpm biome check`
+and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: both
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-24):
+
+- Automated checks: confirmed — `layout.tsx` renders only `<html>`/`<body>` with no `AppNav`
+  (verified by code); `(private)/layout.tsx` renders `AppNav`; `page.tsx` calls `redirect('/upload')`;
+  `(private)/curation/layout.tsx` renders `CurationNav`; both `AppNav.browser.test.tsx` and
+  `CurationNav.browser.test.tsx` exist with 4 tests each covering: `<nav>` with `aria-label`,
+  two `href` assertions, and `vitest-axe` `toHaveNoViolations`; `setup.browser.ts` correctly
+  uses the side-effect-only import (`vitest-axe/extend-expect`); code review confirms all
+  60 tests pass.
+- Manual checks: confirmed by developer — `pnpm --filter frontend exec biome check src server`
+  and `pnpm --filter frontend exec tsc --noEmit` both exit with no errors; no application code
+  changed since code_written confirmation.
+- User need (US-086): satisfied — the single-application structure is established; `AppNav`
+  links upload and curation as sections of one application; `CurationNav` links documents and
+  vocabulary within curation; all three sections are reachable from shared navigation.
+- Outcome: done
 
 ---
 
@@ -325,6 +378,11 @@ The API call is wired in Task 6.
 
 Specifically:
 
+- Create `src/lib/config.ts`: thin re-export of the `config` singleton from
+  `server/config/index`. This keeps `src/` pages within their own sub-system boundary —
+  pages import from `@/lib/config` via the `@/*` alias rather than reaching into `server/`
+  via a relative path. Update `src/app/(private)/upload/page.tsx` to import from
+  `@/lib/config` instead of `../../../../server/config/index`.
 - Implement `src/components/FilePickerInput/FilePickerInput.tsx` (Client Component):
   file `<input>` element restricted to `accept=".pdf,.tif,.tiff,.jpg,.jpeg,.png"`.
   On file selection, calls `parseFilename` (from Task 3) and emits the selected `File`
@@ -466,7 +524,7 @@ Specifically:
   Component): receives the document record returned by the API and renders the description,
   date, and archive reference. If `date` is `null`, display "Undated". Props:
   `{ description: string; date: string | null; archiveReference: string }`.
-- Implement `src/app/upload/success/page.tsx`: reads the document record from query
+- Implement `src/app/(private)/upload/success/page.tsx`: reads the document record from query
   parameters or session storage (implementer choice) and passes it to
   `UploadSuccessMessage`. Provides a link back to `/upload` for uploading another document.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):
@@ -496,7 +554,7 @@ tests only.
 Specifically:
 
 - Implement
-  `src/app/admin/curation/documents/components/DocumentQueueItem.tsx` (Client Component):
+  `src/app/(private)/curation/documents/components/DocumentQueueItem.tsx` (Client Component):
   a single row in the queue. Shows description, date (displays "Undated" when `date` is
   `null`), flag reason (full text including failing pages per UR-051, UR-055), `flaggedAt`
   timestamp, and submitter identity (UR-126). Provides a "Clear flag" action button (wired
@@ -550,10 +608,10 @@ across all three custom server layers, and wire the curation queue page with `us
 **UI layer**:
 
 - Implement
-  `src/app/admin/curation/documents/_hooks/useDocumentQueue.ts`: custom hook using `useSWR`
+  `src/app/(private)/curation/documents/_hooks/useDocumentQueue.ts`: custom hook using `useSWR`
   with `fetchWrapper` as fetcher; SWR key is `/api/curation/documents`. Returns
   `{ items, isLoading, error, mutate }`.
-- Implement `src/app/admin/curation/documents/page.tsx`: curation documents page that
+- Implement `src/app/(private)/curation/documents/page.tsx`: curation documents page that
   renders `DocumentQueueList` using the hook. Shows loading state; shows empty state when
   queue is empty; shows error state with retry button when fetch fails (distinguishes "no
   items" from "failed to load").
@@ -597,7 +655,7 @@ component for editing a document's metadata. The API call is wired in Task 11.
 
 Specifically:
 
-- Implement `src/app/admin/curation/documents/[id]/page.tsx` (React Server Component):
+- Implement `src/app/(private)/curation/documents/[id]/page.tsx` (React Server Component):
   fetches the document record server-side using `fetch` in the page component body
   (DOC-007 via the Hono route `GET /api/curation/documents/:id`). Passes the document
   data as props to `DocumentMetadataForm`. Handles 404 — renders an error message if the
@@ -700,7 +758,7 @@ page. Data fetching and accept/reject operations are wired in Task 13.
 Specifically:
 
 - Implement
-  `src/app/admin/curation/vocabulary/components/VocabularyQueueItem.tsx` (Client
+  `src/app/(private)/curation/vocabulary/components/VocabularyQueueItem.tsx` (Client
   Component): a single row in the vocabulary queue. Shows term name, category, confidence
   score (numeric, or "N/A" for null confidence), and source document description. Provides
   Accept and Reject action buttons (wired in Task 13). Props derived from
@@ -763,10 +821,10 @@ buttons with `useSWRMutation`.
 **UI layer**:
 
 - Implement
-  `src/app/admin/curation/vocabulary/_hooks/useVocabularyQueue.ts`: custom hook using
+  `src/app/(private)/curation/vocabulary/_hooks/useVocabularyQueue.ts`: custom hook using
   `useSWR`; SWR key is `/api/curation/vocabulary`. Returns
   `{ candidates, isLoading, error, mutate }`.
-- Implement `src/app/admin/curation/vocabulary/page.tsx`: vocabulary queue page; renders
+- Implement `src/app/(private)/curation/vocabulary/page.tsx`: vocabulary queue page; renders
   `VocabularyQueueList` using the hook; shows loading, empty, and error states.
 - Implement `VocabularyQueueList` component: renders a list of `VocabularyQueueItem`
   components; passes `onSuccess` callback that calls `mutate()` to re-fetch after accept
@@ -825,7 +883,7 @@ Specifically:
   optional), aliases (multi-value input for `string[]`, optional), relationships via
   `TermRelationshipsInput` (optional). On submit, validates with `AddTermSchema` (from
   Task 3). API call wired in Task 15. Shows success or error on completion.
-- Implement `src/app/admin/curation/vocabulary/new/page.tsx`: page rendering
+- Implement `src/app/(private)/curation/vocabulary/new/page.tsx`: page rendering
   `AddVocabularyTermForm`. No data fetching on load.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):
   - `TermRelationshipsInput`: renders with no entries; renders an entry with targetTermId
