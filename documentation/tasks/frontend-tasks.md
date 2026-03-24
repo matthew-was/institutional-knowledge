@@ -242,7 +242,35 @@ all Tier 1 tests pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEm
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-24):
+
+- Automated checks: confirmed — all parts of the acceptance condition verified by reading the
+  implementation and test files. All four `src/lib/` files exist: `temporal.ts` re-exports
+  `Temporal` from `@js-temporal/polyfill` and is the sole import point for that package
+  across all of `apps/frontend/src/` (grep-confirmed). `parseFilename.ts` and
+  `fetchWrapper.ts` exist in `src/lib/`. `schemas.ts` contains exactly three exports
+  (`createUploadFormSchema` factory, `MetadataEditSchema`, `AddTermSchema`) with no response
+  schema redefinitions; a file-top comment confirms all response schemas are imported from
+  `@institutional-knowledge/shared`. Post-review changes applied and confirmed: `as string`
+  type assertions removed from `parseFilename.ts` lines 28–29; `MetadataEditSchema`
+  description field changed from `.refine()` to `.trim().min(1)`. All three test files are
+  present and cover every stated scenario — `parseFilename` (14 cases including conforming,
+  valid calendar dates, invalid calendar dates returning `{ date: null, description }`, and
+  non-conforming returning `null`); `schemas.test.ts` (UploadFormSchema, MetadataEditSchema,
+  AddTermSchema with all edge cases); `fetchWrapper.browser.test.ts` (content-type, basePath,
+  default, caller override, pass-through). `pnpm biome check` and `tsc --noEmit` confirmed
+  passing by the code reviewer; no subsequent changes affect lint or types.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied — US-003/US-003b (form rejection of invalid date and whitespace
+  description), US-004 (filename pre-population with `parseFilename` returning
+  `{ date: null, description }` for invalid calendar dates, matching the user story criterion
+  that the date field is left empty while the description still pre-populates), and US-005
+  (file format and size validation) are all directly enabled by this task. The
+  `MetadataEditSchema` description fix aligns frontend trimming with backend behaviour,
+  ensuring whitespace-only descriptions are rejected consistently at both layers.
+- Outcome: done
 
 ---
 

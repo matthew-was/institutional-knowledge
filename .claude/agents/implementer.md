@@ -99,6 +99,7 @@ Do not implement multiple tasks in one session unless the developer explicitly a
 - All configuration values loaded via nconf at startup, validated with Zod — no hardcoded values (see configuration-patterns skill)
 - File uploads: validate MIME type, extension, and size before processing; reject invalid inputs with a specific error message
 - Input sanitisation: validate all user-supplied values at the service boundary; do not pass raw request fields to database queries or file system operations
+- Frontend schema derivation: when overriding a field from a shared schema via `.extend()`, check whether the source field transforms its value (`.trim()`, `.toLowerCase()`, coercions) and preserve those transformations in the override — a `.refine()` validates but does not transform, so the form will submit a value the server would silently mutate
 - No direct database connections from frontend components — all data access via Express API
 - All handler functions accept injected services — no direct instantiation inside handlers (see dependency-composition-pattern skill)
 - Backend code structure: follow the Dependency Composition, Service, and Repository patterns in `documentation/process/development-principles.md` — route factories receive one service (not `AppDependencies`), services are factory functions returning closures, all SQL lives in `db/repositories/`, `db._knex` is never used outside repositories/test cleanup/transactions

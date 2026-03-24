@@ -515,6 +515,14 @@ A comment at the top of `schemas.ts` must note that all response schemas are imp
 frontend-only concerns, not independent definitions. Redefining a response schema locally
 creates a duplicate that can silently drift from the backend source of truth.
 
+**Frontend schema derivation — preserve source field transformations**: when a frontend
+schema overrides a field from a shared schema via `.extend()`, the override must preserve
+any transformations the source field applies (`.trim()`, `.toLowerCase()`, coercions). A
+`.refine()` check replicates the validation invariant but drops the transformation — the
+form will submit a value the server would silently mutate, making round-trip behaviour
+inconsistent and harder to reason about. If you are unsure whether a source field
+transforms, read the shared schema before writing the override.
+
 ---
 
 ## Logging Standard
