@@ -83,6 +83,9 @@ for reference the three required checks are:
 2. `pnpm --filter backend exec tsc --noEmit` — TypeScript type checking
 3. `pnpm --filter backend test` — full test suite
 
+For frontend tasks, substitute: `pnpm biome check apps/frontend/src`,
+`pnpm --filter frontend exec tsc --noEmit`, `pnpm --filter frontend test`
+
 ---
 
 ## Git Commits
@@ -114,9 +117,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend tasks revision complete (2026-03-23). Frontend Tasks 1–3 done (2026-03-24). Dependency hygiene chore complete (2026-03-23).
+- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend tasks revision complete (2026-03-23). Frontend Tasks 1–4 done (2026-03-24). Dependency hygiene chore complete (2026-03-23).
 - **Design status**: All design documents approved (ADR-001 to ADR-051). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Frontend Task 4. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Frontend Task 5. Resolve OQ-3 (embedding model) before Python Task 15/22.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
@@ -177,13 +180,13 @@ See [documentation/SUMMARY.md](documentation/SUMMARY.md) for the complete setup 
 
 **Existing `.claude/` files (do not recreate):**
 
-- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`, `update-task-status/` (invocable skill — `/update-task-status`)
+- Skills: `agent-file-conventions.md`, `approval-workflow.md`, `configuration-patterns.md`, `dependency-composition-pattern.md`, `metadata-schema.md`, `pipeline-testing-strategy.md`, `ocr-extraction-workflow.md`, `embedding-chunking-strategy.md`, `overview-review-workflow.md`, `user-stories-review-workflow.md`, `adr-review-workflow.md`, `rag-implementation.md`, `document-review-workflow.md`, `update-task-status/` (invocable skill — `/update-task-status`), `finish-task/` (invocable skill — `/finish-task <service> <task-number>` — end-of-task routine: archive review, commit, push/PR, CLAUDE.md, MEMORY.md, lab entry)
 - Global skills (in `~/.claude/skills/`): `lab-entry` — use `/lab-entry start|append|finish` across all projects
 - Agents: `product-owner.md`, `head-of-development.md`, `integration-lead.md`, `senior-developer-frontend.md`, `senior-developer-python.md`, `project-manager.md`, `implementer.md`, `pair-programmer.md`, `code-reviewer.md`, `platform-engineer.md`
 
 **All agents and skills written.** Design phase complete.
 
-**Current next step:** Frontend Task 1. Resolve OQ-3 (embedding model) before Python Task 15/22.
+**Current next step:** Frontend Task 5. Resolve OQ-3 (embedding model) before Python Task 15/22.
 
 **frontend-tasks.md rebuilt 2026-03-23** — 18 tasks; Hono custom server architecture; three-tier testing model; Base UI + Tailwind CSS (ADR-051); Temporal API via `@js-temporal/polyfill` (ADR-050).
 
@@ -215,3 +218,7 @@ markdownlint path/to/file.md
 ```
 
 `markdownlint` is installed at `/opt/homebrew/bin/markdownlint` (Homebrew global install).
+
+**Common MD032 gotcha**: lists immediately after blockquotes or prose without a blank line
+trigger MD032. Always add a blank line between a blockquote and a following list, and
+between prose and a list that follows it directly.
