@@ -99,6 +99,10 @@ TypeScript strict mode in all TypeScript packages. Zod validation at every exter
 
 **Prefer explicit `null` over empty string or `undefined` for absent data**: when a field has no value, use `null` — not `''` or omission. `null` is unambiguous ("no data expected here"); `''` cannot be distinguished from a real empty string; `undefined` is lost in JSON serialisation. This applies to Zod schemas, TypeScript types, and DB-to-service mappings. Exceptions exist (e.g. optional fields in request bodies where omission is the natural form), but they should be deliberate.
 
+**Types and constants shared across components must have a single definition**: export from the component or module that owns the concept; import everywhere else. Do not duplicate a type or constant across files — duplicates drift silently and provide no compile-time signal when one copy is updated and another is not. Within the frontend, the owning component is typically the one that renders the concept (e.g. `DuplicateConflictAlert` owns `DuplicateRecord`); within the shared layer, `packages/shared` is the owner for cross-service types.
+
+**Values that enforce a cross-service contract must come from config, not be hardcoded in application code**: if a value is validated by one service (e.g. the backend enforcing `upload.acceptedExtensions`), any other service that depends on that value (e.g. the frontend restricting the file picker) must read it from its own config — not hardcode a copy. Hardcoded copies can drift between services without any compile-time or test-time signal. The shared types package prevents schema drift for types; config is the equivalent mechanism for runtime values.
+
 ### 8. Test Early
 
 Tests written alongside code, not deferred to "after the feature works." See `pipeline-testing-strategy.md` skill for patterns.
@@ -694,3 +698,23 @@ files, never directly in components. Replacing them would be a change confined t
 - Backend continues to use `Date` for DB timestamp operations (Knex boundary). Backend
   migration to `Temporal` is deferred to Phase 2 (see ADR-050 and
   `project_pending_principles.md`).
+
+**Next.js bundler — local import extensions**:
+
+Relative imports within `src/` must not use explicit `.js` extensions (e.g. `'./temporal'`
+not `'./temporal.js'`). The project uses `moduleResolution: bundler` in `tsconfig.json`,
+which means Next.js resolves TypeScript source files directly — it does not perform Node-style
+extension substitution. An explicit `.js` suffix causes a "module not found" error at dev-server
+startup because no compiled `.js` file exists in the source tree. Vitest uses its own resolver
+and tolerates `.js` extensions, so the error only surfaces when running the dev server —
+making it easy to miss in automated checks.
+
+**Next.js bundler — Node-only server modules**:
+
+Any module that uses Node-only APIs or CJS `require` tricks (e.g. `nconf` loaded via
+`createRequire`) must be declared in `serverExternalPackages` in `next.config.ts`. Next.js
+attempts to bundle all imports including Server Component dependencies; modules that cannot
+be bundled will cause a build failure. `serverExternalPackages` tells Next.js to leave those
+modules as runtime `require()` calls instead of inlining them. Vitest does not use the Next.js
+bundler, so this failure does not surface in tests — it only appears when the dev server or
+production build processes a page that imports the affected module.

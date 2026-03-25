@@ -1,8 +1,12 @@
-import { config } from '../../../../server/config/index';
+import { DocumentUploadForm } from '@/components/DocumentUploadForm/DocumentUploadForm';
+import { config } from '@/lib/config';
 
 export default function UploadPage() {
-  const { maxFileSizeMb } = config.upload;
+  const { maxFileSizeMb, acceptedExtensions } = config.upload;
   return (
-    <p>TODO: DocumentUploadForm (Task 5) — maxFileSizeMb: {maxFileSizeMb}</p>
+    <DocumentUploadForm
+      maxFileSizeMb={maxFileSizeMb}
+      acceptedExtensions={acceptedExtensions}
+    />
   );
 }

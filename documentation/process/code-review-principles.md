@@ -266,6 +266,46 @@ the patterns documented in `development-principles.md` rather than restating the
 
 ---
 
+## CR-013 — Next.js bundler: no explicit `.js` extensions on local imports
+
+**Principle**: Relative imports within `apps/frontend/src/` must not include an explicit
+`.js` extension. With `moduleResolution: bundler`, Next.js resolves TypeScript source files
+directly and does not perform Node-style extension substitution. An explicit `.js` suffix
+causes a "module not found" error at dev-server startup.
+
+**Why**: Vitest uses its own resolver and tolerates `.js` extensions, so automated tests
+pass while the dev server fails. This makes the error easy to miss without a manual check.
+See `development-principles.md` (Frontend Framework Agnosticism — Next.js bundler section).
+
+**How to apply**:
+
+- Scan all new or modified files under `apps/frontend/src/` for relative imports ending in `.js`.
+- If found: **blocking** finding — remove the extension.
+- Imports in test files (`*.test.ts`, `*.test.tsx`) are exempt; Vitest handles them correctly.
+
+---
+
+## CR-014 — Next.js bundler: Node-only modules declared in `serverExternalPackages`
+
+**Principle**: Any module that uses Node-only APIs or CJS `require` tricks (e.g. `nconf`
+loaded via `createRequire`) and is imported — directly or transitively — by a Next.js page
+or Server Component must be listed in `serverExternalPackages` in `next.config.ts`.
+
+**Why**: Next.js bundles all Server Component imports by default. Modules that cannot be
+bundled fail silently in tests (Vitest does not use the Next.js bundler) and only surface
+as a build or dev-server error when the affected page is loaded. See
+`development-principles.md` (Frontend Framework Agnosticism — Next.js bundler section).
+
+**How to apply**:
+
+- If a new import chain from a page or Server Component reaches a Node-only or CJS module
+  (identifiable by `createRequire`, `require()`, or Node built-in imports like
+  `node:module`): check that the module is listed in `serverExternalPackages`.
+- If missing: **blocking** finding — add the module name to `serverExternalPackages` in
+  `next.config.ts`.
+
+---
+
 ## CR-005 — Validate middleware is the input boundary
 
 **Principle**: `validate({ body, params, query })` middleware is the sole mechanism for

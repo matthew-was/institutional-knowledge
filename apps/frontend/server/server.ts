@@ -1,6 +1,5 @@
-import { parse } from 'node:url';
-import type { HttpBindings } from '@hono/node-server';
-import { serve } from '@hono/node-server';
+import { createServer } from 'node:http';
+import { getRequestListener } from '@hono/node-server';
 import { Hono } from 'hono';
 import next from 'next';
 import pino from 'pino';
@@ -13,24 +12,18 @@ const log = pino({ name: 'frontend-server' });
 const dev = process.env.NODE_ENV !== 'production';
 
 const nextApp = next({ dev, customServer: true });
-const nextHandler = nextApp.getRequestHandler();
 
 // ---------------------------------------------------------------------------
 // createHonoApp — factory exported for test isolation.
 //
-// The nextHandler parameter is omitted in tests so Next.js is never initialised
-// during the Vitest run. In production the prepared handler is passed in after
-// nextApp.prepare() resolves.
+// The Next.js handler is not mounted inside Hono. Instead the Node HTTP server
+// dispatches at the path level: /api/* goes to Hono, everything else goes
+// directly to Next.js. This avoids the double-response problem that occurs when
+// Hono's fetch adapter tries to write its own response after Next.js has already
+// written to the underlying ServerResponse.
 // ---------------------------------------------------------------------------
 
-export function createHonoApp(
-  deps: ServerDeps,
-  handler?: (
-    req: Parameters<typeof nextHandler>[0],
-    res: Parameters<typeof nextHandler>[1],
-    parsedUrl?: Parameters<typeof nextHandler>[2],
-  ) => Promise<void>,
-): Hono {
+export function createHonoApp(deps: ServerDeps): Hono {
   const app = new Hono();
 
   // Auth middleware — no-op in Phase 1; wired now for Phase 2 readiness.
@@ -41,31 +34,35 @@ export function createHonoApp(
 
   app.route('/api', createRoutes(deps));
 
-  // ---------------------------------------------------------------------------
-  // Next.js catch-all — handles all non-API page traffic.
-  // Only mounted when a handler is provided (not in tests).
-  // ---------------------------------------------------------------------------
-
-  if (handler) {
-    app.all('*', async (c) => {
-      const { incoming, outgoing } = c.env as HttpBindings;
-      await handler(incoming, outgoing, parse(c.req.url, true));
-      return new Response();
-    });
-  }
-
   return app;
 }
 
 // ---------------------------------------------------------------------------
-// Server startup — top-level await is valid in ESM modules.
+// Server startup — only runs when this module is the entry point, not when
+// imported by tests.
 // ---------------------------------------------------------------------------
 
-await nextApp.prepare();
+async function start() {
+  await nextApp.prepare();
 
-const deps: ServerDeps = { config, expressClient: createExpressClient(config) };
-const app = createHonoApp(deps, nextHandler);
+  const nextHandler = nextApp.getRequestHandler();
+  const deps: ServerDeps = {
+    config,
+    expressClient: createExpressClient(config),
+  };
+  const honoListener = getRequestListener(createHonoApp(deps).fetch);
 
-serve({ fetch: app.fetch, port: config.server.port }, (info) => {
-  log.info({ port: info.port }, 'Frontend server listening');
-});
+  const server = createServer((req, res) => {
+    if (req.url?.startsWith('/api/')) {
+      honoListener(req, res);
+    } else {
+      nextHandler(req, res);
+    }
+  });
+
+  server.listen(config.server.port, () => {
+    log.info({ port: config.server.port }, 'Frontend server listening');
+  });
+}
+
+start();
