@@ -9,7 +9,7 @@
  * - Pattern does not match                 → null
  */
 
-import { Temporal } from './temporal.js';
+import { Temporal } from './temporal';
 
 export interface ParsedFilename {
   date: string | null;

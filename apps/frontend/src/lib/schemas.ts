@@ -10,7 +10,7 @@ import {
   UpdateDocumentMetadataRequest,
 } from '@institutional-knowledge/shared';
 import { z } from 'zod';
-import { Temporal } from './temporal.js';
+import { Temporal } from './temporal';
 
 // ---------------------------------------------------------------------------
 // UploadFormSchema
