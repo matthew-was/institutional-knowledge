@@ -1736,3 +1736,97 @@ configuration and utility classes. No component restructuring required; only sty
 **Source**: Resolved 2026-03-23, frontend implementation planning. Cross-references
 ADR-001 (Infrastructure as Configuration), ADR-015 (monorepo layout), ADR-050 (Temporal
 API).
+
+---
+
+### ADR-052: React Hook Form with Zod Resolver for Frontend Form Validation
+
+**Decision**: All frontend forms use **React Hook Form** (`react-hook-form`) with
+`@hookform/resolvers/zod` for validation. Zod schemas (from `src/lib/schemas.ts`) are
+passed to `zodResolver` and serve as the single source of truth for validation rules.
+Base UI `Field.Root`, `Field.Label`, `Field.Control`, and `Field.Error` primitives are
+used to compose accessible field groups; React Hook Form's `register` or `Controller`
+wires them into the form state. Native `<form>` is retained as the form element —
+Base UI's `Form.Root` is not used.
+
+**Context**: The initial Task 5 implementation used plain `<form noValidate>` with a
+manual `safeParse` call in `handleSubmit` and a `ValidationFeedback` component that
+aggregated all errors outside the fields. This approach has two problems:
+
+1. **Accessibility**: errors are not programmatically associated with their fields.
+   Screen readers cannot announce which field caused which error. `aria-invalid` and
+   `aria-describedby` must be manually wired to every input — error-prone and easily
+   missed as the form grows.
+2. **Curation form requirements**: the metadata edit and vocabulary forms require
+   dirty/touched tracking per field, validation on blur (not only on submit), "Save"
+   disabled unless dirty and valid, and reset to original values on cancel. Implementing
+   these correctly in plain React state is significant incidental complexity.
+
+React Hook Form solves both: it owns the validation lifecycle (blur, change, submit —
+configurable via `mode`), provides `isDirty`, `dirtyFields`, and `reset()` built in, and
+integrates cleanly with Base UI via `Controller`.
+
+**Why React Hook Form over TanStack Form**: TanStack Form is architecturally cleaner and
+fully type-safe end-to-end, but is less mature and has fewer Base UI integration examples.
+React Hook Form is the established choice for Base UI composition; `Controller`-based
+integration is well-documented and the `@hookform/resolvers/zod` adapter is stable.
+
+**Why not Base UI `Form.Root`**: Base UI's `Form` manages its own validity state and
+surfaces errors through its own context. This conflicts with the Zod-driven validation
+model — the two systems would need to be kept in sync, adding complexity without benefit.
+Native `<form>` is retained; Base UI `Field.*` primitives handle the per-field
+accessibility layer that `Form.Root` would otherwise provide.
+
+**Zod schema role**: Zod schemas remain in `src/lib/schemas.ts` and are passed to
+`zodResolver` at component render time. For parameterised schemas (e.g.
+`createUploadFormSchema(maxFileSizeMb)`), the factory is called at render time to produce
+the schema instance before passing to `useForm`. Zod continues to validate at both layers:
+
+- **UI layer**: React Hook Form calls the resolver on every configured trigger (blur,
+  change, or submit); errors are surfaced per-field via `Field.Error`
+- **Submit layer**: React Hook Form only calls the `handleSubmit` success callback if
+  the Zod resolver passes — Zod acts as the final gate before the API call
+
+**Field composition pattern** (using Base UI + React Hook Form `Controller`):
+
+```tsx
+<Field.Root>
+  <Field.Label>Description</Field.Label>
+  <Controller
+    name="description"
+    control={control}
+    render={({ field, fieldState }) => (
+      <Field.Control
+        {...field}
+        aria-invalid={fieldState.invalid}
+      />
+    )}
+  />
+  <Field.Error>{errors.description?.message}</Field.Error>
+</Field.Root>
+```
+
+**Dirty/touched tracking for curation forms**: React Hook Form's `formState.isDirty`
+and `formState.dirtyFields` replace manual `useState` tracking. `reset(originalValues)`
+restores the form to server state on cancel or after a successful save. "Save" buttons
+are disabled when `!isDirty || !isValid`.
+
+**`ValidationFeedback` component**: the aggregated error list component from Task 5 is
+removed. Per-field errors render inside their `Field.Root` via `Field.Error`. Server-side
+errors (non-field errors returned by the API) render in a form-level `<div role="alert">`
+adjacent to the submit button — outside any `Field.Root`.
+
+**Consequences**:
+
+- `react-hook-form` and `@hookform/resolvers` added to `apps/frontend/` dependencies
+- Task 5a revised: scope expands from a primitive swap to a full form validation
+  architecture migration; `ValidationFeedback` removed; per-field `Field.Error` added;
+  `useForm` + `zodResolver` introduced in `DocumentUploadForm`
+- All future forms use `useForm` + `zodResolver` + `Field.Root`/`Field.Error` pattern
+- Zod schemas in `src/lib/schemas.ts` unchanged — they are passed to `zodResolver`
+  without modification
+- Curation forms (Tasks 10, 12, 14) use `isDirty`, `dirtyFields`, and `reset()` from
+  React Hook Form for dirty tracking and cancel behaviour
+
+**Source**: Resolved 2026-03-25, frontend form validation architecture review.
+Cross-references ADR-051 (Base UI and Tailwind CSS), ADR-050 (Temporal API).

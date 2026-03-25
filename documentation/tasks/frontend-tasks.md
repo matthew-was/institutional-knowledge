@@ -454,6 +454,168 @@ RTL tests pass including the `null` date to "Undated" assertion on `DuplicateCon
 
 ---
 
+### Task 5a: Form validation architecture — React Hook Form, Base UI fields, and Zod resolver
+
+**Description**: Migrate the upload form to the project's standard form validation
+architecture (ADR-052). This replaces the manual `safeParse`-on-submit approach with
+React Hook Form + Zod resolver, introduces Base UI `Field.*` primitives for accessible
+field composition, and removes the `ValidationFeedback` aggregator. No new behaviour is
+introduced — validation rules are unchanged; only the architecture that drives and surfaces
+them changes.
+
+**Motivation**: The Task 5 implementation validates only on submit and aggregates errors
+outside the fields. This has two problems: errors are not programmatically associated with
+their fields (accessibility failure — no `aria-describedby`, no `aria-invalid`); and the
+curation forms will need dirty tracking, blur validation, and reset-on-cancel, which plain
+React state cannot provide cleanly. React Hook Form solves both. See ADR-052.
+
+**Dependencies to add**:
+
+- `react-hook-form` — form state management, dirty tracking, validation lifecycle
+- `@hookform/resolvers` — Zod adapter (`zodResolver`)
+
+Both are added to `apps/frontend/package.json` **`dependencies`** (not `devDependencies` —
+both ship runtime browser code); run `pnpm install`.
+
+**New file — `useDocumentUpload.ts`**:
+
+Create `src/components/DocumentUploadForm/useDocumentUpload.ts`. This hook owns all state
+and logic; `DocumentUploadForm.tsx` becomes a pure rendering layer (see
+`development-principles.md` — Form component state separation).
+
+The hook:
+
+- Accepts `maxFileSizeMb: number` as a parameter
+- Sets up `useForm<UploadFormValues>` with
+  `resolver: zodResolver(createUploadFormSchema(maxFileSizeMb))` and `mode: 'onBlur'`;
+  schema instance wrapped in `useMemo` keyed on `maxFileSizeMb`
+- Owns `useState` for `serverError: string | null` and `duplicateRecord: DuplicateRecord | null`
+  — these are driven by API responses, not field validation
+- Implements `handleFileSelect(file, parsed)`: calls `setValue('date', ...)` and
+  `setValue('description', ...)` from filename parsing; clears `serverError` and
+  `duplicateRecord`
+- Implements `onSubmit(data: UploadFormValues)`: the API call TODO for Task 6 sits here
+- Returns `{ control, errors, isValid, isSubmitting, serverError, duplicateRecord,
+  handleFileSelect, handleSubmit }` where `handleSubmit` is `rhfHandleSubmit(onSubmit)`
+
+Define and export `UploadFormValues` from this file:
+`type UploadFormValues = z.infer<ReturnType<typeof createUploadFormSchema>>`
+
+**Changes to `DocumentUploadForm.tsx`**:
+
+- Remove all `useState` and `useForm` calls — import and call `useDocumentUpload` instead
+- Destructure the hook's return value and pass to child components as props
+- Native `<form noValidate onSubmit={handleSubmit}>` is retained — Base UI `Form.Root`
+  is not used (see ADR-052)
+- Server error renders as `{serverError != null && <div role="alert">{serverError}</div>}`
+  adjacent to `SubmitButton`
+- `DuplicateConflictAlert` driven by `duplicateRecord` from the hook
+
+**Changes to `FilePickerInput`**:
+
+- Wrap with `Field.Root`, `Field.Label`, `Field.Error` from `@base-ui/react/field`
+- Use a plain `<input type="file">` inside a `Controller` render prop — do **not** use
+  `Field.Control` for file inputs; Base UI's event abstraction does not handle `FileList`
+- In the `Controller` `onChange` handler, extract `e.target.files?.[0]` and call
+  `field.onChange(file)` directly (pass the `File` object, not the event); do not spread
+  `field.value` onto the input (browsers own the file input value for security reasons)
+- Call `onFileSelect` callback after `field.onChange`
+- Accept `control: Control<UploadFormValues>` and `error?: string` as props;
+  `onFileSelect` callback unchanged
+
+**Changes to `MetadataFields`**:
+
+- Replace each plain `<label>` + `<input>` pair with `Field.Root`, `Field.Label`,
+  `Field.Control`, `Field.Error` from `@base-ui/react/field`
+- Use `Controller` for both fields; pass `invalid={!!errors.date}` / `invalid={!!errors.description}`
+  to `Field.Root` — do not add `aria-invalid` directly to `Field.Control`; `Field.Root`
+  propagates it via its own context
+- Use `match={true}` on every `Field.Error` — without it, errors never render because
+  `noValidate` bypasses native `ValidityState`
+- Props interface changes from controlled callbacks to
+  `{ control: Control<UploadFormValues>; errors: FieldErrors<UploadFormValues> }`
+
+**Changes to `SubmitButton`**:
+
+- Replace `<button>` with `Button` from `@base-ui/react/button` (note: single-part
+  component; the export is `Button`, not `Button.Root`)
+- `disabled` and `submitting` props still passed from the parent — `SubmitButton` remains
+  presentational; it does not import RHF
+
+**`ValidationFeedback` component**: deleted. Per-field errors render inside each
+`Field.Root` via `Field.Error`. The `ValidationFeedback.tsx` file and directory are
+removed. There is no test file for this component.
+
+**`DuplicateConflictAlert`**: unchanged — no interactive primitives; keep existing
+`<div role="alert" aria-live="assertive">` structure.
+
+**Import convention**: use sub-path entry points — `import { Button } from
+'@base-ui/react/button'`, `import { Field } from '@base-ui/react/field'` — not the barrel
+import, for tree-shaking.
+
+**Tests**:
+
+- `useDocumentUpload`: new Tier 1 test file using `renderHook`; assert `handleFileSelect`
+  calls `setValue` and clears server error; assert `handleSubmit` does not call `onSubmit`
+  when form is invalid (Zod fails)
+- `FilePickerInput.browser.test.tsx`: add a `useForm` wrapper component in the test to
+  provide `control`; add assertion that `Field.Error` renders when `error` prop is present
+- `MetadataFields.browser.test.tsx`: new file; `useForm` wrapper; assert `aria-invalid` on
+  the input when field has an error; assert `Field.Error` message renders
+- `SubmitButton.browser.test.tsx`: no changes required — Base UI `Button` renders a native
+  `<button>`; existing `.disabled` and `aria-disabled` assertions continue to pass
+- `DuplicateConflictAlert.browser.test.tsx`: no changes required
+
+**Out of scope**: styling, new validation rules, curation form components, any component
+not listed above, navigation components.
+
+**Depends on**: Task 5
+
+**Complexity**: M
+
+**Acceptance condition**: `react-hook-form` and `@hookform/resolvers` are in
+`package.json` `dependencies`; `useDocumentUpload.ts` exists co-located with
+`DocumentUploadForm.tsx` and owns all form state and logic; `DocumentUploadForm.tsx`
+contains no `useState` or `useForm` calls; `FilePickerInput` and `MetadataFields` use
+`Field.Root`, `Field.Label`, `Field.Control`/plain `<input>`, `Field.Error`; `SubmitButton`
+uses `Button` from `@base-ui/react/button`; `ValidationFeedback` component and directory
+are deleted; per-field errors render via `Field.Error` adjacent to their fields;
+server-error `<div role="alert">` present for non-field errors; all Tier 1 tests pass
+including new `useDocumentUpload` hook tests; `pnpm biome check` and
+`pnpm --filter frontend tsc --noEmit` pass.
+
+**Condition type**: automated
+
+**Status**: done
+
+**Verification** (2026-03-25):
+
+- Automated checks: confirmed. All structural elements verified by reading the implementation:
+  `react-hook-form@^7.55.0` and `@hookform/resolvers@^5.2.2` in `dependencies` (not
+  `devDependencies`); `useDocumentUpload.ts` co-located with `DocumentUploadForm.tsx` and
+  owns all `useState` and `useForm` calls; `DocumentUploadForm.tsx` contains no `useState`
+  or `useForm` calls; `FilePickerInput` uses `Field.Root`, `Field.Label`, plain `<input
+  type="file">` inside `Controller`, and `Field.Error match={true}`; `MetadataFields` uses
+  `Field.Root`, `Field.Label`, `Input` from `@base-ui/react/input` inside `Controller` (reads
+  `Field.Root`'s `invalid` context — `aria-invalid` propagation confirmed by test assertions),
+  and `Field.Error match={true}`; `SubmitButton` uses `Button` from `@base-ui/react/button`;
+  `ValidationFeedback` directory deleted (no files found); per-field `Field.Error` present
+  adjacent to each field in both components; server-error `<div role="alert">` present in
+  `DocumentUploadForm.tsx` at line 41. Hook tests non-vacuous for `setValue` behaviour:
+  `getValues('date')` and `getValues('description')` asserted after `handleFileSelect`, and
+  would fail if `setValue` calls were removed. Code review confirmed: 78 tests passing, `pnpm
+  biome check` and `pnpm --filter frontend tsc --noEmit` both pass (round 2).
+- Manual checks: none required.
+- User need: satisfied. The core need (US-003/US-003b) is that validation errors prompt the
+  user to correct individual fields. The `Field.Root invalid` prop propagates `aria-invalid`
+  to inputs, `Field.Error` renders error text adjacent to its field, and `mode: 'onBlur'`
+  means errors surface on field interaction rather than only on submit — a meaningful
+  improvement over the Task 5 baseline. `handleFileSelect` pre-populates fields from a
+  conforming filename (US-004) and this is now verified non-vacuously by tests.
+- Outcome: done
+
+---
+
 ### Task 6: Document upload — Hono route, handler, and request functions
 
 **Description**: Implement the composite document upload operation across all three custom
@@ -521,7 +683,7 @@ Hono API route via `useSWRMutation`.
     with `existingRecord`
   - Typed success return on happy path
 
-**Depends on**: Tasks 2, 3, 5
+**Depends on**: Tasks 2, 3, 5, 5a
 
 **Complexity**: L
 
