@@ -1,38 +1,56 @@
 'use client';
 
+import { Field } from '@base-ui/react/field';
+import { Input } from '@base-ui/react/input';
+import { type Control, Controller, type FieldErrors } from 'react-hook-form';
+
+import type { UploadFormValues } from '@/components/DocumentUploadForm/useDocumentUpload';
+
 interface MetadataFieldsProps {
-  date: string;
-  description: string;
-  onDateChange: (v: string) => void;
-  onDescriptionChange: (v: string) => void;
+  control: Control<UploadFormValues>;
+  errors: FieldErrors<UploadFormValues>;
 }
 
-export function MetadataFields({
-  date,
-  description,
-  onDateChange,
-  onDescriptionChange,
-}: MetadataFieldsProps) {
+export function MetadataFields({ control, errors }: MetadataFieldsProps) {
   return (
     <div>
-      <div>
-        <label htmlFor="document-date">Date</label>
-        <input
-          id="document-date"
-          type="date"
-          value={date}
-          onChange={(e) => onDateChange(e.target.value)}
+      <Field.Root invalid={!!errors.date}>
+        <Field.Label>Date</Field.Label>
+        <Controller
+          name="date"
+          control={control}
+          render={({ field }) => (
+            <Input
+              id="document-date"
+              type="date"
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              ref={field.ref}
+            />
+          )}
         />
-      </div>
-      <div>
-        <label htmlFor="document-description">Description</label>
-        <input
-          id="document-description"
-          type="text"
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
+        <Field.Error match={true}>{errors.date?.message}</Field.Error>
+      </Field.Root>
+
+      <Field.Root invalid={!!errors.description}>
+        <Field.Label>Description</Field.Label>
+        <Controller
+          name="description"
+          control={control}
+          render={({ field }) => (
+            <Input
+              id="document-description"
+              type="text"
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              ref={field.ref}
+            />
+          )}
         />
-      </div>
+        <Field.Error match={true}>{errors.description?.message}</Field.Error>
+      </Field.Root>
     </div>
   );
 }

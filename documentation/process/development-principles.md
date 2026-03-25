@@ -718,3 +718,23 @@ be bundled will cause a build failure. `serverExternalPackages` tells Next.js to
 modules as runtime `require()` calls instead of inlining them. Vitest does not use the Next.js
 bundler, so this failure does not surface in tests — it only appears when the dev server or
 production build processes a page that imports the affected module.
+
+**Form component state separation**:
+
+Every form component that owns state must separate state logic from rendering using a
+custom hook. The component file is a pure rendering layer; the hook owns all state,
+validation setup, and event handlers.
+
+- Hook file: `use[ComponentName].ts` co-located with the component in the same directory
+  (e.g. `src/components/DocumentUploadForm/useDocumentUpload.ts`)
+- Hook returns the values and handlers the component needs — `control`, `errors`,
+  `formState`, `handleSubmit`, `handleFileSelect`, `serverError`, `duplicateRecord`, etc.
+- Component file: imports the hook, destructures its return value, passes values to
+  child components as props — no `useState`, no `useForm`, no event handler definitions
+- Co-location rule: if the hook is tightly coupled to a single component, it lives next
+  to that component. If the hook is shared across a page's components (e.g. a data
+  fetching hook for a page), it lives in a `_hooks/` directory co-located with the page.
+
+This separation makes components easier to test in isolation (render with static props),
+makes hooks independently testable via `renderHook`, and keeps the state/rendering
+boundary explicit. See ADR-052.

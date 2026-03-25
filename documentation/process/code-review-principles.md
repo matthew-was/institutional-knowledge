@@ -306,6 +306,31 @@ as a build or dev-server error when the affected page is loaded. See
 
 ---
 
+## CR-015 — Test assertions must be falsifiable
+
+**Principle**: For each new test assertion, verify that it would fail if the production
+code it is meant to cover were deleted or stubbed to a no-op. An assertion that passes
+regardless of the behaviour under test is vacuous — it provides no regression protection
+and gives false confidence.
+
+**Why**: Vacuous assertions are easy to write unintentionally when testing stateful code.
+A value that starts as `null` and is never set will always satisfy `expect(x).toBeNull()`,
+even if the function under test was supposed to set it to something meaningful. The test
+appears to pass but covers nothing.
+
+**How to apply**:
+
+- For each assertion in a new test, ask: "Would this assertion fail if the specific
+  function or branch it exercises were removed?" If no, it is vacuous — **blocking** finding.
+- Common patterns to watch for:
+  - Asserting a value is `null` when it was never set before the call under test
+  - Asserting a value equals its default when the code path is supposed to change it
+  - Asserting that no error was thrown when the test never reached the code that would throw
+- The fix is typically to assert the output value that the code under test is responsible
+  for producing — not a side-effect that happens to be true unconditionally.
+
+---
+
 ## CR-005 — Validate middleware is the input boundary
 
 **Principle**: `validate({ body, params, query })` middleware is the sole mechanism for
