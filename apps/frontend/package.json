@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server/server.js",
+    "dev": "tsx watch server/server.ts",
     "build": "next build",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src server",
@@ -46,6 +46,7 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
+    "tsx": "^4.21.0",
     "vitest-axe": "pre"
   }
 }

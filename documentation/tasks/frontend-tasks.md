@@ -426,7 +426,31 @@ RTL tests pass including the `null` date to "Undated" assertion on `DuplicateCon
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-25):
+
+- Automated checks: confirmed — all six components present and correctly structured
+  (`FilePickerInput`, `MetadataFields`, `ValidationFeedback`, `DuplicateConflictAlert`,
+  `SubmitButton`, `DocumentUploadForm`); `src/lib/config.ts` is a thin re-export of the
+  config singleton and `upload/page.tsx` imports via `@/lib/config` not a direct relative
+  path into `server/`; all five task components carry `'use client'`; `DuplicateConflictAlert`
+  uses `existingRecord.date ?? 'Undated'`; `DuplicateConflictAlert.browser.test.tsx` contains
+  the load-bearing assertion `screen.getByText(/Undated/)` when `date: null` is passed;
+  `FilePickerInput.browser.test.tsx` covers file input rendering, accessible label, and
+  `accept` attribute; `SubmitButton.browser.test.tsx` covers enabled, disabled, loading
+  states, and `aria-disabled`; all browser test files use the `.browser.test.tsx` suffix
+  routed to the `jsdom` project in `vitest.config.ts`; code reviewer confirmed lint and
+  typecheck pass with no blocking findings.
+- Manual checks: none required
+- User need: satisfied — US-001 (upload form accessible via web), US-002 (date and
+  description fields present), US-003/US-003b (client-side validation via
+  `UploadFormSchema.safeParse` before submission), US-004 (filename pre-population via
+  `parseFilename` callback in `handleFileSelect`), US-086 (upload as a section of the single
+  web application). API wiring is explicitly deferred to Task 6 — the `// TODO Task 6`
+  comment is in place. The implementation correctly scopes this task to components and
+  client-side validation only.
+- Outcome: done
 
 ---
 

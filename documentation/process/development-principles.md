@@ -99,6 +99,10 @@ TypeScript strict mode in all TypeScript packages. Zod validation at every exter
 
 **Prefer explicit `null` over empty string or `undefined` for absent data**: when a field has no value, use `null` — not `''` or omission. `null` is unambiguous ("no data expected here"); `''` cannot be distinguished from a real empty string; `undefined` is lost in JSON serialisation. This applies to Zod schemas, TypeScript types, and DB-to-service mappings. Exceptions exist (e.g. optional fields in request bodies where omission is the natural form), but they should be deliberate.
 
+**Types and constants shared across components must have a single definition**: export from the component or module that owns the concept; import everywhere else. Do not duplicate a type or constant across files — duplicates drift silently and provide no compile-time signal when one copy is updated and another is not. Within the frontend, the owning component is typically the one that renders the concept (e.g. `DuplicateConflictAlert` owns `DuplicateRecord`); within the shared layer, `packages/shared` is the owner for cross-service types.
+
+**Values that enforce a cross-service contract must come from config, not be hardcoded in application code**: if a value is validated by one service (e.g. the backend enforcing `upload.acceptedExtensions`), any other service that depends on that value (e.g. the frontend restricting the file picker) must read it from its own config — not hardcode a copy. Hardcoded copies can drift between services without any compile-time or test-time signal. The shared types package prevents schema drift for types; config is the equivalent mechanism for runtime values.
+
 ### 8. Test Early
 
 Tests written alongside code, not deferred to "after the feature works." See `pipeline-testing-strategy.md` skill for patterns.
