@@ -110,11 +110,7 @@ In `CLAUDE.md`, under Quick Orientation:
 - Update the "Frontend/Backend/Python Tasks N–M done" count to include this task.
 - Update "Next actionable step" to the next not-started task.
 
-Present the proposed changes as a diff snippet and ask:
-
-> "Update CLAUDE.md with the above? (yes / skip)"
-
-Apply on confirmation.
+Apply these changes automatically without asking for confirmation.
 
 ### Step 8 — Update MEMORY.md
 
@@ -123,11 +119,7 @@ In `MEMORY.md` (`~/.claude/projects/.../memory/MEMORY.md`):
 - Add a row to the Phase Status table for this task.
 - Update "Next actionable step".
 
-Present the proposed changes and ask:
-
-> "Update MEMORY.md with the above? (yes / skip)"
-
-Apply on confirmation.
+Apply these changes automatically without asking for confirmation.
 
 ### Step 9 — Append lab entry block
 

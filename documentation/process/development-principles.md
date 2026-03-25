@@ -698,3 +698,23 @@ files, never directly in components. Replacing them would be a change confined t
 - Backend continues to use `Date` for DB timestamp operations (Knex boundary). Backend
   migration to `Temporal` is deferred to Phase 2 (see ADR-050 and
   `project_pending_principles.md`).
+
+**Next.js bundler — local import extensions**:
+
+Relative imports within `src/` must not use explicit `.js` extensions (e.g. `'./temporal'`
+not `'./temporal.js'`). The project uses `moduleResolution: bundler` in `tsconfig.json`,
+which means Next.js resolves TypeScript source files directly — it does not perform Node-style
+extension substitution. An explicit `.js` suffix causes a "module not found" error at dev-server
+startup because no compiled `.js` file exists in the source tree. Vitest uses its own resolver
+and tolerates `.js` extensions, so the error only surfaces when running the dev server —
+making it easy to miss in automated checks.
+
+**Next.js bundler — Node-only server modules**:
+
+Any module that uses Node-only APIs or CJS `require` tricks (e.g. `nconf` loaded via
+`createRequire`) must be declared in `serverExternalPackages` in `next.config.ts`. Next.js
+attempts to bundle all imports including Server Component dependencies; modules that cannot
+be bundled will cause a build failure. `serverExternalPackages` tells Next.js to leave those
+modules as runtime `require()` calls instead of inlining them. Vitest does not use the Next.js
+bundler, so this failure does not surface in tests — it only appears when the dev server or
+production build processes a page that imports the affected module.
