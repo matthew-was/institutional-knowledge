@@ -136,12 +136,36 @@ recorded SHA). Resolve the full hash and construct the GitHub URL:
 `https://github.com/<owner>/<repo>/commit/<full-hash>`. If no commit was made (Step 5
 was skipped), the `commits` array should be empty.
 
-Present the draft and ask:
+**Present the draft as formatted markdown prose** — do NOT show raw JSON or escaped
+strings. Use the following structure so the content word-wraps naturally:
+
+---
+
+**Lab entry draft**
+
+**Task**: [task title]
+
+**What was implemented**: [prose summary]
+
+**Key decisions**:
+
+- [decision 1]
+- [decision 2]
+- ...
+
+**Review notes**: [prose summary of review rounds and findings]
+
+**Commit**: [full SHA] — [GitHub URL]
+
+---
+
+Then ask:
 
 > "Append the above block to the lab entry? (yes / edit / skip)"
 
-On confirmation, append to `~/.claude/lab-entry-draft.json` using the JSON block format
-defined in the lab-entry skill. If no draft exists, note it and skip.
+On confirmation, convert the above to the JSON block format and append to
+`~/.claude/lab-entry-draft.json` as defined in the lab-entry skill. If no draft exists,
+note it and skip.
 
 ### Step 10 — Done
 
