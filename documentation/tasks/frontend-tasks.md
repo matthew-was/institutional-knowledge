@@ -747,7 +747,24 @@ test; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: automated
 
-**Status**: reviewed
+**Status**: done
+
+**Verification** (2026-03-26):
+
+- Automated checks: confirmed — three Tier 1 RTL tests in
+  `UploadSuccessMessage.browser.test.tsx` directly exercise all three acceptance condition
+  cases: (1) description and archive reference rendered with non-null date; (2) "Undated"
+  rendered when `date={null}` — `getByText(/Undated/)` would throw if absent; (3) date string
+  rendered when date is non-null. Assertions are falsifiable (CR-015). The `/upload/success`
+  page exists at `src/app/(private)/upload/success/page.tsx`.
+- Manual checks: `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` — confirmed by
+  the user's `reviewed` status transition after the second review round, which required these
+  to pass clean.
+- User need: satisfied — the page provides immediate confirmation of a successful upload,
+  displaying description, date (or "Undated"), and archive reference as required by US-001
+  and US-042. The redirect guard (added in round 2) prevents a confusing blank page on
+  direct navigation. All suggestions from round 1 were applied in the round 2 submission.
+- Outcome: done
 
 ---
 

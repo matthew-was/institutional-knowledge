@@ -16,11 +16,7 @@ export function UploadSuccessMessage({
         <li>Description: {description}</li>
         <li>
           Date:{' '}
-          {date !== null ? (
-            <time dateTime={date}>{date}</time>
-          ) : (
-            'Undated'
-          )}
+          {date !== null ? <time dateTime={date}>{date}</time> : 'Undated'}
         </li>
         <li>Archive reference: {archiveReference}</li>
       </ul>
