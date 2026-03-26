@@ -21,6 +21,7 @@ const baseProps = {
   flaggedAt: '2026-03-13T10:00:00Z',
   submitterIdentity: 'Primary Archivist',
   pipelineStatus: 'ocr',
+  onSuccess: vi.fn(),
 };
 
 describe('DocumentQueueItem', () => {

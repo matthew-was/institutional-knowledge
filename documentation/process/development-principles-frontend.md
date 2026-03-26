@@ -206,6 +206,13 @@ Concretely:
   promise rejections must not propagate to Hono's default error handler — they produce
   unstructured responses with no Pino logging. Catch unexpected throws, log with
   `deps.log.error`, and return a structured error response
+- Query params and JSON request bodies must be validated with Zod using shared schemas
+  before being passed to the handler layer. Use `Schema.safeParse(c.req.query())` for query
+  params (shared schemas use `z.coerce.number()` so string-to-number conversion is handled
+  automatically) and `Schema.safeParse(await c.req.json())` for JSON bodies. Return 400 with
+  `{ error: 'invalid_params', message: <first issue message> }` on parse failure. Exception:
+  `multipart/form-data` routes (file uploads) use manual type guards because Zod cannot
+  validate `File` instances
 
 ---
 

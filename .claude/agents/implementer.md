@@ -131,6 +131,11 @@ Write tests alongside the implementation — do not defer them. For each task:
 - Do NOT implement beyond the task description — if the plan suggests something not in the task, flag it rather than adding it silently
 - Do NOT access the database directly from the frontend — always via Express API
 - If a task is ambiguous about implementation detail, ask before writing code — do not guess
+- If following a specific task description instruction would violate a documented principle
+  (in `development-principles.md`, `development-principles-frontend.md`, or
+  `development-principles-backend.md`), stop. Do not implement any alternative. Flag the
+  conflict to the developer — state which instruction conflicts, which principle it violates,
+  and what the correct approach would be — before writing any code
 
 ## Status transitions
 
