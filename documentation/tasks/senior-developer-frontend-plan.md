@@ -179,10 +179,11 @@ Full constraints are documented in `documentation/process/development-principles
 | `/upload` | `app/(private)/upload/page.tsx` | Single document upload form |
 | `/upload/success` | `app/(private)/upload/success/page.tsx` | Confirmation after a successful submission |
 
-The application uses the Next.js App Router. All pages are React Server Components by default;
-interactive components (form, file picker, validation feedback) are Client Components
-(`"use client"`). The root page at `/` redirects to `/upload` so that the application opens
-directly on the intake form.
+The application uses the Next.js App Router. All components are Server Components by default.
+A component requires `'use client'` only when it uses state, effects, browser APIs, or event
+handlers — see the "Server vs Client Components" principle in `development-principles-frontend.md`.
+The root page at `/` redirects to `/upload` so that the application opens directly on the intake
+form.
 
 ### Components
 
@@ -200,7 +201,7 @@ Note: `app/layout.tsx` is the outermost shell (`<html>`/`<body>` only). `AppNav`
 `app/(private)/layout.tsx` so that future public pages (Phase 2: `/login` etc.) do not
 inherit the navigation. Route group folder names are stripped from URLs by Next.js.
 
-#### `DocumentUploadForm` (Client Component)
+#### `DocumentUploadForm` (uses `useSWRMutation` and form state — requires `'use client'`)
 
 Responsibility: renders the document upload form and manages all client-side state for the
 intake flow. This is the primary interactive component for C1.
@@ -242,7 +243,7 @@ returned by the API and renders the description, date, and archive reference.
 
 **Null date display**: if `date` is `null`, display "Undated" in place of the date value.
 
-#### `DuplicateConflictAlert` (Client Component)
+#### `DuplicateConflictAlert`
 
 Responsibility: displayed inside `ValidationFeedback` when the API returns a duplicate
 detection error. Shows the existing record's description, date, and archive reference so the
@@ -433,29 +434,31 @@ The `/curation` root page serves as a navigation hub linking to `/curation/docum
 
 #### Layout
 
-- `CurationNav` (Server Component or Client Component) — navigation links between curation
-  sections; displayed on all `/curation/*` pages via a shared layout at `app/(private)/curation/layout.tsx`
+- `CurationNav` (Server Component) — navigation links between curation sections; displayed
+  on all `/curation/*` pages via a shared layout at `app/(private)/curation/layout.tsx`
 
 #### Document curation queue
 
-- `DocumentQueueList` (Client Component) — renders the list of flagged documents; fetches
-  queue data on mount via `useSWR`; calls `mutate()` on the SWR key after a flag is cleared
-  to re-fetch; displays description, date, flag reason, and submitter identity for each entry
-  (US-080, UR-126); ordered by flag timestamp ascending (UR-081)
+- `DocumentQueueList` (uses `useSWR` — requires `'use client'`) — renders the list of
+  flagged documents; fetches queue data on mount via `useSWR`; calls `mutate()` on the SWR
+  key after a flag is cleared to re-fetch; displays description, date, flag reason, and
+  submitter identity for each entry (US-080, UR-126); ordered by flag timestamp ascending
+  (UR-081)
 - `DocumentQueueItem` — a single row or card in the queue list; shows description, date, flag
   reason (full, including failing pages per UR-051, UR-055), and submitter identity; provides a
   "Clear flag" action button and a "Edit metadata" link to `/curation/documents/:id`.
   **Null date display**: if `date` is `null`, display "Undated" in place of the date value.
-- `ClearFlagButton` (Client Component) — posts a flag-clear request to the API; on success,
-  triggers re-fetch of the queue; displays a loading state during the request; on error,
-  displays an inline error message
+- `ClearFlagButton` (posts to API, shows loading state — requires `'use client'`) — posts a
+  flag-clear request to the API; on success, triggers re-fetch of the queue; displays a
+  loading state during the request; on error, displays an inline error message
 
 #### Document metadata edit
 
-- `DocumentMetadataForm` (Client Component) — editable form for document type, date, people,
-  organisations, land references, and description (US-082, UR-114); pre-populated from the
-  document record fetched via the API; on submit, PATCHes the metadata via the API; does not
-  trigger re-embedding (UR-062); displays a success message or error message on completion.
+- `DocumentMetadataForm` (uses form state and `useSWRMutation` — requires `'use client'`) —
+  editable form for document type, date, people, organisations, land references, and
+  description (US-082, UR-114); pre-populated from the document record fetched via the API;
+  on submit, PATCHes the metadata via the API; does not trigger re-embedding (UR-062);
+  displays a success message or error message on completion.
   **Null date display**: the date field is pre-populated from the API response; if `date` is
   `null`, the field is left empty (undated documents are valid). The form must handle a `null`
   initial value without treating it as a validation error on render.
@@ -477,26 +480,28 @@ a string; the curator can correct it to any value via the metadata edit form.
 
 #### Vocabulary review queue
 
-- `VocabularyQueueList` (Client Component) — renders the list of pending vocabulary candidates
-  (`source: llm_extracted` terms awaiting accept/reject); fetches on mount; ordered by
-  step-completion timestamp ascending (UR-090, US-063); each candidate shows term, category,
-  confidence score, and the source document description; re-fetches after accept or reject
-  to remove the item from the queue
+- `VocabularyQueueList` (uses `useSWR` — requires `'use client'`) — renders the list of
+  pending vocabulary candidates (`source: llm_extracted` terms awaiting accept/reject);
+  fetches on mount; ordered by step-completion timestamp ascending (UR-090, US-063); each
+  candidate shows term, category, confidence score, and the source document description;
+  re-fetches after accept or reject to remove the item from the queue
 - `VocabularyQueueItem` — a single row in the queue; shows term name, category, confidence
   (numeric), and source document description; provides Accept and Reject action buttons
-- `AcceptCandidateButton` (Client Component) — posts an accept request to the API; on success,
-  triggers re-fetch; on error, displays an inline error message
-- `RejectCandidateButton` (Client Component) — posts a reject request to the API; on success,
-  triggers re-fetch; on error, displays an inline error message
+- `AcceptCandidateButton` (posts to API, shows loading state — requires `'use client'`) —
+  posts an accept request to the API; on success, triggers re-fetch; on error, displays an
+  inline error message
+- `RejectCandidateButton` (posts to API, shows loading state — requires `'use client'`) —
+  posts a reject request to the API; on success, triggers re-fetch; on error, displays an
+  inline error message
 
 #### Manual vocabulary term entry
 
-- `AddVocabularyTermForm` (Client Component) — form for manually entering a new vocabulary
-  term (US-062, UR-089); fields: term name (string, required), category (free-text string,
-  required), description (string, optional), aliases (multi-value input, string array, optional),
-  relationships (multi-value input linking to existing terms via
-  `{ targetTermId: string, relationshipType: string }`, optional); on submit, POSTs to the API;
-  displays success or error on completion
+- `AddVocabularyTermForm` (uses form state and `useSWRMutation` — requires `'use client'`) —
+  form for manually entering a new vocabulary term (US-062, UR-089); fields: term name
+  (string, required), category (free-text string, required), description (string, optional),
+  aliases (multi-value input, string array, optional), relationships (multi-value input
+  linking to existing terms via `{ targetTermId: string, relationshipType: string }`,
+  optional); on submit, POSTs to the API; displays success or error on completion
 - `TermRelationshipsInput` — sub-component of `AddVocabularyTermForm`; allows the user to
   specify relationships between the new term and existing vocabulary terms; relationship types
   are free-text strings matching the indicative types from ADR-038 (owned_by, transferred_to,
