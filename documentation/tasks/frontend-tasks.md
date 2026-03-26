@@ -782,10 +782,16 @@ Specifically:
   and submitter identity (UR-126). Provides a "Clear flag" action button (wired in Task 9)
   and a link to `/curation/documents/:id` for the metadata edit form. Props derived from
   `DocumentQueueItem` imported from `@institutional-knowledge/shared`.
-- Implement `src/components/ClearFlagButton/ClearFlagButton.tsx` (posts to API, shows
-  loading state — requires `'use client'`): posts a flag-clear request to the API; shows
-  loading state; on success triggers queue re-fetch (wired in Task 9); on error displays
-  an inline error message. Props: `{ documentId: string; onSuccess: () => void }`.
+- Implement `src/app/(private)/curation/documents/components/useClearFlag.ts`: custom
+  hook owning the clear-flag state machine (`isClearing`, `error`, `handleClear`). In
+  this task the hook calls a simple inline no-op stub — no injected parameter, no
+  abstraction. Task 9 replaces the stub by importing and calling `clearDocumentFlag`
+  directly. `DocumentQueueItem` calls this hook and passes `onClick`, `isLoading`, and
+  `error` as props to `ClearFlagButton`.
+- Implement `src/components/ClearFlagButton/ClearFlagButton.tsx` (has an `onClick` event
+  handler — requires `'use client'`): purely presentational; props are
+  `{ onClick: () => void; isLoading: boolean; error: string | null }`. No state, no async
+  logic — all state lives in `useClearFlag`.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):
   - `DocumentQueueItem`: renders description, date, flag reason, and submitter identity;
     renders "Undated" when `date` is `null`; renders date string when non-null; contains a
@@ -803,7 +809,29 @@ biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-26):
+
+- Automated checks: confirmed. `DocumentQueueItem` exists at
+  `src/app/(private)/curation/documents/components/DocumentQueueItem.tsx`;
+  `ClearFlagButton` exists at `src/components/ClearFlagButton/ClearFlagButton.tsx`.
+  `DocumentQueueItem.browser.test.tsx` lines 35–41 render with `date={null}` and assert
+  `getByText(/Undated/)` is defined and `queryByText('1987-06-15')` is null — both sides
+  falsifiable (CR-015 satisfied). The non-null date path (lines 43–50) asserts
+  `queryByText(/Undated/)` is null when date is present. `ClearFlagButton.browser.test.tsx`
+  covers idle, loading, and error states with an accessible `aria-label="Clear flag"`.
+  `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` confirmed by the
+  `code_written` checklist enforcement and the user's `reviewed` transition.
+- Manual checks: none required — all acceptance conditions are covered by automated tests
+  and the enforced `code_written` checklist.
+- User need: satisfied. `DocumentQueueItem` renders description, date (or "Undated"), flag
+  reason, `flaggedAt` timestamp, and submitter identity, meeting US-036 (full flag reason
+  display), US-055 (clear-flag action present), and US-091 (submitter identity displayed).
+  The `useClearFlag` stub is intentionally scoped to this task; Task 9 completes the
+  wire-up. The link to `/curation/documents/:id` provides navigation to the metadata edit
+  form as required.
+- Outcome: done
 
 ---
 
@@ -838,8 +866,12 @@ across all three custom server layers, and wire the curation queue page with `us
   queue is empty; shows error state with retry button when fetch fails (distinguishes "no
   items" from "failed to load").
 - Implement `DocumentQueueList` component: receives items from the hook and renders a list
-  of `DocumentQueueItem` components; passes `onSuccess` callback to `ClearFlagButton` that
-  calls `mutate()` to re-fetch.
+  of `DocumentQueueItem` components; passes `onSuccess` callback to `DocumentQueueItem`
+  that calls `mutate()` to re-fetch.
+- Update `src/app/(private)/curation/documents/components/useClearFlag.ts`: replace the
+  inline no-op stub with a direct call to `clearDocumentFlag` (from
+  `server/requests/curation.ts`). Remove any stub function. The hook signature stays the
+  same — `DocumentQueueItem` requires no changes.
 
 **Tests**:
 
