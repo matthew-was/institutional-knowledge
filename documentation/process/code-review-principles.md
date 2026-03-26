@@ -23,8 +23,8 @@ test a path that does not exist in production.
 **Scope**: CR-001 applies specifically when evaluating formal task acceptance conditions in
 code review files. It is the mechanism by which a reviewer can mark an acceptance condition
 as structurally met without a dedicated test. General testing decisions (which tier to use,
-what to test at the unit vs integration level) are governed by the two-tier rule in
-`development-principles.md` — not by CR-001.
+what to test at the unit vs integration level) are governed by the testing strategy in
+`development-principles-backend.md` or `development-principles-frontend.md` — not by CR-001.
 
 **How to apply**:
 
@@ -163,7 +163,7 @@ that task.
 
 **Why**: Service-level tests with mocked `db`/`storage` bypass the `validate` middleware
 and the route layer entirely, leaving those paths untested. The two-tier testing rule in
-`development-principles.md` is explicit: there is no middle tier.
+`development-principles-backend.md` is explicit: there is no middle tier.
 
 **How to apply**:
 
@@ -226,7 +226,7 @@ check for `?? ''` (null-to-empty-string) substitutions on nullable fields.
 **Why**: An empty string and a null value are semantically different. `?? ''` silently
 converts a meaningful absence of data into a value that callers cannot distinguish from a
 real empty string. The project preference is explicit `null` for absent data (see
-`development-principles.md` §7).
+`development-principles.md` §7 — universal principles).
 
 **How to apply**:
 
@@ -251,17 +251,18 @@ real empty string. The project preference is explicit `null` for absent data (se
 
 ---
 
-## CR-012 — Cleanup and sweep operations follow development-principles.md
+## CR-012 — Cleanup and sweep operations follow development-principles-backend.md
 
 **Principle**: When reviewing any cleanup, sweep, or recovery function, verify it follows
-the patterns documented in `development-principles.md` rather than restating them here.
+the patterns documented in `development-principles-backend.md` rather than restating them here.
 
 **How to apply**:
 
 - Check that cleanup operations follow the resource ordering, isolation, and error-handling
-  patterns in `development-principles.md` (Startup Sweep Design Principle section)
-- Check that UUID generation follows the UUID Version Standard (backend) section
-- For any other implementation pattern, consult `development-principles.md` as the
+  patterns in `development-principles-backend.md` (Startup Sweep Design Principle section)
+- Check that UUID generation follows the UUID Version Standard section in
+  `development-principles-backend.md`
+- For any other backend implementation pattern, consult `development-principles-backend.md` as the
   canonical reference — do not restate rules from it in this file
 
 ---
@@ -275,7 +276,7 @@ causes a "module not found" error at dev-server startup.
 
 **Why**: Vitest uses its own resolver and tolerates `.js` extensions, so automated tests
 pass while the dev server fails. This makes the error easy to miss without a manual check.
-See `development-principles.md` (Frontend Framework Agnosticism — Next.js bundler section).
+See `development-principles-frontend.md` (Next.js Bundler Constraints section).
 
 **How to apply**:
 

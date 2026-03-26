@@ -154,8 +154,8 @@ The following layers are permitted to be framework-specific:
 - Page components where RSC patterns are used (server-side data fetch, `redirect()`) —
   acceptable because pages are the natural framework boundary
 
-Full constraints are documented in `documentation/process/development-principles.md` (updated
-2026-03-23). Do not restate them here — cross-reference only.
+Full constraints are documented in `documentation/process/development-principles-frontend.md`
+(Frontend Framework Agnosticism section). Do not restate them here — cross-reference only.
 
 ### HTTP libraries
 
@@ -353,7 +353,7 @@ component state.
 ### Testing approach
 
 The C1 intake UI follows the three-tier testing model defined in
-`documentation/process/development-principles.md` (updated 2026-03-23). The tiers and their
+`documentation/process/development-principles-frontend.md`. The tiers and their
 coverage for this area are:
 
 **Tier 1 — Unit tests** (Vitest, no React Testing Library):
@@ -618,7 +618,7 @@ file notes that all response schemas are imported from `@institutional-knowledge
 ### Testing approach
 
 The curation UI follows the three-tier testing model defined in
-`documentation/process/development-principles.md` (updated 2026-03-23). The tiers and their
+`documentation/process/development-principles-frontend.md`. The tiers and their
 coverage for this area are:
 
 **Tier 1 — Unit tests** (Vitest, no React Testing Library):

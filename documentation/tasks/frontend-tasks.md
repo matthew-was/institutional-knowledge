@@ -13,7 +13,7 @@ Additional context: `documentation/tasks/frontend-tasks-revision-2026-03-23.md`
 ## Flagged issues
 
 None — all open questions resolved; DuplicateConflictResponse wire shape corrected upstream
-(revision §0); three-tier testing model defined in `development-principles.md`; Hono custom
+(revision §0); three-tier testing model defined in `development-principles-frontend.md`; Hono custom
 server architecture documented in the revised plan.
 
 ---
@@ -481,7 +481,7 @@ both ship runtime browser code); run `pnpm install`.
 
 Create `src/components/DocumentUploadForm/useDocumentUpload.ts`. This hook owns all state
 and logic; `DocumentUploadForm.tsx` becomes a pure rendering layer (see
-`development-principles.md` — Form component state separation).
+`development-principles-frontend.md` — Form Component State Separation section).
 
 The hook:
 

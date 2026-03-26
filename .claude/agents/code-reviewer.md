@@ -33,7 +33,10 @@ The caller specifies a **service** (frontend, backend, or python) and a **task n
    - Frontend: lines 57–109 (ADR-003, ADR-004), lines 1466–1522 (ADR-044, ADR-045)
    - Backend: lines 719–1310 (schema and data access ADRs), lines 1466–1522 (ADR-044, ADR-045)
    - Python: lines 255–718 (C2 pipeline ADRs), lines 905–946 (ADR-032), lines 1205–1310 (ADR-038), lines 1343–1379 (ADR-040)
-5. `documentation/process/development-principles.md` — core quality standards
+5. `documentation/process/development-principles.md` — universal quality standards (all services); also read the service-specific file:
+   - Frontend: `documentation/process/development-principles-frontend.md`
+   - Backend: `documentation/process/development-principles-backend.md`
+   - Python: `documentation/process/development-principles-python.md`
 6. `documentation/process/code-review-principles.md` — numbered review principles; consult these when assessing acceptance conditions, pattern compliance, abstraction call sites, and test tier placement
 7. The code files produced by the task (the caller should provide file paths; if not, locate them from the task description and plan)
 
