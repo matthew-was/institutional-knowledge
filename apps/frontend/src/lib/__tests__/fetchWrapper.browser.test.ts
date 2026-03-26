@@ -57,4 +57,17 @@ describe('fetchWrapper', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBe('{}');
   });
+
+  it('does not set content-type when body is a FormData instance', async () => {
+    const formData = new FormData();
+    formData.append('file', new File(['content'], 'test.pdf'));
+
+    await fetchWrapper('/api/upload', { method: 'POST', body: formData });
+
+    const [_url, init] = fetchSpy.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Headers },
+    ];
+    expect(init.headers.get('content-type')).toBeNull();
+  });
 });

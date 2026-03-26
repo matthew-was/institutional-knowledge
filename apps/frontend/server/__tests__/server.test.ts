@@ -1,4 +1,5 @@
 import { createAdaptorServer } from '@hono/node-server';
+import pino from 'pino';
 import supertest from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { parseConfig } from '../config';
@@ -14,19 +15,22 @@ const testConfig = parseConfig({
   upload: { maxFileSizeMb: 50, acceptedExtensions: ['.pdf', '.jpg'] },
 });
 
+const silentLog = pino({ level: 'silent' });
+
 // No Next.js handler — creates the Hono app in isolation for Tier 2 tests.
 const app = createHonoApp({
   config: testConfig,
   expressClient: createExpressClient(testConfig),
+  log: silentLog,
 });
 const server = createAdaptorServer({ fetch: app.fetch });
 const request = supertest(server);
 
 describe('Hono server', () => {
-  it('smoke: POST /api/documents/upload returns 501', async () => {
+  it('smoke: POST /api/documents/upload returns 400 when body is empty', async () => {
     const res = await request.post('/api/documents/upload');
-    expect(res.status).toBe(501);
-    expect(res.body).toMatchObject({ error: 'not_implemented' });
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'invalid_input' });
   });
 
   it('security: x-internal-key value does not appear in any response header', async () => {

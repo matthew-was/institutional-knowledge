@@ -695,7 +695,27 @@ API via `useSWRMutation`; all Tier 2 tests pass; `pnpm biome check` and
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-26):
+
+- Automated checks: confirmed. All three server layers are present and correct.
+  `uploadHandler.test.ts` confirms `deleteUpload` is called on the `uploadFile` error path,
+  the `finalizeUpload` error path, and the unexpected-throw path; not called when
+  `initiateUpload` fails or on the happy path. `documents.upload.test.ts` line 140 confirms
+  the 409 envelope nests `existingRecord` under `data` and not at the top level.
+  `useDocumentUpload.ts` wires to `POST /api/documents/upload` via `useSWRMutation`.
+  `useDocumentUpload.browser.test.ts` contains falsifiable assertions per CR-015.
+- Manual checks: the code reviewer required the developer to confirm
+  `pnpm biome check apps/frontend/src`, `pnpm --filter frontend exec tsc --noEmit`, and
+  `pnpm --filter frontend test` all pass. Task was set to `reviewed` by the user, confirming
+  these checks passed.
+- User need: satisfied. US-001 (upload via web UI) — full pipeline wired end-to-end; 201
+  navigates to success page. US-006 (atomic upload) — `deleteUpload` cleanup in
+  `uploadHandler.ts` ensures no partial record is stored on any failure path. US-020
+  (duplicate detection) — 409 `existingRecord` payload propagated through all layers to
+  `DuplicateConflictAlert` via `setDuplicateRecord`.
+- Outcome: done
 
 ---
 

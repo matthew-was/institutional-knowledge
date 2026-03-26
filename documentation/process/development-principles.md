@@ -738,3 +738,65 @@ validation setup, and event handlers.
 This separation makes components easier to test in isolation (render with static props),
 makes hooks independently testable via `renderHook`, and keeps the state/rendering
 boundary explicit. See ADR-052.
+
+**Optional inner split — shell + content**:
+
+When the rendering layer itself has conditional logic worth testing in isolation (e.g.
+conditional display values, dynamic links, branching render paths), split the component
+into two parts:
+
+- **Shell** (`ComponentName.tsx`): calls the hook, spreads the return value as props onto
+  the content component. No rendering logic of its own.
+- **Content** (`ComponentNameContent` — inner function or separate file): receives all
+  values as plain props; no hook calls. This is the part that is tested with static props.
+
+```tsx
+// Shell — calls hook, delegates rendering
+export function DocumentQueueItem({ id }: { id: string }) {
+  const props = useDocumentQueueItem(id);
+  return <DocumentQueueItemContent {...props} />;
+}
+
+// Content — pure props, testable in isolation
+function DocumentQueueItemContent({ date, description, ... }: ContentProps) {
+  return <div>...</div>;
+}
+```
+
+Apply this split when:
+
+- The content component has conditional rendering (e.g. `date ?? 'Undated'`, flag reason
+  text, dynamic hrefs) that is worth asserting with multiple static prop combinations
+- You want to test rendering edge cases without involving the hook or data fetching layer
+
+Do not apply this split when the rendering layer is a pure prop passthrough with no
+conditional logic — the extra indirection adds complexity without test value.
+
+**Hono custom server — thin validation and security proxy**:
+
+The Hono custom server is a validation and security layer, not a business logic layer. Its
+responsibilities are:
+
+1. Validate that required inputs are present and well-formed (e.g. file is a `File`, date
+   is a string)
+2. Enforce authentication and authorisation (Phase 2)
+3. Call the handler layer and map the result to an HTTP response
+
+It is not the Hono server's job to re-classify, enrich, or make decisions about backend
+error responses. Backend `ServiceResult` error outcomes are passed through faithfully to the
+client using the `ERROR_STATUS` map — the error type and message come from the backend and
+are not modified. Business logic belongs in Express.
+
+Concretely:
+
+- Route handlers are short: input validation, one handler call, response mapping
+- The `ERROR_STATUS: Record<UploadErrorType, number>` map is the only place HTTP status
+  codes are decided for backend errors — no ad-hoc status code selection in handlers
+- No conditional logic based on backend response content beyond what is needed to shape
+  the response envelope (e.g. including `errorData` for `duplicate_detected`)
+- If a route handler is growing business logic, that logic belongs in the Express service
+  layer instead
+- Route handlers must wrap all async calls that may re-throw in a try/catch block. Unhandled
+  promise rejections must not propagate to Hono's default error handler — they produce
+  unstructured responses with no Pino logging. Catch unexpected throws, log with
+  `deps.log.error`, and return a structured error response
