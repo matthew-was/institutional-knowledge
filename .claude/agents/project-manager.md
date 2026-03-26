@@ -164,7 +164,7 @@ After completing verification, read the code review file(s) for the task (in `ar
 
 Produce a short process improvement note covering:
 
-- Any finding that reveals a gap in `documentation/process/development-principles.md` (a pattern the Implementer followed that is not documented, or a prohibited pattern that is not listed)
+- Any finding that reveals a gap in the development principles files (`development-principles.md` for universal patterns, or the service-specific file: `development-principles-frontend.md`, `development-principles-backend.md`, `development-principles-python.md`) — a pattern the Implementer followed that is not documented, or a prohibited pattern that is not listed
 - Any finding that reveals a gap in `documentation/process/code-review-principles.md` (a check the reviewer applied that is not captured, or a class of finding that recurred)
 - Any finding that reveals a gap in `.claude/agents/implementer.md` (an instruction that, if present, would have prevented the Implementer from making the mistake)
 - If no gaps are found, say so explicitly — a null result is a valid outcome

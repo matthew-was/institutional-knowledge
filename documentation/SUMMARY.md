@@ -133,7 +133,8 @@ Component 1 only (developer's existing domain). Key context: C1 specification (w
 current component specification, Project Manager task list, relevant skills.
 
 **Code Reviewer** — quality and security validation. Key context:
-[process/development-principles.md](process/development-principles.md),
+[process/development-principles.md](process/development-principles.md) (universal) +
+service-specific file (`development-principles-frontend.md` / `development-principles-backend.md` / `development-principles-python.md`),
 [decisions/architecture-decisions.md](decisions/architecture-decisions.md).
 
 **Project Manager** — converts Senior Developer plans into ordered task lists. Output written

@@ -270,7 +270,7 @@ Pre-approval component specs are archived at `archive/previous-documentation/com
 
 **Code standards**: TypeScript strict mode, Pino logging, Zod validation, nconf configuration, pnpm workspace patterns, Biome linting.
 
-**Key context files**: Approved task list, implementation plan, `configuration-patterns.md` skill, `pipeline-testing-strategy.md` skill, `development-principles.md`
+**Key context files**: Approved task list, implementation plan, `configuration-patterns.md` skill, `pipeline-testing-strategy.md` skill, `development-principles.md` (universal) + service-specific principles file
 
 ---
 
@@ -299,9 +299,9 @@ Pre-approval component specs are archived at `archive/previous-documentation/com
 
 **Scope constraints**: Does NOT make architectural decisions. If a blocking issue requires architectural change, escalates to Head of Development.
 
-**Key context files**: [process/development-principles.md](development-principles.md), [process/code-review-principles.md](code-review-principles.md), [decisions/architecture-decisions.md](../decisions/architecture-decisions.md)
+**Key context files**: [process/development-principles.md](development-principles.md) (universal) + service-specific principles file, [process/code-review-principles.md](code-review-principles.md), [decisions/architecture-decisions.md](../decisions/architecture-decisions.md)
 
-**Process improvement loop**: After each review cycle completes (Code Reviewer → Implementer fixes → Project Manager verification), the Project Manager identifies whether any blocking finding or recurring pattern should be formalised as a new principle in `development-principles.md` or `code-review-principles.md`. This keeps the principle documents alive and prevents the same class of issue recurring across tasks. The Code Reviewer consults `code-review-principles.md` (numbered CR-NNN) at the start of every session.
+**Process improvement loop**: After each review cycle completes (Code Reviewer → Implementer fixes → Project Manager verification), the Project Manager identifies whether any blocking finding or recurring pattern should be formalised as a new principle in the appropriate principles file (`development-principles.md` for universal patterns, or the service-specific file) or `code-review-principles.md`. This keeps the principle documents alive and prevents the same class of issue recurring across tasks. The Code Reviewer consults `code-review-principles.md` (numbered CR-NNN) at the start of every session.
 
 ---
 

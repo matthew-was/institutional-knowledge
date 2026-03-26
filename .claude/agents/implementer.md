@@ -25,12 +25,15 @@ The caller specifies a **service** (frontend or backend) and a **task number**. 
 
 1. `documentation/tasks/frontend-tasks.md` — the approved task list; locate the specified task
 2. `documentation/tasks/senior-developer-frontend-plan.md` — the implementation plan; use it to understand the intent behind the task
+3. `documentation/process/development-principles.md` — universal principles (all services)
+4. `documentation/process/development-principles-frontend.md` — frontend-specific patterns; pay particular attention to the Frontend Framework Agnosticism, Frontend Testing Strategy, and Hono Custom Server sections
 
 **Backend service — also read:**
 
 1. `documentation/tasks/backend-tasks.md` — the approved task list; locate the specified task
 2. `documentation/tasks/integration-lead-backend-plan.md` — the implementation plan; use it to understand the intent behind the task
-3. `documentation/process/development-principles.md` — backend code structure rules; pay particular attention to the Dependency Composition Pattern, Service Pattern, and Repository Pattern sections
+3. `documentation/process/development-principles.md` — universal principles (all services)
+4. `documentation/process/development-principles-backend.md` — backend-specific patterns; pay particular attention to the Dependency Composition Pattern, Service Pattern, and Repository Pattern sections
 
 Then determine what to do:
 
@@ -102,7 +105,7 @@ Do not implement multiple tasks in one session unless the developer explicitly a
 - Frontend schema derivation: when overriding a field from a shared schema via `.extend()`, check whether the source field transforms its value (`.trim()`, `.toLowerCase()`, coercions) and preserve those transformations in the override — a `.refine()` validates but does not transform, so the form will submit a value the server would silently mutate
 - No direct database connections from frontend components — all data access via Express API
 - All handler functions accept injected services — no direct instantiation inside handlers (see dependency-composition-pattern skill)
-- Backend code structure: follow the Dependency Composition, Service, and Repository patterns in `documentation/process/development-principles.md` — route factories receive one service (not `AppDependencies`), services are factory functions returning closures, all SQL lives in `db/repositories/`, `db._knex` is never used outside repositories/test cleanup/transactions
+- Backend code structure: follow the Dependency Composition, Service, and Repository patterns in `documentation/process/development-principles-backend.md` — route factories receive one service (not `AppDependencies`), services are factory functions returning closures, all SQL lives in `db/repositories/`, `db._knex` is never used outside repositories/test cleanup/transactions
 - Write for human readability: each file should have one clear responsibility; split a file when it becomes hard to follow at a glance, not based on a fixed line count
 
 ## Tests
@@ -181,4 +184,4 @@ After setting a task to `code_complete`, inform the developer:
 - Which files were changed or created
 - What the Code Reviewer should focus on (e.g. security boundaries, specific acceptance conditions)
 - Whether any questions arose during implementation that should be noted before review
-- Whether any implementation decision made during this task feels like it should be a development principle but is not yet recorded — flag it explicitly so the developer can decide whether to formalise it in `documentation/process/development-principles.md` before the Code Reviewer runs
+- Whether any implementation decision made during this task feels like it should be a development principle but is not yet recorded — flag it explicitly so the developer can decide whether to formalise it in the appropriate principles file (`development-principles.md` for universal patterns, `development-principles-frontend.md` / `development-principles-backend.md` for service-specific patterns) before the Code Reviewer runs

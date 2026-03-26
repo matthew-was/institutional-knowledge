@@ -61,7 +61,10 @@ Institution-specific vocabulary (entity types, relationships, domain terms) is m
 | approvals.md | Current | Approval tracking for all scope documents |
 | process/agent-workflow.md | Current | 8 agents defined |
 | process/skills-catalogue.md | Current | All 13 skills written |
-| process/development-principles.md | Current | |
+| process/development-principles.md | Current | Universal principles (all services) |
+| process/development-principles-backend.md | Current | Backend-specific patterns |
+| process/development-principles-frontend.md | Current | Frontend-specific patterns |
+| process/development-principles-python.md | Current | Python-specific patterns (stub — to be filled in before Python Task 1) |
 | SUMMARY.md | Current | Project status, milestone timeline, .claude/ setup guide |
 
 ---
