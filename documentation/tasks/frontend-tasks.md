@@ -383,33 +383,32 @@ Specifically:
   pages import from `@/lib/config` via the `@/*` alias rather than reaching into `server/`
   via a relative path. Update `src/app/(private)/upload/page.tsx` to import from
   `@/lib/config` instead of `../../../../server/config/index`.
-- Implement `src/components/FilePickerInput/FilePickerInput.tsx` (Client Component):
-  file `<input>` element restricted to `accept=".pdf,.tif,.tiff,.jpg,.jpeg,.png"`.
-  On file selection, calls `parseFilename` (from Task 3) and emits the selected `File`
-  object and parsed metadata to the parent form state via callbacks. Accessibility: proper
-  label association, ARIA attributes.
-- Implement `src/components/MetadataFields/MetadataFields.tsx` (Client Component):
-  controlled inputs for `date` (type `date`) and `description` (type `text`). Receives
-  pre-populated values from filename parsing and allows user editing. Exposes validation
-  state to the parent form.
-- Implement `src/components/ValidationFeedback/ValidationFeedback.tsx` (Client Component):
-  renders per-field error messages from Zod client-side validation. Also surfaces
-  server-side rejection messages. Renders `DuplicateConflictAlert` when the API returns a
-  duplicate detection error.
-- Implement `src/components/DuplicateConflictAlert/DuplicateConflictAlert.tsx` (Client
-  Component): displayed inside `ValidationFeedback` when a 409 duplicate is detected.
-  Props: `existingRecord: { description: string; date: string | null; archiveReference:
-  string }`. If `date` is `null`, display "Undated". The `existingRecord` data is read
-  from `response.data.existingRecord` (not `response.existingRecord`) per the corrected
-  409 wire shape (`{ error: 'duplicate_detected', data: { existingRecord: { ... } } }`).
-- Implement `src/components/SubmitButton/SubmitButton.tsx` (Client Component): disabled
-  while validation errors exist or while submission is in progress; shows a loading state
-  during the API call.
-- Implement `src/components/DocumentUploadForm/DocumentUploadForm.tsx` (Client Component):
-  orchestrates all sub-components. State: `selectedFile`, `date`, `description`,
-  `clientErrors`, `serverError`, `submitting`. Receives `maxFileSizeMb: number` as a prop.
-  Runs `UploadFormSchema` (from Task 3) client-side before submission. API integration
-  wired in Task 6.
+- Implement `src/components/FilePickerInput/FilePickerInput.tsx`: file `<input>` element
+  restricted to `accept=".pdf,.tif,.tiff,.jpg,.jpeg,.png"`. On file selection, calls
+  `parseFilename` (from Task 3) and emits the selected `File` object and parsed metadata
+  to the parent form state via callbacks. Accessibility: proper label association, ARIA
+  attributes.
+- Implement `src/components/MetadataFields/MetadataFields.tsx`: controlled inputs for
+  `date` (type `date`) and `description` (type `text`). Receives pre-populated values from
+  filename parsing and allows user editing. Exposes validation state to the parent form.
+- Implement `src/components/ValidationFeedback/ValidationFeedback.tsx`: renders per-field
+  error messages from Zod client-side validation. Also surfaces server-side rejection
+  messages. Renders `DuplicateConflictAlert` when the API returns a duplicate detection
+  error.
+- Implement `src/components/DuplicateConflictAlert/DuplicateConflictAlert.tsx`: displayed
+  inside `ValidationFeedback` when a 409 duplicate is detected. Props:
+  `existingRecord: { description: string; date: string | null; archiveReference: string }`.
+  If `date` is `null`, display "Undated". The `existingRecord` data is read from
+  `response.data.existingRecord` (not `response.existingRecord`) per the corrected 409
+  wire shape (`{ error: 'duplicate_detected', data: { existingRecord: { ... } } }`).
+- Implement `src/components/SubmitButton/SubmitButton.tsx`: disabled while validation
+  errors exist or while submission is in progress; shows a loading state during the API
+  call.
+- Implement `src/components/DocumentUploadForm/DocumentUploadForm.tsx` (uses `useSWRMutation`
+  and form state — requires `'use client'`): orchestrates all sub-components. State:
+  `selectedFile`, `date`, `description`, `clientErrors`, `serverError`, `submitting`.
+  Receives `maxFileSizeMb: number` as a prop. Runs `UploadFormSchema` (from Task 3)
+  client-side before submission. API integration wired in Task 6.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):
   - `DuplicateConflictAlert`: renders description, date, and archive reference; renders
     "Undated" when `date` is `null`
@@ -726,9 +725,9 @@ component that displays the submission confirmation after a successful document 
 
 Specifically:
 
-- Implement `src/components/UploadSuccessMessage/UploadSuccessMessage.tsx` (Client
-  Component): receives the document record returned by the API and renders the description,
-  date, and archive reference. If `date` is `null`, display "Undated". Props:
+- Implement `src/components/UploadSuccessMessage/UploadSuccessMessage.tsx`: receives the
+  document record returned by the API and renders the description, date, and archive
+  reference. If `date` is `null`, display "Undated". Props:
   `{ description: string; date: string | null; archiveReference: string }`.
 - Implement `src/app/(private)/upload/success/page.tsx`: reads the document record from query
   parameters or session storage (implementer choice) and passes it to
@@ -747,7 +746,24 @@ test; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-26):
+
+- Automated checks: confirmed — three Tier 1 RTL tests in
+  `UploadSuccessMessage.browser.test.tsx` directly exercise all three acceptance condition
+  cases: (1) description and archive reference rendered with non-null date; (2) "Undated"
+  rendered when `date={null}` — `getByText(/Undated/)` would throw if absent; (3) date string
+  rendered when date is non-null. Assertions are falsifiable (CR-015). The `/upload/success`
+  page exists at `src/app/(private)/upload/success/page.tsx`.
+- Manual checks: `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` — confirmed by
+  the user's `reviewed` status transition after the second review round, which required these
+  to pass clean.
+- User need: satisfied — the page provides immediate confirmation of a successful upload,
+  displaying description, date (or "Undated"), and archive reference as required by US-001
+  and US-042. The redirect guard (added in round 2) prevents a confusing blank page on
+  direct navigation. All suggestions from round 1 were applied in the round 2 submission.
+- Outcome: done
 
 ---
 
@@ -760,16 +776,16 @@ tests only.
 Specifically:
 
 - Implement
-  `src/app/(private)/curation/documents/components/DocumentQueueItem.tsx` (Client Component):
-  a single row in the queue. Shows description, date (displays "Undated" when `date` is
-  `null`), flag reason (full text including failing pages per UR-051, UR-055), `flaggedAt`
-  timestamp, and submitter identity (UR-126). Provides a "Clear flag" action button (wired
-  in Task 9) and a link to `/curation/documents/:id` for the metadata edit form. Props
-  derived from `DocumentQueueItem` imported from `@institutional-knowledge/shared`.
-- Implement `src/components/ClearFlagButton/ClearFlagButton.tsx` (Client Component): posts
-  a flag-clear request to the API; shows loading state; on success triggers queue re-fetch
-  (wired in Task 9); on error displays an inline error message. Props:
-  `{ documentId: string; onSuccess: () => void }`.
+  `src/app/(private)/curation/documents/components/DocumentQueueItem.tsx`: a single row
+  in the queue. Shows description, date (displays "Undated" when `date` is `null`), flag
+  reason (full text including failing pages per UR-051, UR-055), `flaggedAt` timestamp,
+  and submitter identity (UR-126). Provides a "Clear flag" action button (wired in Task 9)
+  and a link to `/curation/documents/:id` for the metadata edit form. Props derived from
+  `DocumentQueueItem` imported from `@institutional-knowledge/shared`.
+- Implement `src/components/ClearFlagButton/ClearFlagButton.tsx` (posts to API, shows
+  loading state — requires `'use client'`): posts a flag-clear request to the API; shows
+  loading state; on success triggers queue re-fetch (wired in Task 9); on error displays
+  an inline error message. Props: `{ documentId: string; onSuccess: () => void }`.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):
   - `DocumentQueueItem`: renders description, date, flag reason, and submitter identity;
     renders "Undated" when `date` is `null`; renders date string when non-null; contains a
@@ -866,17 +882,17 @@ Specifically:
   (DOC-007 via the Hono route `GET /api/curation/documents/:id`). Passes the document
   data as props to `DocumentMetadataForm`. Handles 404 — renders an error message if the
   document is not found.
-- Implement `src/components/MetadataEditFields/MetadataEditFields.tsx` (Client Component):
-  controlled inputs for `date`, `description`, `documentType` (free-text string per
-  OQ-003), `people`, `organisations`, and `landReferences`. The `people`, `organisations`,
-  and `landReferences` fields use comma-separated text inputs (split into arrays on submit,
-  joined for display per OQ-002). Date field handles `null` initial value without treating
-  it as a validation error on render — an empty date field is valid.
-- Implement
-  `src/components/DocumentMetadataForm/DocumentMetadataForm.tsx` (Client Component):
-  editable form using `MetadataEditFields`. Pre-populated from the document record received
-  as props. On submit, validates with `MetadataEditSchema` (from Task 3). API call wired
-  in Task 11. Shows success message on save; shows inline error on API failure.
+- Implement `src/components/MetadataEditFields/MetadataEditFields.tsx`: controlled inputs
+  for `date`, `description`, `documentType` (free-text string per OQ-003), `people`,
+  `organisations`, and `landReferences`. The `people`, `organisations`, and `landReferences`
+  fields use comma-separated text inputs (split into arrays on submit, joined for display
+  per OQ-002). Date field handles `null` initial value without treating it as a validation
+  error on render — an empty date field is valid.
+- Implement `src/components/DocumentMetadataForm/DocumentMetadataForm.tsx` (uses form
+  state and `useSWRMutation` — requires `'use client'`): editable form using
+  `MetadataEditFields`. Pre-populated from the document record received as props. On
+  submit, validates with `MetadataEditSchema` (from Task 3). API call wired in Task 11.
+  Shows success message on save; shows inline error on API failure.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):
   - `MetadataEditFields`: renders all fields; comma-separated display for array fields;
     date field renders empty with no error when initial date is `null`
@@ -964,21 +980,19 @@ page. Data fetching and accept/reject operations are wired in Task 13.
 Specifically:
 
 - Implement
-  `src/app/(private)/curation/vocabulary/components/VocabularyQueueItem.tsx` (Client
-  Component): a single row in the vocabulary queue. Shows term name, category, confidence
-  score (numeric, or "N/A" for null confidence), and source document description. Provides
-  Accept and Reject action buttons (wired in Task 13). Props derived from
-  `VocabularyCandidateItem` imported from `@institutional-knowledge/shared`.
-- Implement
-  `src/components/AcceptCandidateButton/AcceptCandidateButton.tsx` (Client Component):
-  posts an accept request to the API; shows loading state; on success triggers queue
-  re-fetch; on error shows inline error message. Props:
-  `{ termId: string; onSuccess: () => void }`.
-- Implement
-  `src/components/RejectCandidateButton/RejectCandidateButton.tsx` (Client Component):
-  posts a reject request to the API; shows loading state; on success triggers queue
-  re-fetch; on error shows inline error message. Props:
-  `{ termId: string; onSuccess: () => void }`.
+  `src/app/(private)/curation/vocabulary/components/VocabularyQueueItem.tsx`: a single
+  row in the vocabulary queue. Shows term name, category, confidence score (numeric, or
+  "N/A" for null confidence), and source document description. Provides Accept and Reject
+  action buttons (wired in Task 13). Props derived from `VocabularyCandidateItem` imported
+  from `@institutional-knowledge/shared`.
+- Implement `src/components/AcceptCandidateButton/AcceptCandidateButton.tsx` (posts to
+  API, shows loading state — requires `'use client'`): posts an accept request to the API;
+  shows loading state; on success triggers queue re-fetch; on error shows inline error
+  message. Props: `{ termId: string; onSuccess: () => void }`.
+- Implement `src/components/RejectCandidateButton/RejectCandidateButton.tsx` (posts to
+  API, shows loading state — requires `'use client'`): posts a reject request to the API;
+  shows loading state; on success triggers queue re-fetch; on error shows inline error
+  message. Props: `{ termId: string; onSuccess: () => void }`.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):
   - `VocabularyQueueItem`: renders term, category, confidence, source document description;
     renders "N/A" when confidence is `null`; contains Accept and Reject buttons
@@ -1074,21 +1088,20 @@ The API call is wired in Task 15.
 
 Specifically:
 
-- Implement
-  `src/components/TermRelationshipsInput/TermRelationshipsInput.tsx` (Client Component):
-  sub-component of `AddVocabularyTermForm`. Allows the user to specify relationships
-  between the new term and existing vocabulary terms. Each relationship has a `targetTermId`
-  (UUID) and a `relationshipType` (free-text string — indicative types from ADR-038:
-  owned_by, transferred_to, witnessed_by, adjacent_to, employed_by, referenced_in,
-  performed_by, succeeded_by; not an exhaustive enumeration). Renders a dynamic list of
-  relationship inputs; user can add and remove entries.
-- Implement
-  `src/components/AddVocabularyTermForm/AddVocabularyTermForm.tsx` (Client Component):
-  form for manually entering a new vocabulary term (US-062, UR-089). Fields: term name
-  (string, required), category (free-text string, required), description (string,
-  optional), aliases (multi-value input for `string[]`, optional), relationships via
-  `TermRelationshipsInput` (optional). On submit, validates with `AddTermSchema` (from
-  Task 3). API call wired in Task 15. Shows success or error on completion.
+- Implement `src/components/TermRelationshipsInput/TermRelationshipsInput.tsx` (dynamic
+  list with add/remove — requires `'use client'`): sub-component of `AddVocabularyTermForm`.
+  Allows the user to specify relationships between the new term and existing vocabulary
+  terms. Each relationship has a `targetTermId` (UUID) and a `relationshipType` (free-text
+  string — indicative types from ADR-038: owned_by, transferred_to, witnessed_by,
+  adjacent_to, employed_by, referenced_in, performed_by, succeeded_by; not an exhaustive
+  enumeration). Renders a dynamic list of relationship inputs; user can add and remove entries.
+- Implement `src/components/AddVocabularyTermForm/AddVocabularyTermForm.tsx` (uses form
+  state and `useSWRMutation` — requires `'use client'`): form for manually entering a new
+  vocabulary term (US-062, UR-089). Fields: term name (string, required), category
+  (free-text string, required), description (string, optional), aliases (multi-value input
+  for `string[]`, optional), relationships via `TermRelationshipsInput` (optional). On
+  submit, validates with `AddTermSchema` (from Task 3). API call wired in Task 15. Shows
+  success or error on completion.
 - Implement `src/app/(private)/curation/vocabulary/new/page.tsx`: page rendering
   `AddVocabularyTermForm`. No data fetching on load.
 - Write Tier 1 tests (Vitest + React Testing Library, static props):

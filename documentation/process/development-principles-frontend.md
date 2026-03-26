@@ -327,6 +327,31 @@ a thin re-export in `src/lib/` (e.g. `src/lib/config.ts`).
 
 ---
 
+## Server vs Client Components
+
+React Server Components (RSC) are the default in Next.js. A component should
+only be marked `'use client'` when it has a concrete reason to run in the
+browser.
+
+**Default: Server Component.** Omit `'use client'` unless the component
+requires one of:
+
+- React state (`useState`, `useReducer`)
+- React effects (`useEffect`, `useLayoutEffect`)
+- Browser APIs (`window`, `document`, `localStorage`, etc.)
+- Event handlers attached to DOM elements
+- A third-party library that itself requires `'use client'`
+
+Presentational components that only receive props and render markup have no
+such requirements. Adding `'use client'` to them unnecessarily increases the
+client bundle and prevents the component from running at the server rendering
+stage.
+
+**Anti-pattern**: adding `'use client'` by default or copying it from an
+adjacent component without checking whether it is needed.
+
+---
+
 ## What these principles rule out (frontend)
 
 | Anti-pattern | Why prohibited | Principle violated |
@@ -338,3 +363,4 @@ a thin re-export in `src/lib/` (e.g. `src/lib/config.ts`).
 | Importing directly from `server/` via a relative path in any file under `src/` | Couples UI sub-system to Hono custom server sub-system | Frontend Sub-system Boundary |
 | Redefining a response schema in `apps/frontend/src/lib/schemas.ts` that is already defined in `packages/shared/src/schemas/` | Creates a duplicate definition that can silently drift from the backend source of truth | Schema Placement / Type Safety |
 | Inline `ERROR_STATUS` conditionals (e.g. `errorType === 'not_found' ? 404 : 409`) instead of a `Record<ErrorType, number>` map | The `Record` form is TypeScript-exhaustiveness-checked | Error Response Pattern |
+| Adding `'use client'` to a presentational component that has no state, effects, browser APIs, or event handlers | Increases client bundle and prevents server-stage rendering unnecessarily | Server vs Client Components |

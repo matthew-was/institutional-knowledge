@@ -81,9 +81,9 @@ describe('DocumentUploadForm — 201 navigation', () => {
     });
     const calledWith: string = mockPush.mock.calls[0][0];
     expect(calledWith).toContain('/upload/success');
-    expect(calledWith).toContain('documentId=abc-123');
     // URLSearchParams encodes spaces as '+' not '%20'
     expect(calledWith).toContain('description=A+test+document');
+    expect(calledWith).not.toContain('documentId');
   });
 });
 

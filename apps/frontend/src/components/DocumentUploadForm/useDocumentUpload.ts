@@ -79,7 +79,6 @@ export function useDocumentUpload(
     if (response.status === 201) {
       const body = await response.json();
       const params = new URLSearchParams({
-        documentId: body.documentId,
         description: body.description,
         date: body.date ?? '',
         archiveReference: body.archiveReference,
