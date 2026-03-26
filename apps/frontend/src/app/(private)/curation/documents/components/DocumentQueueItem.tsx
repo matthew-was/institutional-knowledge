@@ -1,9 +1,13 @@
 'use client';
 
-import type { DocumentQueueItem as DocumentQueueItemProps } from '@institutional-knowledge/shared';
+import type { DocumentQueueItem as DocumentQueueItemType } from '@institutional-knowledge/shared';
 import Link from 'next/link';
 import { ClearFlagButton } from '@/components/ClearFlagButton/ClearFlagButton';
 import { useClearFlag } from './useClearFlag';
+
+interface Props extends DocumentQueueItemType {
+  onSuccess: () => void;
+}
 
 export function DocumentQueueItem({
   documentId,
@@ -12,9 +16,12 @@ export function DocumentQueueItem({
   flagReason,
   flaggedAt,
   submitterIdentity,
-}: DocumentQueueItemProps) {
-  // onSuccess is a no-op here; Task 9 wires the real re-fetch via mutate().
-  const { handleClear, isClearing, error } = useClearFlag(documentId, () => {});
+  onSuccess,
+}: Props) {
+  const { handleClear, isClearing, error } = useClearFlag(
+    documentId,
+    onSuccess,
+  );
 
   return (
     <div>

@@ -6,7 +6,7 @@
  *
  * Paths must not start with '/' — Ky prefixUrl constraint.
  *
- * Covers DOC-006 and VOC-001 through VOC-004 as defined in
+ * Covers DOC-006, DOC-008, and VOC-001 through VOC-004 as defined in
  * integration-lead-contracts.md.
  */
 
@@ -14,6 +14,8 @@ import type {
   AcceptCandidateResponse,
   AddVocabularyTermRequest,
   AddVocabularyTermResponse,
+  ClearFlagResponse,
+  DocumentQueueParams,
   DocumentQueueResponse,
   RejectCandidateResponse,
   VocabularyQueueResponse,
@@ -25,10 +27,15 @@ export interface CurationRequests {
    * DOC-006: Fetch the document curation queue.
    * GET api/curation/documents
    */
-  fetchQueue(params?: {
-    cursor?: string;
-    limit?: number;
-  }): Promise<DocumentQueueResponse>;
+  fetchDocumentQueue(
+    params?: DocumentQueueParams,
+  ): Promise<DocumentQueueResponse>;
+
+  /**
+   * DOC-008: Clear the review flag on a document.
+   * POST api/documents/:id/clear-flag
+   */
+  clearDocumentFlag(documentId: string): Promise<ClearFlagResponse>;
 
   /**
    * VOC-001: Fetch the vocabulary review queue.
@@ -58,13 +65,22 @@ export interface CurationRequests {
   addTerm(body: AddVocabularyTermRequest): Promise<AddVocabularyTermResponse>;
 }
 
-export function createCurationRequests(_http: KyInstance): CurationRequests {
+export function createCurationRequests(http: KyInstance): CurationRequests {
   return {
-    fetchQueue(_params?: {
-      cursor?: string;
-      limit?: number;
-    }): Promise<DocumentQueueResponse> {
-      throw new Error('not_implemented');
+    async fetchDocumentQueue(
+      params?: DocumentQueueParams,
+    ): Promise<DocumentQueueResponse> {
+      return http
+        .get('api/curation/documents', {
+          searchParams: params as Record<string, string | number | boolean>,
+        })
+        .json<DocumentQueueResponse>();
+    },
+
+    async clearDocumentFlag(documentId: string): Promise<ClearFlagResponse> {
+      return http
+        .post(`api/documents/${documentId}/clear-flag`)
+        .json<ClearFlagResponse>();
     },
 
     fetchVocabulary(_params?: {

@@ -898,7 +898,36 @@ triggers re-fetch of queue confirmed by Tier 2 hook test; all Tier 2 tests pass;
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-26):
+
+- Automated checks: confirmed. All four acceptance conditions are met by the test suite.
+  (1) Document queue page fetches on mount: `useDocumentQueue.browser.test.tsx` "returns items
+  from the API on success" (lines 37–61) renders the hook with MSW intercepting
+  `/api/curation/documents` and asserts `items` has length 1 after loading; falsifiable —
+  removing `useSWR` leaves `items` as `[]`, failing the length assertion. (2) Clear-flag
+  triggers re-fetch: `DocumentQueueList.browser.test.tsx` "calls mutate after a successful
+  clear-flag POST" (lines 51–70) passes a mocked `mutate` function and asserts it is called
+  once after button click resolves; the path is button → `useSWRMutation` trigger → `onSuccess`
+  → `mutate()`; falsifiable — removing the `onSuccess` option prevents `mutate` being called.
+  (3) All Tier 2 tests present: custom server route tests cover GET 200 (data forwarded), 200
+  (query params forwarded to Express), 400 (invalid params — `?page=abc` returns
+  `invalid_params`), 500; POST 200, 404 (propagated `not_found`), 409 (propagated
+  `no_active_flag`), 500. UI behaviour tests cover fetch-on-mount, empty state, error state,
+  mutate-exposed, loading state, mutate-on-success, error-shown-on-failure. (4) Lint and type
+  check: confirmed by the enforced `code_written` checklist and the round-2 code reviewer.
+- Manual checks: none required — all conditions are automated.
+- User need: satisfied. `useClearFlag` is wired end-to-end via `useSWRMutation`, triggering
+  the Hono POST route which propagates to Express. Queue re-fetches via `mutate()` in the
+  `onSuccess` callback, removing the cleared document from the view as required by US-081.
+  The page renders the full queue on mount with loading, empty, and error states, supporting
+  the curation queue display need (US-080 context). Submitter identity is rendered in
+  `DocumentQueueItem` meeting US-091. The round-1 blocking findings were both resolved: the
+  `useClearFlag` direct-fetch violation was fixed by `useSWRMutation`; the unnecessary
+  `'use client'` on `DocumentQueueList` was removed. The dead `fetchQueue` stub was also
+  removed (S-1) and Zod validation was added to the query params boundary (S-2).
+- Outcome: done
 
 ---
 
