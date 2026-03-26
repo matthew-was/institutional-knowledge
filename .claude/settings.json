@@ -11,6 +11,7 @@
       "Bash(rm:*)",
       "Bash(mv:*)",
       "Bash(ls:*)",
+      "Bash(cat:*)",
       "Bash(tail:*)",
       "Bash(markdownlint:*)",
       "Bash(pnpm:*)",

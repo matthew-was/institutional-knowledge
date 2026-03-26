@@ -332,6 +332,34 @@ appears to pass but covers nothing.
 
 ---
 
+## CR-016 — No unnecessary `'use client'` directives (frontend)
+
+**Principle**: A React component must not carry a `'use client'` directive unless it
+concretely requires one of:
+
+- React state (`useState`, `useReducer`)
+- React effects (`useEffect`, `useLayoutEffect`)
+- Browser APIs (`window`, `document`, `localStorage`, etc.)
+- Event handlers attached to DOM elements
+- A third-party library that itself requires `'use client'`
+
+Presentational components that only receive props and render markup have none of these
+requirements and must be Server Components by default.
+
+**Why**: Unnecessary `'use client'` directives increase the client bundle, prevent the
+component from running at the server rendering stage, and violate the "Server vs Client
+Components" principle in `development-principles-frontend.md`.
+
+**How to apply**:
+
+- For each new or modified file with `'use client'` at the top, check whether any of the
+  five reasons above apply. If none apply: **blocking** finding — remove the directive.
+- The component may still be used inside a Client Component subtree; removing `'use client'`
+  does not prevent this. It simply allows Next.js to render it on the server when the
+  context permits.
+
+---
+
 ## CR-005 — Validate middleware is the input boundary
 
 **Principle**: `validate({ body, params, query })` middleware is the sole mechanism for

@@ -234,7 +234,7 @@ Props (received from the page):
 - `maxFileSizeMb: number` — maximum allowed file size in megabytes; read from frontend config
   at page render time and passed as a prop so the component is testable without config access
 
-#### `UploadSuccessMessage` (Client Component)
+#### `UploadSuccessMessage`
 
 Responsibility: displays the submission confirmation on the `/upload/success` page, including
 the archive reference derived from the submitted metadata. Receives the document record

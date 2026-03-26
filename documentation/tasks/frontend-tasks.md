@@ -726,9 +726,9 @@ component that displays the submission confirmation after a successful document 
 
 Specifically:
 
-- Implement `src/components/UploadSuccessMessage/UploadSuccessMessage.tsx` (Client
-  Component): receives the document record returned by the API and renders the description,
-  date, and archive reference. If `date` is `null`, display "Undated". Props:
+- Implement `src/components/UploadSuccessMessage/UploadSuccessMessage.tsx`: receives the
+  document record returned by the API and renders the description, date, and archive
+  reference. If `date` is `null`, display "Undated". Props:
   `{ description: string; date: string | null; archiveReference: string }`.
 - Implement `src/app/(private)/upload/success/page.tsx`: reads the document record from query
   parameters or session storage (implementer choice) and passes it to
@@ -747,7 +747,7 @@ test; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: reviewed
 
 ---
 
