@@ -209,18 +209,21 @@ Concretely:
 
 ---
 
-## Form component state separation
+## Component state separation
 
-Every form component that owns state must separate state logic from rendering using a
-custom hook. The component file is a pure rendering layer; the hook owns all state,
-validation setup, and event handlers.
+Any Client Component that owns state must separate state logic from rendering using a
+custom hook. This applies to all stateful components — not just forms. The component
+file is a pure rendering layer; the hook owns all state, async operations, and event
+handlers.
 
 - Hook file: `use[ComponentName].ts` co-located with the component in the same directory
-  (e.g. `src/components/DocumentUploadForm/useDocumentUpload.ts`)
+  (e.g. `src/components/DocumentUploadForm/useDocumentUpload.ts`,
+  `src/app/(private)/curation/documents/components/useClearFlag.ts`)
 - Hook returns the values and handlers the component needs — `control`, `errors`,
-  `formState`, `handleSubmit`, `handleFileSelect`, `serverError`, `duplicateRecord`, etc.
+  `formState`, `handleSubmit`, `handleClear`, `isClearing`, `error`, etc.
 - Component file: imports the hook, destructures its return value, passes values to
-  child components as props — no `useState`, no `useForm`, no event handler definitions
+  child components as props — no `useState`, no `useForm`, no async logic, no event
+  handler definitions
 - Co-location rule: if the hook is tightly coupled to a single component, it lives next
   to that component. If the hook is shared across a page's components (e.g. a data
   fetching hook for a page), it lives in a `_hooks/` directory co-located with the page.
