@@ -114,6 +114,7 @@ Write tests alongside the implementation — do not defer them. For each task:
 - Do not write exhaustive edge case tests — pragmatic coverage only (see pipeline-testing-strategy skill)
 - If an acceptance condition enumerates specific items (tables, fields, status codes, etc.), each item must appear in at least one assertion — do not approximate with a subset
 - For each new test assertion, verify it is falsifiable: if the production code the assertion is meant to cover were deleted or stubbed to a no-op, the assertion must fail. An assertion that passes regardless of the code under test provides no value and will be caught in code review as a blocking finding
+- When replacing a vacuous assertion, verify the replacement is also falsifiable — do not assert initial state values as evidence of a behaviour. The replacement test must put the system into a non-initial state before asserting the expected change
 - Unit tests: pure functions, validation logic, data transformations
 - Integration tests (backend): handler functions with real database where the task involves data persistence
 - Component tests (frontend): React Testing Library for components that have user interactions

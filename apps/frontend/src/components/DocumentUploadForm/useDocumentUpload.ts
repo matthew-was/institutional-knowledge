@@ -1,17 +1,24 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import useSWRMutation from 'swr/mutation';
 import type { z } from 'zod';
 
 import type { DuplicateRecord } from '@/components/DuplicateConflictAlert/DuplicateConflictAlert';
+import { fetchWrapper } from '@/lib/fetchWrapper';
 import type { ParsedFilename } from '@/lib/parseFilename';
 import { createUploadFormSchema } from '@/lib/schemas';
 
 export type UploadFormValues = z.infer<
   ReturnType<typeof createUploadFormSchema>
 >;
+
+async function submitUpload(_key: string, { arg }: { arg: FormData }) {
+  return fetchWrapper('/api/documents/upload', { method: 'POST', body: arg });
+}
 
 export function useDocumentUpload(
   maxFileSizeMb: number,
@@ -27,7 +34,7 @@ export function useDocumentUpload(
     handleSubmit: rhfHandleSubmit,
     setValue,
     getValues,
-    formState: { errors, isValid, isSubmitting },
+    formState: { errors, isValid },
   } = useForm<UploadFormValues>({
     resolver: zodResolver(schema),
     mode: 'onBlur',
@@ -36,6 +43,13 @@ export function useDocumentUpload(
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicateRecord, setDuplicateRecord] =
     useState<DuplicateRecord | null>(null);
+
+  const router = useRouter();
+
+  const { trigger, isMutating } = useSWRMutation(
+    '/api/documents/upload',
+    submitUpload,
+  );
 
   function handleFileSelect(file: File, parsed: ParsedFilename | null) {
     setServerError(null);
@@ -47,8 +61,43 @@ export function useDocumentUpload(
     setValue('file', file, { shouldValidate: false });
   }
 
-  function onSubmit(_data: UploadFormValues) {
-    // TODO Task 6: wire API call
+  async function onSubmit(data: UploadFormValues) {
+    setServerError(null);
+    setDuplicateRecord(null);
+
+    const formData = new FormData();
+    formData.append('file', data.file);
+    formData.append('date', data.date);
+    formData.append('description', data.description);
+
+    const response = await trigger(formData);
+
+    if (response === undefined) {
+      return;
+    }
+
+    if (response.status === 201) {
+      const body = await response.json();
+      const params = new URLSearchParams({
+        documentId: body.documentId,
+        description: body.description,
+        date: body.date ?? '',
+        archiveReference: body.archiveReference,
+      });
+      router.push(`/upload/success?${params.toString()}`);
+      return;
+    }
+
+    if (response.status === 409) {
+      const body = await response.json();
+      setDuplicateRecord(body.data.existingRecord);
+      return;
+    }
+
+    const body = await response.json().catch(() => ({}));
+    setServerError(
+      (body as { message?: string }).message ?? 'An unexpected error occurred.',
+    );
   }
 
   return {
@@ -56,7 +105,7 @@ export function useDocumentUpload(
     errors,
     getValues,
     isValid,
-    isSubmitting,
+    isSubmitting: isMutating,
     serverError,
     duplicateRecord,
     handleFileSelect,

@@ -18,7 +18,7 @@ export async function fetchWrapper(
   const url = `${basePath}${path}`;
   const headers = new Headers(init.headers);
 
-  if (!headers.has('content-type')) {
+  if (!headers.has('content-type') && !(init.body instanceof FormData)) {
     headers.set('content-type', 'application/json');
   }
 

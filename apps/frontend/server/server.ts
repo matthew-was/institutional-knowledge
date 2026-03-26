@@ -49,6 +49,7 @@ async function start() {
   const deps: ServerDeps = {
     config,
     expressClient: createExpressClient(config),
+    log,
   };
   const honoListener = getRequestListener(createHonoApp(deps).fetch);
 
