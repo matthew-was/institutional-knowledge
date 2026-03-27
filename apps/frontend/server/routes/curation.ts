@@ -110,6 +110,16 @@ export function createCurationRouter(deps: CurationDeps): Hono {
     }
   });
 
+  // GET /api/curation/documents/:id — DOC-007 (stub; implemented in Task 11)
+  router.get('/documents/:id', (c) =>
+    c.json({ error: 'not_implemented' }, 501),
+  );
+
+  // PATCH /api/curation/documents/:id/metadata — DOC-009 (stub; implemented in Task 11)
+  router.patch('/documents/:id/metadata', (c) =>
+    c.json({ error: 'not_implemented' }, 501),
+  );
+
   router.get('/vocabulary', (c) => c.json({ error: 'not_implemented' }, 501));
   // /vocabulary/terms must be registered before /vocabulary/:termId/* to prevent
   // the literal segment "terms" being captured as a :termId parameter.

@@ -1,6 +1,7 @@
 # Finish Task
 
-Runs the end-of-task routine after a task reaches `reviewed` status. Covers: moving the
+Runs the end-of-task routine after a task reaches `done` status. The PM agent sets `done`
+after the user sets `reviewed` — `/finish-task` is the step after that. Covers: moving the
 code review file to archive, committing, pushing, optionally opening a PR, and appending
 a block to the lab entry draft.
 
@@ -25,12 +26,12 @@ If either argument is missing, ask for it before proceeding.
 
 Read the relevant task file (`documentation/tasks/frontend-tasks.md`,
 `documentation/tasks/backend-tasks.md`, or `documentation/tasks/python-tasks.md`).
-Find the task block (`### Task [N]:`). Check that `**Status**` is `reviewed` or `done`.
+Find the task block (`### Task [N]:`). Check that `**Status**` is `done`.
 
 If the status is anything else, output:
 
-> "Task [N] has status `[current]` — finish-task should only be run after the task
-> reaches `reviewed`. No changes have been made."
+> "Task [N] has status `[current]` — finish-task should only be run after the PM agent
+> sets the task to `done`. No changes have been made."
 
 And stop.
 

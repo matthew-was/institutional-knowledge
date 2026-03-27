@@ -104,6 +104,7 @@ Do not implement multiple tasks in one session unless the developer explicitly a
 - Input sanitisation: validate all user-supplied values at the service boundary; do not pass raw request fields to database queries or file system operations
 - Frontend schema derivation: when overriding a field from a shared schema via `.extend()`, check whether the source field transforms its value (`.trim()`, `.toLowerCase()`, coercions) and preserve those transformations in the override — a `.refine()` validates but does not transform, so the form will submit a value the server would silently mutate
 - No direct database connections from frontend components — all data access via Express API
+- Server Component self-calls: when a Server Component fetches from the Hono server, construct the full URL from `config.server.host` and `config.server.port` — never hardcode `localhost` or any other hostname
 - All handler functions accept injected services — no direct instantiation inside handlers (see dependency-composition-pattern skill)
 - Backend code structure: follow the Dependency Composition, Service, and Repository patterns in `documentation/process/development-principles-backend.md` — route factories receive one service (not `AppDependencies`), services are factory functions returning closures, all SQL lives in `db/repositories/`, `db._knex` is never used outside repositories/test cleanup/transactions
 - Write for human readability: each file should have one clear responsibility; split a file when it becomes hard to follow at a glance, not based on a fixed line count
