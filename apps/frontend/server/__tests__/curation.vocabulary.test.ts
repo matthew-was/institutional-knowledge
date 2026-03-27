@@ -103,7 +103,9 @@ describe('POST /api/curation/vocabulary/:termId/accept', () => {
   });
 
   it('400: returns invalid_params for non-UUID termId', async () => {
-    const res = await request.post('/api/curation/vocabulary/not-a-uuid/accept');
+    const res = await request.post(
+      '/api/curation/vocabulary/not-a-uuid/accept',
+    );
 
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'invalid_params' });
@@ -173,7 +175,9 @@ describe('POST /api/curation/vocabulary/:termId/reject', () => {
   });
 
   it('400: returns invalid_params for non-UUID termId', async () => {
-    const res = await request.post('/api/curation/vocabulary/not-a-uuid/reject');
+    const res = await request.post(
+      '/api/curation/vocabulary/not-a-uuid/reject',
+    );
 
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'invalid_params' });
