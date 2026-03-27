@@ -11,19 +11,16 @@
  * without try/catch. 4xx errors are caught and returned as error branches; 5xx
  * errors re-throw so the route handler can log them and return 500.
  *
- * Covers DOC-001 through DOC-009 as defined in integration-lead-contracts.md.
+ * Covers DOC-001 through DOC-005 as defined in integration-lead-contracts.md.
+ * DOC-007/008/009 are implemented in requests/curation.ts.
  */
 
 import type {
-  ClearFlagResponse,
-  DocumentDetailResponse,
   DuplicateConflictResponse,
   FinalizeUploadResponse,
   InitiateUploadRequest,
   InitiateUploadResponse,
   ServiceResult,
-  UpdateDocumentMetadataRequest,
-  UpdateDocumentMetadataResponse,
   UploadFileResponse,
 } from '@institutional-knowledge/shared';
 import { HTTPError, type KyInstance } from 'ky';
@@ -83,27 +80,6 @@ export interface DocumentsRequests {
    * Best-effort — callers should not propagate errors from this method.
    */
   deleteUpload(uploadId: string): Promise<void>;
-
-  /**
-   * DOC-007: Fetch a document by ID.
-   * GET api/documents/:id
-   */
-  findById(id: string): Promise<DocumentDetailResponse>;
-
-  /**
-   * DOC-008: Clear the review flag on a document.
-   * POST api/documents/:id/clear-flag
-   */
-  clearFlag(id: string): Promise<ClearFlagResponse>;
-
-  /**
-   * DOC-009: Patch document metadata fields.
-   * PATCH api/documents/:id/metadata
-   */
-  patchMetadata(
-    id: string,
-    body: UpdateDocumentMetadataRequest,
-  ): Promise<UpdateDocumentMetadataResponse>;
 }
 
 export function createDocumentsRequests(http: KyInstance): DocumentsRequests {
@@ -207,21 +183,6 @@ export function createDocumentsRequests(http: KyInstance): DocumentsRequests {
 
     async deleteUpload(uploadId: string): Promise<void> {
       await http.delete(`api/documents/${uploadId}`);
-    },
-
-    findById(_id: string): Promise<DocumentDetailResponse> {
-      throw new Error('not_implemented');
-    },
-
-    clearFlag(_id: string): Promise<ClearFlagResponse> {
-      throw new Error('not_implemented');
-    },
-
-    patchMetadata(
-      _id: string,
-      _body: UpdateDocumentMetadataRequest,
-    ): Promise<UpdateDocumentMetadataResponse> {
-      throw new Error('not_implemented');
     },
   };
 }

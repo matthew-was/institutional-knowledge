@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { Logger } from 'pino';
+import { z } from 'zod';
 import type { AppConfig } from '../config';
 import {
+  createUploadHandlers,
   type UploadErrorType,
   type UploadHandlerResult,
-  uploadHandler,
 } from '../handlers/uploadHandler';
 import type { ExpressClient } from '../requests/client';
 
@@ -15,7 +16,7 @@ export interface DocumentsDeps {
   log: Logger;
 }
 
-const ERROR_STATUS: Record<UploadErrorType, number> = {
+const ERROR_STATUS: Record<UploadErrorType, ContentfulStatusCode> = {
   unsupported_extension: 422,
   file_too_large: 422,
   whitespace_description: 400,
@@ -27,6 +28,7 @@ const ERROR_STATUS: Record<UploadErrorType, number> = {
 
 export function createDocumentsRouter(deps: DocumentsDeps): Hono {
   const router = new Hono();
+  const handlers = createUploadHandlers(deps.expressClient.documents);
 
   router.post('/upload', async (c) => {
     const body = await c.req.parseBody();
@@ -49,11 +51,7 @@ export function createDocumentsRouter(deps: DocumentsDeps): Hono {
 
     let result: UploadHandlerResult;
     try {
-      result = await uploadHandler(deps.expressClient.documents, {
-        file,
-        date,
-        description,
-      });
+      result = await handlers.upload({ file, date, description });
     } catch (err) {
       deps.log.error({ err }, 'Unexpected error during upload');
       return c.json(
@@ -73,24 +71,26 @@ export function createDocumentsRouter(deps: DocumentsDeps): Hono {
     if (result.errorType === 'duplicate_detected') {
       return c.json(
         { error: result.errorType, data: { existingRecord: result.errorData } },
-        status as ContentfulStatusCode,
+        status,
       );
     }
 
     return c.json(
       { error: result.errorType, message: result.errorMessage },
-      status as ContentfulStatusCode,
+      status,
     );
   });
 
-  router.delete('/:uploadId', (c) => c.json({ error: 'not_implemented' }, 501));
-  router.get('/:id', (c) => c.json({ error: 'not_implemented' }, 501));
-  router.post('/:id/clear-flag', (c) =>
-    c.json({ error: 'not_implemented' }, 501),
-  );
-  router.patch('/:id/metadata', (c) =>
-    c.json({ error: 'not_implemented' }, 501),
-  );
+  router.delete('/:uploadId', (c) => {
+    const rawId = c.req.param('uploadId');
+    if (!z.uuid().safeParse(rawId).success) {
+      return c.json(
+        { error: 'invalid_params', message: 'uploadId must be a valid UUID.' },
+        400,
+      );
+    }
+    return c.json({ error: 'not_implemented' }, 501);
+  });
 
   return router;
 }

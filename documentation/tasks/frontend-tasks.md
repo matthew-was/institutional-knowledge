@@ -1262,6 +1262,125 @@ tests pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 ---
 
+### Task 13a: Frontend server pattern normalisation
+
+**Description**: Tidy-up task to normalise patterns in the Hono custom server layer.
+No new routes, no new features, no change to the observable HTTP contract.
+
+Specifically:
+
+- **`ServiceResult` in curation requests** — Add `CurationErrorType` union to
+  `requests/curation.ts`. Wrap the 5 error-capable methods (`fetchDocumentDetail`,
+  `clearDocumentFlag`, `updateDocumentMetadata`, `acceptTerm`, `rejectTerm`) in try/catch
+  that catches `HTTPError` with status < 500, reads the response body, and returns a
+  `ServiceResult` error branch — matching the pattern already used in
+  `requests/documents.ts`. List endpoints (`fetchDocumentQueue`, `fetchVocabulary`) remain
+  as plain throws.
+
+- **Handler factory pattern** — Replace the 7 individual exported functions in
+  `handlers/curationHandler.ts` with a `createCurationHandlers(requests)` factory that
+  closes over `requests` once; each returned method takes only its own operation-specific
+  params. Apply the same factory pattern to `handlers/uploadHandler.ts`:
+  `createUploadHandlers(requests)` returns `{ upload(payload) }`.
+
+- **`sendHonoServiceError` utility** — Create `routes/routeUtils.ts` with a
+  `sendHonoServiceError` function (equivalent to `apps/backend/src/routes/routeUtils.ts`'s
+  `sendServiceError`). Hono's `c.json()` returns `Response`; the function returns it.
+
+- **Simplify curation routes** — In `routes/curation.ts`: add `log: Logger` to
+  `CurationDeps`; create handlers once via `createCurationHandlers` at the top of the
+  factory; replace all `try/catch + isHttpError` blocks with `result.outcome` branching
+  using `sendHonoServiceError` and a consolidated `ERROR_STATUS` map typed as
+  `Record<CurationErrorType, ContentfulStatusCode>`; add logging at `warn`/`info`/`error`
+  levels matching the documents route; delete the `isHttpError` type guard.
+
+- **Route param validation** — Add inline Zod UUID validation on `:id`, `:uploadId`, and
+  `:termId` route params in both `routes/curation.ts` and `routes/documents.ts`, mirroring
+  the backend's `validate({ params: DocumentIdParams })` pattern.
+
+- **Remove dead stubs** — `findById`, `clearFlag`, and `patchMetadata` in
+  `requests/documents.ts` are `throw new Error('not_implemented')` stubs; DOC-007/008/009
+  are already fully implemented in `requests/curation.ts`. Remove them from the
+  `DocumentsRequests` interface and factory. Remove the corresponding 501 stubs for
+  `GET /:id`, `POST /:id/clear-flag`, and `PATCH /:id/metadata` from `routes/documents.ts`.
+  Keep the `DELETE /:uploadId` stub — it is a valid future endpoint for browser-initiated
+  upload cancellation.
+
+- **Test setup helper** — Create `server/__tests__/testHelpers.ts` that exports a shared
+  setup helper (equivalent to `apps/backend/src/testing/testHelpers.ts`), encapsulating the
+  repeated `parseConfig` / `createHonoApp` / `createAdaptorServer` / supertest setup and
+  MSW lifecycle hooks. Update all 5 Tier 2 test files to use it.
+
+- **Update `uploadHandler` unit test** — Update `handlers/__tests__/uploadHandler.test.ts`
+  call sites from `uploadHandler(requests, payload)` to
+  `createUploadHandlers(requests).upload(payload)`. No new test cases.
+
+See `documentation/tasks/frontend-task-13a-notes.md` for detailed per-file implementation
+guidance.
+
+**Depends on**: Task 13
+
+**Complexity**: M
+
+**Acceptance condition**: `pnpm biome check apps/frontend/src` passes;
+`pnpm --filter frontend exec tsc --noEmit` passes; `pnpm --filter frontend test` passes
+with all existing test assertions green; `isHttpError` no longer exists anywhere in
+`server/`; `requests/documents.ts` no longer contains `findById`, `clearFlag`, or
+`patchMetadata`; `handlers/curationHandler.ts` exports `createCurationHandlers` and no
+individual handler functions; `handlers/uploadHandler.ts` exports `createUploadHandlers`
+and no top-level `uploadHandler`; curation routes log at `error`, `warn`, and `info`
+levels.
+
+**Condition type**: automated + manual
+
+**Status**: done
+
+**Verification** (2026-03-27):
+
+- Automated checks: confirmed structurally by reading the implementation files.
+  - `isHttpError` — zero occurrences in `apps/frontend/server/` confirmed by full-text search.
+  - `requests/documents.ts` — `findById`, `clearFlag`, and `patchMetadata` are absent. Interface
+    and factory contain only the four upload-lifecycle methods plus `deleteUpload`.
+  - `handlers/curationHandler.ts` — exports only `createCurationHandlers`. No individual
+    top-level handler functions are exported.
+  - `handlers/uploadHandler.ts` — exports only `createUploadHandlers` (plus re-exported types
+    `UploadErrorType` and `UploadHandlerResult`). No top-level `uploadHandler` function.
+  - `routes/curation.ts` — `ERROR_STATUS` is typed as `Record<CurationErrorType, ContentfulStatusCode>`
+    (no casts needed). `log.error` is present on all unexpected-throw paths and list-route catch
+    blocks; `log.warn` on all `result.outcome === 'error'` paths; `log.info` on every success path.
+    All five UUID param validation checks are present.
+  - `routes/documents.ts` — factory pattern applied; dead stubs for `GET /:id`,
+    `POST /:id/clear-flag`, and `PATCH /:id/metadata` are removed; `DELETE /:uploadId` UUID
+    validation is present. `ERROR_STATUS` typed as `Record<UploadErrorType, ContentfulStatusCode>`.
+  - `routes/routeUtils.ts` (new) — `sendHonoServiceError` present, returns `Response`, generic
+    over `K extends string` and `E`, mirrors backend `sendServiceError` pattern.
+  - `server/__tests__/testHelpers.ts` (new) — `createTestRequest()` and `createMswServer()` with
+    MSW lifecycle hooks. All 5 Tier 2 test files updated to use `createMswServer` and
+    `createTestRequest` from `./testHelpers`.
+  - `handlers/__tests__/uploadHandler.test.ts` — call sites updated to
+    `createUploadHandlers(requests).upload(payload)`.
+
+- Manual checks: the three commands below must pass before this task is considered fully
+  verified at runtime. Run them and confirm all three exit clean:
+
+  ```bash
+  pnpm biome check apps/frontend/src
+  pnpm --filter frontend exec tsc --noEmit
+  pnpm --filter frontend test
+  ```
+
+  Expected: no lint errors, no type errors, all existing test assertions green.
+
+- User need: this is a structural normalisation task with no direct user story. The underlying
+  need is developer quality — consistent patterns across the Hono server layer so that future
+  tasks (14 onwards) build from a uniform foundation and do not silently diverge. The
+  implementation satisfies this intent: `ServiceResult` is now uniform in the request layer,
+  handler factories are consistent, dead code is removed, and test setup is centralised.
+
+- Outcome: done (pending developer confirmation of the three manual commands above)
+
+---
+
 ### Task 14: Manual vocabulary term entry — components and page
 
 **Description**: Implement the manual vocabulary term entry form components and page.

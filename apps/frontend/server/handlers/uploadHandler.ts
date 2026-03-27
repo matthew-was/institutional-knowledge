@@ -1,10 +1,10 @@
 /**
- * uploadHandler — composite upload orchestrator.
+ * createUploadHandlers — factory that closes over upload request functions.
  *
- * No framework imports. Accepts injected request functions so the handler
- * is testable in isolation without an HTTP server.
+ * No framework imports. The factory accepts injected request functions so the
+ * returned handler is testable in isolation without an HTTP server.
  *
- * Orchestrates three sequential Express calls:
+ * The upload method orchestrates three sequential Express calls:
  *   1. initiateUpload  — reserves an upload slot and receives an uploadId
  *   2. uploadFile      — streams the file bytes to Express storage
  *   3. finalizeUpload  — commits the upload and returns the document record
@@ -30,53 +30,58 @@ export type UploadHandlerResult = ServiceResult<
   DuplicateConflictResponse['existingRecord']
 >;
 
-export async function uploadHandler(
-  requests: DocumentsRequests,
-  payload: { file: File; date: string; description: string },
-): Promise<UploadHandlerResult> {
-  const { file, date, description } = payload;
-  let uploadId: string | undefined;
+export function createUploadHandlers(requests: DocumentsRequests) {
+  return {
+    async upload(payload: {
+      file: File;
+      date: string;
+      description: string;
+    }): Promise<UploadHandlerResult> {
+      const { file, date, description } = payload;
+      let uploadId: string | undefined;
 
-  try {
-    // Step 1: initiate — obtain an uploadId.
-    // If this throws (unexpected error), no uploadId exists yet — no cleanup needed.
-    const initiateResult = await requests.initiateUpload({
-      filename: file.name,
-      contentType: file.type,
-      fileSizeBytes: file.size,
-      date,
-      description,
-    });
+      try {
+        // Step 1: initiate — obtain an uploadId.
+        // If this throws (unexpected error), no uploadId exists yet — no cleanup needed.
+        const initiateResult = await requests.initiateUpload({
+          filename: file.name,
+          contentType: file.type,
+          fileSizeBytes: file.size,
+          date,
+          description,
+        });
 
-    if (initiateResult.outcome === 'error') {
-      return initiateResult;
-    }
+        if (initiateResult.outcome === 'error') {
+          return initiateResult;
+        }
 
-    uploadId = initiateResult.data.uploadId;
+        uploadId = initiateResult.data.uploadId;
 
-    // Step 2: upload file bytes
-    const formData = new FormData();
-    formData.append('file', file);
-    const uploadResult = await requests.uploadFile(uploadId, formData);
+        // Step 2: upload file bytes
+        const formData = new FormData();
+        formData.append('file', file);
+        const uploadResult = await requests.uploadFile(uploadId, formData);
 
-    if (uploadResult.outcome === 'error') {
-      await requests.deleteUpload(uploadId).catch(() => undefined); // best-effort cleanup
-      return uploadResult;
-    }
+        if (uploadResult.outcome === 'error') {
+          await requests.deleteUpload(uploadId).catch(() => undefined); // best-effort cleanup
+          return uploadResult;
+        }
 
-    // Step 3: finalize
-    const finalizeResult = await requests.finalizeUpload(uploadId);
+        // Step 3: finalize
+        const finalizeResult = await requests.finalizeUpload(uploadId);
 
-    if (finalizeResult.outcome === 'error') {
-      await requests.deleteUpload(uploadId).catch(() => undefined); // best-effort cleanup
-      return finalizeResult;
-    }
+        if (finalizeResult.outcome === 'error') {
+          await requests.deleteUpload(uploadId).catch(() => undefined); // best-effort cleanup
+          return finalizeResult;
+        }
 
-    return { outcome: 'success', data: finalizeResult.data };
-  } catch (err) {
-    if (uploadId !== undefined) {
-      await requests.deleteUpload(uploadId).catch(() => undefined);
-    }
-    throw err;
-  }
+        return { outcome: 'success', data: finalizeResult.data };
+      } catch (err) {
+        if (uploadId !== undefined) {
+          await requests.deleteUpload(uploadId).catch(() => undefined);
+        }
+        throw err;
+      }
+    },
+  };
 }

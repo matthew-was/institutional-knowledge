@@ -1,8 +1,11 @@
 /**
- * curationHandler — thin wrappers over curation request functions.
+ * createCurationHandlers — factory that closes over curation request functions.
  *
- * No framework imports. These operations have no orchestration logic —
- * each handler delegates directly to a single request function.
+ * No framework imports. The factory accepts injected request functions so the
+ * returned handlers are testable in isolation without an HTTP server.
+ *
+ * Each returned method takes only its own operation-specific params; the
+ * requests object is closed over at construction time.
  */
 
 import type {
@@ -12,59 +15,59 @@ import type {
   DocumentQueueParams,
   DocumentQueueResponse,
   RejectCandidateResponse,
+  ServiceResult,
   UpdateDocumentMetadataRequest,
   UpdateDocumentMetadataResponse,
   VocabularyQueueParams,
   VocabularyQueueResponse,
 } from '@institutional-knowledge/shared';
-import type { CurationRequests } from '../requests/curation';
+import type { CurationErrorType, CurationRequests } from '../requests/curation';
 
-export async function fetchDocumentQueueHandler(
-  requests: CurationRequests,
-  params?: DocumentQueueParams,
-): Promise<DocumentQueueResponse> {
-  return requests.fetchDocumentQueue(params);
-}
+export function createCurationHandlers(requests: CurationRequests) {
+  return {
+    fetchDocumentQueue(
+      params?: DocumentQueueParams,
+    ): Promise<DocumentQueueResponse> {
+      return requests.fetchDocumentQueue(params);
+    },
 
-export async function fetchDocumentDetailHandler(
-  requests: CurationRequests,
-  documentId: string,
-): Promise<DocumentDetailResponse> {
-  return requests.fetchDocumentDetail(documentId);
-}
+    fetchDocumentDetail(
+      documentId: string,
+    ): Promise<ServiceResult<DocumentDetailResponse, CurationErrorType>> {
+      return requests.fetchDocumentDetail(documentId);
+    },
 
-export async function clearDocumentFlagHandler(
-  requests: CurationRequests,
-  documentId: string,
-): Promise<ClearFlagResponse> {
-  return requests.clearDocumentFlag(documentId);
-}
+    clearDocumentFlag(
+      documentId: string,
+    ): Promise<ServiceResult<ClearFlagResponse, CurationErrorType>> {
+      return requests.clearDocumentFlag(documentId);
+    },
 
-export async function updateDocumentMetadataHandler(
-  requests: CurationRequests,
-  documentId: string,
-  patch: UpdateDocumentMetadataRequest,
-): Promise<UpdateDocumentMetadataResponse> {
-  return requests.updateDocumentMetadata(documentId, patch);
-}
+    updateDocumentMetadata(
+      documentId: string,
+      patch: UpdateDocumentMetadataRequest,
+    ): Promise<
+      ServiceResult<UpdateDocumentMetadataResponse, CurationErrorType>
+    > {
+      return requests.updateDocumentMetadata(documentId, patch);
+    },
 
-export async function fetchVocabularyQueueHandler(
-  requests: CurationRequests,
-  params?: VocabularyQueueParams,
-): Promise<VocabularyQueueResponse> {
-  return requests.fetchVocabulary(params);
-}
+    fetchVocabularyQueue(
+      params?: VocabularyQueueParams,
+    ): Promise<VocabularyQueueResponse> {
+      return requests.fetchVocabulary(params);
+    },
 
-export async function acceptVocabularyCandidateHandler(
-  requests: CurationRequests,
-  termId: string,
-): Promise<AcceptCandidateResponse> {
-  return requests.acceptTerm(termId);
-}
+    acceptVocabularyCandidate(
+      termId: string,
+    ): Promise<ServiceResult<AcceptCandidateResponse, CurationErrorType>> {
+      return requests.acceptTerm(termId);
+    },
 
-export async function rejectVocabularyCandidateHandler(
-  requests: CurationRequests,
-  termId: string,
-): Promise<RejectCandidateResponse> {
-  return requests.rejectTerm(termId);
+    rejectVocabularyCandidate(
+      termId: string,
+    ): Promise<ServiceResult<RejectCandidateResponse, CurationErrorType>> {
+      return requests.rejectTerm(termId);
+    },
+  };
 }
