@@ -331,6 +331,11 @@ appears to pass but covers nothing.
     (`getByRole`, `getByText`, `getByLabelText`, etc.) already throw on absence, making
     `toBeDefined()` unconditionally true; assert `.textContent`, `.value`, or a specific
     attribute instead
+  - Type-checking expressions: `expect(typeof x).toBe('function')`,
+    `expect(x instanceof Y).toBe(true)`, `expect(x).toBeTruthy()` — these assert the shape
+    of a value, not its behaviour; they pass even when the code under test does nothing;
+    assert what `x` actually does or produces instead (e.g. call `x()` and assert the
+    result, or assert a side-effect it causes)
 - The fix is typically to assert the output value that the code under test is responsible
   for producing — not a side-effect that happens to be true unconditionally.
 

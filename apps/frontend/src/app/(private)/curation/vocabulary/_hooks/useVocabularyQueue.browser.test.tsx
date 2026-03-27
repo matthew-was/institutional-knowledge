@@ -4,7 +4,7 @@ import { setupServer } from 'msw/node';
 import type { ReactNode } from 'react';
 import { SWRConfig } from 'swr';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { useDocumentQueue } from './useDocumentQueue';
+import { useVocabularyQueue } from './useVocabularyQueue';
 
 const mswServer = setupServer();
 
@@ -22,94 +22,107 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-const sampleDocument = {
-  documentId: '01927c3a-5b2e-7000-8000-000000000001',
-  description: 'Wedding photograph',
-  date: '1987-06-15',
-  archiveReference: '1987-06-15 — Wedding photograph',
-  flagReason: 'OCR quality below threshold',
-  flaggedAt: '2026-03-13T10:00:00Z',
-  submitterIdentity: 'Primary Archivist',
-  pipelineStatus: 'ocr',
+const sampleCandidate = {
+  termId: '01927c3a-5b2e-7000-8000-000000000001',
+  term: 'Smith Estate',
+  category: 'Organisation',
+  confidence: 0.87,
+  description: null,
+  sourceDocumentDescription: 'Estate inventory 1952',
+  sourceDocumentDate: '1952-01-01',
+  createdAt: '2026-03-13T10:00:00Z',
 };
 
-describe('useDocumentQueue', () => {
-  it('returns items from the API on success', async () => {
+describe('useVocabularyQueue', () => {
+  it('fetches candidates on mount and returns them', async () => {
     mswServer.use(
-      http.get('/api/curation/documents', () =>
+      http.get('/api/curation/vocabulary', () =>
         HttpResponse.json(
-          { documents: [sampleDocument], total: 1, page: 1, pageSize: 50 },
+          {
+            candidates: [sampleCandidate],
+            total: 1,
+            page: 1,
+            pageSize: 50,
+          },
           { status: 200 },
         ),
       ),
     );
 
-    const { result } = renderHook(() => useDocumentQueue(), { wrapper });
+    const { result } = renderHook(() => useVocabularyQueue(), { wrapper });
 
     // Starts in a loading state
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.items).toEqual([]);
+    expect(result.current.candidates).toEqual([]);
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.error).toBeUndefined();
-    expect(result.current.items).toHaveLength(1);
-    expect(result.current.items[0]?.documentId).toBe(
+    expect(result.current.candidates).toHaveLength(1);
+    expect(result.current.candidates[0]?.termId).toBe(
       '01927c3a-5b2e-7000-8000-000000000001',
     );
-    expect(result.current.items[0]?.description).toBe('Wedding photograph');
+    expect(result.current.candidates[0]?.term).toBe('Smith Estate');
   });
 
-  it('returns an empty items array when API returns no documents', async () => {
+  it('returns an empty candidates array when the queue is empty', async () => {
     mswServer.use(
-      http.get('/api/curation/documents', () =>
+      http.get('/api/curation/vocabulary', () =>
         HttpResponse.json(
-          { documents: [], total: 0, page: 1, pageSize: 50 },
+          { candidates: [], total: 0, page: 1, pageSize: 50 },
           { status: 200 },
         ),
       ),
     );
 
-    const { result } = renderHook(() => useDocumentQueue(), { wrapper });
+    const { result } = renderHook(() => useVocabularyQueue(), { wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.items).toEqual([]);
+    expect(result.current.candidates).toEqual([]);
     expect(result.current.error).toBeUndefined();
   });
 
-  it('sets error when API returns a non-ok response', async () => {
+  it('sets error when the API returns a non-ok response', async () => {
     mswServer.use(
-      http.get('/api/curation/documents', () =>
+      http.get('/api/curation/vocabulary', () =>
         HttpResponse.json(
-          { error: 'fetch_failed', message: 'Failed to fetch document queue.' },
+          {
+            error: 'fetch_failed',
+            message: 'Failed to fetch vocabulary queue.',
+          },
           { status: 500 },
         ),
       ),
     );
 
-    const { result } = renderHook(() => useDocumentQueue(), { wrapper });
+    const { result } = renderHook(() => useVocabularyQueue(), { wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.error).toBeDefined();
-    expect(result.current.items).toEqual([]);
+    expect(result.current.candidates).toEqual([]);
   });
 
   it('re-fetches when mutate is called', async () => {
     let requestCount = 0;
 
     mswServer.use(
-      http.get('/api/curation/documents', () => {
+      http.get('/api/curation/vocabulary', () => {
         requestCount += 1;
         return HttpResponse.json(
-          { documents: [sampleDocument], total: 1, page: 1, pageSize: 50 },
+          {
+            candidates: [sampleCandidate],
+            total: 1,
+            page: 1,
+            pageSize: 50,
+          },
           { status: 200 },
         );
       }),
     );
 
-    const { result } = renderHook(() => useDocumentQueue(), { wrapper });
+    const { result } = renderHook(() => useVocabularyQueue(), { wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(requestCount).toBe(1);

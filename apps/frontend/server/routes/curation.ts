@@ -1,14 +1,18 @@
 import {
   DocumentQueueParams,
   UpdateDocumentMetadataRequest,
+  VocabularyQueueParams,
 } from '@institutional-knowledge/shared';
 import { Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { AppConfig } from '../config';
 import {
+  acceptVocabularyCandidateHandler,
   clearDocumentFlagHandler,
   fetchDocumentDetailHandler,
   fetchDocumentQueueHandler,
+  fetchVocabularyQueueHandler,
+  rejectVocabularyCandidateHandler,
   updateDocumentMetadataHandler,
 } from '../handlers/curationHandler';
 import type { ExpressClient } from '../requests/client';
@@ -27,6 +31,17 @@ type ClearFlagErrorType = 'not_found' | 'no_active_flag';
 const CLEAR_FLAG_ERROR_STATUS: Record<ClearFlagErrorType, number> = {
   not_found: 404,
   no_active_flag: 409,
+};
+
+/**
+ * Error types that may be propagated from Express for vocabulary accept/reject.
+ * Maps to the HTTP status codes we forward to the browser.
+ */
+type VocabularyErrorType = 'not_found' | 'invalid_state';
+
+const VOCABULARY_ERROR_STATUS: Record<VocabularyErrorType, number> = {
+  not_found: 404,
+  invalid_state: 409,
 };
 
 export function createCurationRouter(deps: CurationDeps): Hono {
@@ -231,18 +246,145 @@ export function createCurationRouter(deps: CurationDeps): Hono {
     }
   });
 
-  router.get('/vocabulary', (c) => c.json({ error: 'not_implemented' }, 501));
+  /**
+   * GET /api/curation/vocabulary — VOC-001
+   * Fetches the vocabulary review queue from Express.
+   */
+  router.get('/vocabulary', async (c) => {
+    const parsed = VocabularyQueueParams.safeParse(c.req.query());
+    if (!parsed.success) {
+      return c.json(
+        { error: 'invalid_params', message: parsed.error.issues[0]?.message },
+        400,
+      );
+    }
+
+    try {
+      const data = await fetchVocabularyQueueHandler(
+        deps.expressClient.curation,
+        parsed.data,
+      );
+      return c.json(data, 200);
+    } catch {
+      return c.json(
+        {
+          error: 'fetch_failed',
+          message: 'Failed to fetch vocabulary queue.',
+        },
+        500,
+      );
+    }
+  });
+
   // /vocabulary/terms must be registered before /vocabulary/:termId/* to prevent
   // the literal segment "terms" being captured as a :termId parameter.
   router.post('/vocabulary/terms', (c) =>
     c.json({ error: 'not_implemented' }, 501),
   );
-  router.post('/vocabulary/:termId/accept', (c) =>
-    c.json({ error: 'not_implemented' }, 501),
-  );
-  router.post('/vocabulary/:termId/reject', (c) =>
-    c.json({ error: 'not_implemented' }, 501),
-  );
+
+  /**
+   * POST /api/curation/vocabulary/:termId/accept — VOC-002
+   * Accepts a vocabulary candidate. Propagates 404 and 409 from Express.
+   */
+  router.post('/vocabulary/:termId/accept', async (c) => {
+    const termId = c.req.param('termId');
+
+    try {
+      const data = await acceptVocabularyCandidateHandler(
+        deps.expressClient.curation,
+        termId,
+      );
+      return c.json(data, 200);
+    } catch (err) {
+      if (isHttpError(err)) {
+        const status = err.response.status;
+
+        if (status === 404) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch(() => ({ error: 'not_found', message: undefined }));
+          return c.json(
+            { error: body.error, message: body.message ?? 'Term not found.' },
+            VOCABULARY_ERROR_STATUS.not_found as ContentfulStatusCode,
+          );
+        }
+
+        if (status === 409) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch(() => ({ error: 'invalid_state', message: undefined }));
+          return c.json(
+            {
+              error: body.error,
+              message:
+                body.message ?? 'Term is not in a state that can be accepted.',
+            },
+            VOCABULARY_ERROR_STATUS.invalid_state as ContentfulStatusCode,
+          );
+        }
+      }
+
+      return c.json(
+        {
+          error: 'accept_failed',
+          message: 'An unexpected error occurred while accepting the term.',
+        },
+        500,
+      );
+    }
+  });
+
+  /**
+   * POST /api/curation/vocabulary/:termId/reject — VOC-003
+   * Rejects a vocabulary candidate. Propagates 404 and 409 from Express.
+   */
+  router.post('/vocabulary/:termId/reject', async (c) => {
+    const termId = c.req.param('termId');
+
+    try {
+      const data = await rejectVocabularyCandidateHandler(
+        deps.expressClient.curation,
+        termId,
+      );
+      return c.json(data, 200);
+    } catch (err) {
+      if (isHttpError(err)) {
+        const status = err.response.status;
+
+        if (status === 404) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch(() => ({ error: 'not_found', message: undefined }));
+          return c.json(
+            { error: body.error, message: body.message ?? 'Term not found.' },
+            VOCABULARY_ERROR_STATUS.not_found as ContentfulStatusCode,
+          );
+        }
+
+        if (status === 409) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch(() => ({ error: 'invalid_state', message: undefined }));
+          return c.json(
+            {
+              error: body.error,
+              message:
+                body.message ?? 'Term is not in a state that can be rejected.',
+            },
+            VOCABULARY_ERROR_STATUS.invalid_state as ContentfulStatusCode,
+          );
+        }
+      }
+
+      return c.json(
+        {
+          error: 'reject_failed',
+          message: 'An unexpected error occurred while rejecting the term.',
+        },
+        500,
+      );
+    }
+  });
 
   return router;
 }
