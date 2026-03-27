@@ -7,7 +7,7 @@ import { createExpressClient } from '../requests/client';
 import { createHonoApp } from '../server';
 
 const testConfig = parseConfig({
-  server: { port: 3000 },
+  server: { host: 'localhost', port: 3000 },
   express: {
     baseUrl: 'http://localhost:4000',
     internalKey: 'test-internal-key',

@@ -1,5 +1,5 @@
 {
-  server: { port: 3000 },
+  server: { host: "localhost", port: 3000 },
   express: {
     baseUrl: "http://localhost:4000",
     internalKey: "dev-frontend-key"

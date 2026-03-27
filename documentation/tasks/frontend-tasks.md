@@ -970,7 +970,38 @@ by Tier 1 RTL test; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit`
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-27):
+
+- Automated checks: confirmed. All four acceptance conditions are met by the implementation
+  and tests. (1) Document detail page fetches server-side: `[id]/page.tsx` is an `async`
+  Server Component calling `fetch` with `cache: 'no-store'` against
+  `http://${config.server.host}:${config.server.port}/api/curation/documents/${id}` (both
+  host and port from config after B-01 fix in round 2). Handles 404 and non-OK responses
+  with distinct error UI. (2) Form renders pre-populated fields:
+  `DocumentMetadataForm.browser.test.tsx` "renders all metadata fields pre-populated from
+  the document prop" asserts all six field values from `toFormValues()` which maps arrays
+  to comma-separated strings and null date to `''`; falsifiable — would fail if
+  `toFormValues` were absent or incorrect. (3) Null date does not trigger validation error:
+  two independent tests confirm this — `DocumentMetadataForm.browser.test.tsx` "renders
+  with an empty date field when document date is null" (renders with `date: null`, asserts
+  `dateInput.value === ''` and no error text) and `MetadataEditFields.browser.test.tsx`
+  "renders the date field as empty with no error when initial date is empty string" (covers
+  the form-internal representation `date: ''`); both falsifiable. (4) Lint and type check:
+  confirmed by the code reviewer in both rounds — `pnpm biome check` passes, `tsc --noEmit`
+  passes, all 129 frontend tests pass.
+- Manual checks: none required — all conditions are automated.
+- User need: satisfied. US-082 requires a Primary Archivist to correct document metadata
+  (type, date, people, land references, description) via the curation UI. The implementation
+  provides an edit form with all required fields, pre-populated from the document record.
+  The null-date case is handled correctly so undated documents do not present a false
+  validation error. The API call is deliberately stubbed (Task 11 scope), which is the
+  correct boundary — the component and data model are complete. Round-1 blocking finding
+  B-01 (hardcoded `localhost`) was resolved; S-01 (textarea for description) and S-02
+  (redundant `'use client'` on hook) were also resolved. No gap between acceptance condition
+  and user need for this task's scope.
+- Outcome: done
 
 ---
 

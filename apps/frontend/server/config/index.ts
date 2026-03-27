@@ -46,6 +46,7 @@ nconf
 
 const ConfigSchema = z.object({
   server: z.object({
+    host: z.string().min(1),
     port: z.coerce.number().int().positive(),
   }),
   express: z.object({
