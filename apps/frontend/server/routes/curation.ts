@@ -1,10 +1,15 @@
-import { DocumentQueueParams } from '@institutional-knowledge/shared';
+import {
+  DocumentQueueParams,
+  UpdateDocumentMetadataRequest,
+} from '@institutional-knowledge/shared';
 import { Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { AppConfig } from '../config';
 import {
   clearDocumentFlagHandler,
+  fetchDocumentDetailHandler,
   fetchDocumentQueueHandler,
+  updateDocumentMetadataHandler,
 } from '../handlers/curationHandler';
 import type { ExpressClient } from '../requests/client';
 
@@ -110,15 +115,121 @@ export function createCurationRouter(deps: CurationDeps): Hono {
     }
   });
 
-  // GET /api/curation/documents/:id — DOC-007 (stub; implemented in Task 11)
-  router.get('/documents/:id', (c) =>
-    c.json({ error: 'not_implemented' }, 501),
-  );
+  /**
+   * GET /api/curation/documents/:id — DOC-007
+   * Fetches document detail from Express and returns it as-is. Propagates 404.
+   */
+  router.get('/documents/:id', async (c) => {
+    const documentId = c.req.param('id');
 
-  // PATCH /api/curation/documents/:id/metadata — DOC-009 (stub; implemented in Task 11)
-  router.patch('/documents/:id/metadata', (c) =>
-    c.json({ error: 'not_implemented' }, 501),
-  );
+    try {
+      const data = await fetchDocumentDetailHandler(
+        deps.expressClient.curation,
+        documentId,
+      );
+      return c.json(data, 200);
+    } catch (err) {
+      if (isHttpError(err) && err.response.status === 404) {
+        const body = await err.response
+          .json<{ error: string; message?: string }>()
+          .catch(() => ({ error: 'not_found', message: undefined }));
+        return c.json(
+          { error: body.error, message: body.message ?? 'Document not found.' },
+          404 as ContentfulStatusCode,
+        );
+      }
+
+      return c.json(
+        {
+          error: 'fetch_failed',
+          message: 'Failed to fetch document detail.',
+        },
+        500,
+      );
+    }
+  });
+
+  /**
+   * PATCH /api/curation/documents/:id/metadata — DOC-009
+   * Updates document metadata via Express. Propagates 400 and 404.
+   */
+  router.patch('/documents/:id/metadata', async (c) => {
+    const documentId = c.req.param('id');
+
+    let rawBody: unknown;
+    try {
+      rawBody = await c.req.json();
+    } catch {
+      return c.json(
+        {
+          error: 'invalid_params',
+          message: 'Request body must be valid JSON.',
+        },
+        400,
+      );
+    }
+
+    const parsed = UpdateDocumentMetadataRequest.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: 'invalid_params',
+          message: parsed.error.issues[0]?.message ?? 'Invalid request body.',
+        },
+        400,
+      );
+    }
+
+    try {
+      const data = await updateDocumentMetadataHandler(
+        deps.expressClient.curation,
+        documentId,
+        parsed.data,
+      );
+      return c.json(data, 200);
+    } catch (err) {
+      if (isHttpError(err)) {
+        const status = err.response.status;
+
+        if (status === 404) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch(() => ({ error: 'not_found', message: undefined }));
+          return c.json(
+            {
+              error: body.error,
+              message: body.message ?? 'Document not found.',
+            },
+            404 as ContentfulStatusCode,
+          );
+        }
+
+        if (status === 400) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch(() => ({
+              error: 'invalid_params',
+              message: undefined,
+            }));
+          return c.json(
+            {
+              error: body.error,
+              message: body.message ?? 'Invalid request.',
+            },
+            400 as ContentfulStatusCode,
+          );
+        }
+      }
+
+      return c.json(
+        {
+          error: 'update_failed',
+          message: 'An unexpected error occurred while updating metadata.',
+        },
+        500,
+      );
+    }
+  });
 
   router.get('/vocabulary', (c) => c.json({ error: 'not_implemented' }, 501));
   // /vocabulary/terms must be registered before /vocabulary/:termId/* to prevent

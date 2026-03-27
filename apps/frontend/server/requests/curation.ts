@@ -6,7 +6,7 @@
  *
  * Paths must not start with '/' — Ky prefixUrl constraint.
  *
- * Covers DOC-006, DOC-008, and VOC-001 through VOC-004 as defined in
+ * Covers DOC-006 through DOC-009 and VOC-001 through VOC-004 as defined in
  * integration-lead-contracts.md.
  */
 
@@ -15,9 +15,12 @@ import type {
   AddVocabularyTermRequest,
   AddVocabularyTermResponse,
   ClearFlagResponse,
+  DocumentDetailResponse,
   DocumentQueueParams,
   DocumentQueueResponse,
   RejectCandidateResponse,
+  UpdateDocumentMetadataRequest,
+  UpdateDocumentMetadataResponse,
   VocabularyQueueResponse,
 } from '@institutional-knowledge/shared';
 import type { KyInstance } from 'ky';
@@ -32,10 +35,25 @@ export interface CurationRequests {
   ): Promise<DocumentQueueResponse>;
 
   /**
+   * DOC-007: Fetch document detail.
+   * GET api/documents/:id
+   */
+  fetchDocumentDetail(documentId: string): Promise<DocumentDetailResponse>;
+
+  /**
    * DOC-008: Clear the review flag on a document.
    * POST api/documents/:id/clear-flag
    */
   clearDocumentFlag(documentId: string): Promise<ClearFlagResponse>;
+
+  /**
+   * DOC-009: Update document metadata.
+   * PATCH api/documents/:id/metadata
+   */
+  updateDocumentMetadata(
+    documentId: string,
+    patch: UpdateDocumentMetadataRequest,
+  ): Promise<UpdateDocumentMetadataResponse>;
 
   /**
    * VOC-001: Fetch the vocabulary review queue.
@@ -77,10 +95,27 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         .json<DocumentQueueResponse>();
     },
 
+    async fetchDocumentDetail(
+      documentId: string,
+    ): Promise<DocumentDetailResponse> {
+      return http
+        .get(`api/documents/${documentId}`)
+        .json<DocumentDetailResponse>();
+    },
+
     async clearDocumentFlag(documentId: string): Promise<ClearFlagResponse> {
       return http
         .post(`api/documents/${documentId}/clear-flag`)
         .json<ClearFlagResponse>();
+    },
+
+    async updateDocumentMetadata(
+      documentId: string,
+      patch: UpdateDocumentMetadataRequest,
+    ): Promise<UpdateDocumentMetadataResponse> {
+      return http
+        .patch(`api/documents/${documentId}/metadata`, { json: patch })
+        .json<UpdateDocumentMetadataResponse>();
     },
 
     fetchVocabulary(_params?: {

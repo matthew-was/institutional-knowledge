@@ -1,15 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { DocumentDetailResponse } from '@institutional-knowledge/shared';
+import type {
+  DocumentDetailResponse,
+  UpdateDocumentMetadataRequest,
+} from '@institutional-knowledge/shared';
 import { useMemo, useState } from 'react';
-import { type Resolver, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
+import useSWRMutation from 'swr/mutation';
+import { fetchWrapper } from '@/lib/fetchWrapper';
 import { MetadataEditSchema } from '@/lib/schemas';
 
 /**
  * The form's internal working representation.
  *
  * Array fields (`people`, `organisations`, `landReferences`) are stored as
- * comma-separated strings in the form so the user can type them naturally.
- * `MetadataEditSchema` preprocesses these strings into `string[]` on submit.
+ * comma-separated strings so the user can type them naturally. They are split
+ * into `string[]` in `onSubmit` before being sent to the API.
  *
  * `date` is stored as a string: '' for undated documents, 'YYYY-MM-DD' when
  * dated. A null initial date from the API maps to '' so the date input renders
@@ -41,6 +46,14 @@ function toFormValues(document: DocumentDetailResponse): MetadataEditValues {
   };
 }
 
+function splitCommaString(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 export function useDocumentMetadata(document: DocumentDetailResponse) {
   const defaultValues = useMemo(() => toFormValues(document), [document]);
 
@@ -49,14 +62,7 @@ export function useDocumentMetadata(document: DocumentDetailResponse) {
     handleSubmit: rhfHandleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<MetadataEditValues>({
-    // zodResolver's type parameter is widened by z.preprocess (which uses
-    // `unknown` as its input type). The double cast via `unknown` aligns the
-    // resolver with the form's explicit working type — the runtime behaviour is
-    // correct because the schema's preprocessor accepts the comma-separated
-    // string values that the form produces and converts them to arrays.
-    resolver: zodResolver(
-      MetadataEditSchema,
-    ) as unknown as Resolver<MetadataEditValues>,
+    resolver: zodResolver(MetadataEditSchema),
     mode: 'onBlur',
     defaultValues,
   });
@@ -64,17 +70,60 @@ export function useDocumentMetadata(document: DocumentDetailResponse) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // TODO Task 11: wire useSWRMutation to PATCH /api/curation/documents/:id/metadata
-  async function onSubmit(_data: MetadataEditValues) {
+  const mutationKey = `/api/curation/documents/${document.documentId}/metadata`;
+
+  const { trigger, isMutating } = useSWRMutation(
+    mutationKey,
+    async (
+      _key: string,
+      { arg }: { arg: UpdateDocumentMetadataRequest },
+    ): Promise<void> => {
+      const res = await fetchWrapper(mutationKey, {
+        method: 'PATCH',
+        body: JSON.stringify(arg),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        throw new Error(
+          body.message ?? 'Failed to save changes. Please try again.',
+        );
+      }
+    },
+  );
+
+  async function onSubmit(data: MetadataEditValues) {
     setServerError(null);
     setSuccessMessage(null);
-    // API call wired in Task 11.
+
+    // HTML form fields deliver array values as comma-separated strings.
+    // Split them into arrays here before sending to the API.
+    const patch: UpdateDocumentMetadataRequest = {
+      ...data,
+      people: splitCommaString(data.people),
+      organisations: splitCommaString(data.organisations),
+      landReferences: splitCommaString(data.landReferences),
+    };
+
+    await trigger(patch).then(
+      () => {
+        setSuccessMessage('Changes saved successfully.');
+      },
+      (err: unknown) => {
+        setServerError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to save changes. Please try again.',
+        );
+      },
+    );
   }
 
   return {
     control,
     errors,
-    isSubmitting,
+    isSubmitting: isSubmitting || isMutating,
     serverError,
     successMessage,
     handleSubmit: rhfHandleSubmit(onSubmit),

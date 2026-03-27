@@ -148,98 +148,80 @@ describe('MetadataEditSchema', () => {
       const result = MetadataEditSchema.safeParse({
         date: '2026-03-15',
         description: 'Updated description',
-        people: ['Alice Smith', 'Bob Jones'],
-        organisations: ['Estate of John'],
-        landReferences: ['North Field'],
+        documentType: 'Letter',
+        people: 'Alice Smith, Bob Jones',
+        organisations: 'Estate of John',
+        landReferences: 'North Field',
       });
       expect(result.success).toBe(true);
     });
 
-    it('passes with all fields omitted (all optional)', () => {
-      const result = MetadataEditSchema.safeParse({});
+    it('keeps array fields as strings — splitting happens in onSubmit', () => {
+      const result = MetadataEditSchema.safeParse({
+        date: '2026-03-15',
+        description: 'Test',
+        documentType: '',
+        people: 'Alice Smith, Bob Jones',
+        organisations: '',
+        landReferences: '',
+      });
       expect(result.success).toBe(true);
+      if (result.success) {
+        // The schema does not split — value is the raw comma-separated string.
+        expect(result.data.people).toBe('Alice Smith, Bob Jones');
+      }
     });
   });
 
-  describe('null date pre-population', () => {
-    it('passes when date is null', () => {
-      const result = MetadataEditSchema.safeParse({ date: null });
+  describe('date validation', () => {
+    it('passes when date is an empty string (undated document)', () => {
+      const result = MetadataEditSchema.safeParse({
+        date: '',
+        description: 'Test',
+        documentType: '',
+        people: '',
+        organisations: '',
+        landReferences: '',
+      });
       expect(result.success).toBe(true);
     });
 
-    it('passes when date is an empty string', () => {
-      const result = MetadataEditSchema.safeParse({ date: '' });
-      expect(result.success).toBe(true);
+    it('fails when date is not in YYYY-MM-DD format', () => {
+      const result = MetadataEditSchema.safeParse({
+        date: '15-03-2026',
+        description: 'Test',
+        documentType: '',
+        people: '',
+        organisations: '',
+        landReferences: '',
+      });
+      expect(result.success).toBe(false);
     });
   });
 
   describe('description validation', () => {
     it('fails when description is whitespace only', () => {
-      const result = MetadataEditSchema.safeParse({ description: '   ' });
+      const result = MetadataEditSchema.safeParse({
+        date: '',
+        description: '   ',
+        documentType: '',
+        people: '',
+        organisations: '',
+        landReferences: '',
+      });
       expect(result.success).toBe(false);
     });
 
-    it('passes when description is omitted', () => {
-      const result = MetadataEditSchema.safeParse({ date: '2026-01-01' });
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('comma-separated array inputs', () => {
-    it('converts comma-separated people string to array', () => {
+    it('fails when description is empty', () => {
       const result = MetadataEditSchema.safeParse({
-        people: 'Alice Smith, Bob Jones',
+        date: '',
+        description: '',
+        documentType: '',
+        people: '',
+        organisations: '',
+        landReferences: '',
       });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.people).toEqual(['Alice Smith', 'Bob Jones']);
-      }
-    });
-
-    it('converts comma-separated organisations string to array', () => {
-      const result = MetadataEditSchema.safeParse({
-        organisations: 'Estate of John, Local Council',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.organisations).toEqual([
-          'Estate of John',
-          'Local Council',
-        ]);
-      }
-    });
-
-    it('converts comma-separated landReferences string to array', () => {
-      const result = MetadataEditSchema.safeParse({
-        landReferences: 'North Field, Home Farm',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.landReferences).toEqual([
-          'North Field',
-          'Home Farm',
-        ]);
-      }
-    });
-
-    it('trims whitespace from split array elements', () => {
-      const result = MetadataEditSchema.safeParse({
-        people: '  Alice Smith  ,  Bob Jones  ',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.people).toEqual(['Alice Smith', 'Bob Jones']);
-      }
-    });
-
-    it('passes through existing string arrays unchanged', () => {
-      const result = MetadataEditSchema.safeParse({
-        people: ['Alice Smith', 'Bob Jones'],
-      });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.people).toEqual(['Alice Smith', 'Bob Jones']);
-      }
+      expect(result.success).toBe(false);
     });
   });
 });
