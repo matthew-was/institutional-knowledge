@@ -1060,7 +1060,39 @@ without error; all Tier 2 tests pass; `pnpm biome check` and
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-27):
+
+- Automated checks: confirmed. All four acceptance conditions are met. (1) Array splitting
+  confirmed by Tier 2 UI test: `DocumentMetadataForm.browser.test.tsx` "sends PATCH with
+  array fields correctly split" (lines 171-212) renders the form pre-populated with
+  `people: ['Alice Smith', 'Bob Jones']`, submits, captures the PATCH body via MSW
+  `capturedBody`, and asserts `Array.isArray(body.people)` and `body.people` equals
+  `['Alice Smith', 'Bob Jones']`. The split is performed by `splitCommaString` in
+  `useDocumentMetadata.ts` `onSubmit`. Falsifiable: removing `splitCommaString` would cause
+  `body.people` to be the raw comma-separated string, failing `Array.isArray`. The `waitFor`
+  assertion was tightened from `toBeDefined()` to `.textContent` equals
+  `'Changes saved successfully.'` (S-1 actioned). (2) Null date handled without error:
+  confirmed by two independent tests — "renders with an empty date field when document date
+  is null" (lines 61-69) asserts `dateInput.value === ''` and no error text; "does not show
+  a validation error on initial render with null date" (lines 214-223) confirms same in hook
+  context. `toFormValues` maps `document.date ?? ''`; `MetadataEditSchema` accepts empty
+  string via `.or(z.literal(''))`. (3) All Tier 2 tests pass: `curation.documents.test.ts`
+  covers GET 200, GET 404, GET 500, PATCH 200, PATCH 400 (Express-propagated), PATCH 400
+  (Hono-level Zod validation), PATCH 404. Browser tests cover save success, save error,
+  empty description validation blocking PATCH, array splitting, null date handling. 136
+  tests confirmed passing by code reviewer. (4) Lint and type check: confirmed by developer
+  completion checklist and code reviewer.
+- Manual checks: none required — all conditions are automated.
+- User need: satisfied. US-082 requires a Primary Archivist to correct document metadata
+  (type, date, people, land references, description) via the curation UI so incorrect
+  system-detected values can be fixed. The implementation wires `DocumentMetadataForm` to
+  `PATCH /api/curation/documents/:id/metadata` via `useSWRMutation`; all six fields flow
+  through the Hono route to Express. The form shows a success message on save and an error
+  message on failure. US-043 (no re-embedding in Phase 1) is a backend concern and not
+  violated here. No gap between acceptance condition and user need.
+- Outcome: done
 
 ---
 

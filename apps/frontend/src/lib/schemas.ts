@@ -5,10 +5,7 @@
  * All response schemas are imported from @institutional-knowledge/shared.
  */
 
-import {
-  AddVocabularyTermRequest,
-  UpdateDocumentMetadataRequest,
-} from '@institutional-knowledge/shared';
+import { AddVocabularyTermRequest } from '@institutional-knowledge/shared';
 import { z } from 'zod';
 import { Temporal } from './temporal';
 
@@ -76,42 +73,25 @@ export type UploadFormSchema = ReturnType<typeof createUploadFormSchema>;
 // ---------------------------------------------------------------------------
 
 /**
- * Preprocessor that converts a comma-separated string to a trimmed string array.
- * If the value is already an array, it passes through unchanged.
+ * Validates the metadata edit form's working representation.
+ *
+ * Array fields (people, organisations, landReferences) are kept as
+ * comma-separated strings here — splitting into string[] happens in onSubmit
+ * before the value is sent to the API.
+ *
+ * Date is optional; null or empty string are both valid (undated document).
+ * Description must be non-empty non-whitespace-only if provided.
  */
-function arrayOrCommaSeparated() {
-  return z.preprocess((val) => {
-    if (Array.isArray(val)) {
-      return val;
-    }
-    if (typeof val === 'string') {
-      return val
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-    }
-    return val;
-  }, z.array(z.string()).optional());
-}
-
-/**
- * Derived from the shared UpdateDocumentMetadataRequest schema.
- * Extends with preprocessing for array fields that accept comma-separated strings,
- * and relaxes date/description to match frontend form usage (null/empty date valid).
- */
-export const MetadataEditSchema = UpdateDocumentMetadataRequest.extend({
-  people: arrayOrCommaSeparated(),
-  organisations: arrayOrCommaSeparated(),
-  landReferences: arrayOrCommaSeparated(),
-  // Date is optional; null or empty string are both valid (undated document).
+export const MetadataEditSchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .or(z.literal(''))
-    .nullable()
-    .optional(),
-  // Description must be non-empty non-whitespace-only if provided.
-  description: z.string().trim().min(1).optional(),
+    .or(z.literal('')),
+  description: z.string().trim().min(1),
+  documentType: z.string(),
+  people: z.string(),
+  organisations: z.string(),
+  landReferences: z.string(),
 });
 
 export type MetadataEditSchema = z.infer<typeof MetadataEditSchema>;
