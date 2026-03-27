@@ -1133,7 +1133,35 @@ Specifically:
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-27):
+
+- Automated checks: confirmed. All three components exist at the paths stated in the task
+  description. (1) `VocabularyQueueItem.tsx`: renders term name, category, confidence as a
+  number, "N/A" when confidence is null, source document description, and contains Accept and
+  Reject buttons. `VocabularyQueueItem.browser.test.tsx` has 7 tests; all use falsifiable
+  `.textContent` assertions (Round 1 blocking finding B-1 requiring removal of
+  `getBy*(…).toBeDefined()` anti-patterns was resolved in Round 2 before the `reviewed`
+  transition). Removing or altering any rendered field would cause the corresponding assertion
+  to fail. (2) `AcceptCandidateButton.tsx` + `useAcceptCandidate.ts`: 4 tests cover idle
+  state (accessible `aria-label="Accept term"`, enabled, text "Accept"), loading state
+  (disabled, text "Accepting…"), error state (`role="alert"` with error message text), and
+  null error (no alert rendered). Each assertion is falsifiable. (3) `RejectCandidateButton`
+  and its hook follow the same pattern; 4 equivalent tests pass. Lint and TypeScript check
+  confirmed by developer completion checklist and the Round 2 code reviewer.
+- Manual checks: none required — all conditions are automated.
+- User need: satisfied. US-066 requires the Primary Archivist to accept or reject each
+  vocabulary candidate in the review queue so that they are the human gate for all vocabulary
+  additions. Task 12 delivers the presentational layer: `VocabularyQueueItem` renders the
+  information needed to make that decision (term, category, confidence, source document
+  description), and `AcceptCandidateButton`/`RejectCandidateButton` provide accessible
+  controls with loading state and inline error feedback. Data wiring (actual API calls and
+  queue re-fetch) is explicitly deferred to Task 13 as stated in the task description — this
+  is an intentional split, not a gap. US-063 (surface candidates in review queue) is also
+  partially satisfied — the queue item rendering is in place; the fetch layer arrives in Task
+  13. No gap between the acceptance condition and the user need within this task's scope.
+- Outcome: done
 
 ---
 

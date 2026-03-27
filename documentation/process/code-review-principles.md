@@ -327,9 +327,10 @@ appears to pass but covers nothing.
   - Asserting a value is `null` when it was never set before the call under test
   - Asserting a value equals its default when the code path is supposed to change it
   - Asserting that no error was thrown when the test never reached the code that would throw
-  - In RTL tests: `expect(screen.getByRole(...)).toBeDefined()` — `getByRole` already throws
-    on absence, making `toBeDefined()` unconditionally true; assert `.textContent`, `.value`,
-    or a specific attribute instead
+  - In RTL tests: `expect(screen.getBy*(...)).toBeDefined()` — all `getBy*` queries
+    (`getByRole`, `getByText`, `getByLabelText`, etc.) already throw on absence, making
+    `toBeDefined()` unconditionally true; assert `.textContent`, `.value`, or a specific
+    attribute instead
 - The fix is typically to assert the output value that the code under test is responsible
   for producing — not a side-effect that happens to be true unconditionally.
 
