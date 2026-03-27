@@ -1229,7 +1229,36 @@ tests pass; `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-27):
+
+- Automated checks: confirmed. (1) `useVocabularyQueue.browser.test.tsx` — "fetches candidates
+  on mount and returns them" starts in loading state, then asserts `candidates[0].termId` and
+  `candidates[0].term` by value; falsifiable. "returns an empty candidates array when the queue
+  is empty" and "sets error when the API returns a non-ok response" cover the remaining hook
+  states. "re-fetches when mutate is called" asserts `requestCount` goes from 1 to 2, confirming
+  actual re-fetch behaviour. (2) `useAcceptCandidate.browser.test.tsx` — "re-fetches the queue
+  (calls onSuccess) after a successful accept" asserts `expect(onSuccess).toHaveBeenCalledOnce()`
+  after a successful POST; `onSuccess` is wired in `VocabularyQueueList` to call `mutate()`,
+  completing the re-fetch chain. Loading and error state tests use value-based or `toBe(true/false)`
+  assertions; falsifiable. (3) Same pattern confirmed for `useRejectCandidate` by the code reviewer.
+  (4) `curation.vocabulary.test.ts` covers GET/POST accept/POST reject with 200, 404, 409, and
+  500 paths; all assertions use `toBe` or `toEqual/toMatchObject` on status and body — falsifiable.
+  Lint and type-check reported passing by implementer and confirmed by code reviewer.
+- Manual checks: none required — all conditions are automated.
+- User need: satisfied. US-063 requires candidates to surface in the vocabulary review queue after
+  processing. The `useVocabularyQueue` hook and `VocabularyQueuePage` load and render candidates
+  on mount, covering the fetch layer that was deferred from Task 12. US-066 requires the Primary
+  Archivist to accept or reject each candidate as the human gate for all vocabulary additions.
+  The accept and reject actions POST to the backend and call `onSuccess → mutate()` on success,
+  re-fetching the queue so the archivist sees an up-to-date state after each action. The backend
+  consequences (term activation, rejected-list persistence) are Express concerns outside this
+  task's scope. The code reviewer's three suggestions are non-blocking: a vacuous `typeof mutate`
+  assertion (low value, not harmful), a file location divergence from the task description but
+  not the plan (pragmatically sound), and a narrower fetcher cast that will need revisiting
+  when pagination is wired. No gap between acceptance condition and user need.
+- Outcome: done
 
 ---
 

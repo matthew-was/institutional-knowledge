@@ -6,12 +6,16 @@
  */
 
 import type {
+  AcceptCandidateResponse,
   ClearFlagResponse,
   DocumentDetailResponse,
   DocumentQueueParams,
   DocumentQueueResponse,
+  RejectCandidateResponse,
   UpdateDocumentMetadataRequest,
   UpdateDocumentMetadataResponse,
+  VocabularyQueueParams,
+  VocabularyQueueResponse,
 } from '@institutional-knowledge/shared';
 import type { CurationRequests } from '../requests/curation';
 
@@ -42,4 +46,25 @@ export async function updateDocumentMetadataHandler(
   patch: UpdateDocumentMetadataRequest,
 ): Promise<UpdateDocumentMetadataResponse> {
   return requests.updateDocumentMetadata(documentId, patch);
+}
+
+export async function fetchVocabularyQueueHandler(
+  requests: CurationRequests,
+  params?: VocabularyQueueParams,
+): Promise<VocabularyQueueResponse> {
+  return requests.fetchVocabulary(params);
+}
+
+export async function acceptVocabularyCandidateHandler(
+  requests: CurationRequests,
+  termId: string,
+): Promise<AcceptCandidateResponse> {
+  return requests.acceptTerm(termId);
+}
+
+export async function rejectVocabularyCandidateHandler(
+  requests: CurationRequests,
+  termId: string,
+): Promise<RejectCandidateResponse> {
+  return requests.rejectTerm(termId);
 }

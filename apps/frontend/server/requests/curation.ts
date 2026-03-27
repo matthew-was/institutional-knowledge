@@ -21,6 +21,7 @@ import type {
   RejectCandidateResponse,
   UpdateDocumentMetadataRequest,
   UpdateDocumentMetadataResponse,
+  VocabularyQueueParams,
   VocabularyQueueResponse,
 } from '@institutional-knowledge/shared';
 import type { KyInstance } from 'ky';
@@ -59,10 +60,9 @@ export interface CurationRequests {
    * VOC-001: Fetch the vocabulary review queue.
    * GET api/curation/vocabulary
    */
-  fetchVocabulary(params?: {
-    cursor?: string;
-    limit?: number;
-  }): Promise<VocabularyQueueResponse>;
+  fetchVocabulary(
+    params?: VocabularyQueueParams,
+  ): Promise<VocabularyQueueResponse>;
 
   /**
    * VOC-002: Accept a vocabulary candidate.
@@ -118,25 +118,34 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         .json<UpdateDocumentMetadataResponse>();
     },
 
-    fetchVocabulary(_params?: {
-      cursor?: string;
-      limit?: number;
-    }): Promise<VocabularyQueueResponse> {
-      throw new Error('not_implemented');
+    async fetchVocabulary(
+      params?: VocabularyQueueParams,
+    ): Promise<VocabularyQueueResponse> {
+      return http
+        .get('api/curation/vocabulary', {
+          searchParams: params as Record<string, string | number | boolean>,
+        })
+        .json<VocabularyQueueResponse>();
     },
 
-    acceptTerm(_termId: string): Promise<AcceptCandidateResponse> {
-      throw new Error('not_implemented');
+    async acceptTerm(termId: string): Promise<AcceptCandidateResponse> {
+      return http
+        .post(`api/curation/vocabulary/${termId}/accept`)
+        .json<AcceptCandidateResponse>();
     },
 
-    rejectTerm(_termId: string): Promise<RejectCandidateResponse> {
-      throw new Error('not_implemented');
+    async rejectTerm(termId: string): Promise<RejectCandidateResponse> {
+      return http
+        .post(`api/curation/vocabulary/${termId}/reject`)
+        .json<RejectCandidateResponse>();
     },
 
-    addTerm(
-      _body: AddVocabularyTermRequest,
+    async addTerm(
+      body: AddVocabularyTermRequest,
     ): Promise<AddVocabularyTermResponse> {
-      throw new Error('not_implemented');
+      return http
+        .post('api/curation/vocabulary/terms', { json: body })
+        .json<AddVocabularyTermResponse>();
     },
   };
 }

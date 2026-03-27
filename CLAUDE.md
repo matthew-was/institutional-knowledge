@@ -117,10 +117,10 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend tasks revision complete (2026-03-23). Frontend Tasks 1–11 and 5a done (2026-03-27). Dependency hygiene chore complete (2026-03-23).
+- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend tasks revision complete (2026-03-23). Frontend Tasks 1–12 and 5a done (2026-03-27). Dependency hygiene chore complete (2026-03-23).
 - **Design status**: All design documents approved (ADR-001 to ADR-052). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Frontend Task 12. Resolve OQ-3 (embedding model) before Python Task 15/22.
-- **Recent principles added**: "Server vs Client Components" in `development-principles-frontend.md`; CR-016 in `code-review-principles.md`; "Component state separation" (broadened from form-only); `getByRole` + `toBeDefined()` anti-pattern added to CR-015 and `implementer.md`. Task and plan docs updated to remove prescriptive `(Client Component)` labels.
+- **Next actionable step**: Frontend Task 13. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Recent principles added**: "Server vs Client Components" in `development-principles-frontend.md`; CR-016 in `code-review-principles.md`; "Component state separation" (broadened from form-only); CR-015 and `implementer.md` broadened from `getByRole` to all `getBy*` queries (2026-03-27). Task and plan docs updated to remove prescriptive `(Client Component)` labels.
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
 ### Component Architecture (4 components)
