@@ -216,6 +216,45 @@ Concretely:
 
 ---
 
+## Custom server request functions — error classification
+
+Request functions that call Express endpoints which can return 4xx business errors must
+return `ServiceResult` rather than letting `HTTPError` propagate to the route layer. Error
+classification belongs in the request layer — not in route handlers.
+
+**Rule**: wrap the Ky call in try/catch. If `err instanceof HTTPError && err.response.status < 500`,
+read the response body and return `{ outcome: 'error', errorType, errorMessage }`. Re-throw
+on 5xx — those are unexpected and belong with the route handler's catch block.
+
+```ts
+async fetchDocumentDetail(documentId: string): Promise<ServiceResult<DocumentDetailResponse, CurationErrorType>> {
+  try {
+    const data = await http.get(`api/documents/${documentId}`).json<DocumentDetailResponse>();
+    return { outcome: 'success', data };
+  } catch (err) {
+    if (err instanceof HTTPError && err.response.status < 500) {
+      const body = await err.response
+        .json<{ error: string; message?: string }>()
+        .catch((): { error: string; message?: string } => ({ error: 'request_failed' }));
+      return { outcome: 'error', errorType: body.error as CurationErrorType, errorMessage: body.message ?? body.error };
+    }
+    throw err;
+  }
+},
+```
+
+**Exception**: list endpoints (e.g. `fetchDocumentQueue`, `fetchVocabulary`) that have no
+business-error variants may remain as plain throws — there is no meaningful error type to
+classify, and the route handler's catch block returns 500 as expected.
+
+**Why**: if `HTTPError` propagates to the route layer, the route must duplicate status code
+inspection, body parsing, and type-guard boilerplate for every error path on every route.
+This was the pattern that accumulated in the curation routes before Task 13a. The request
+layer is the correct place for this logic — it is thin, framework-agnostic, and testable in
+isolation.
+
+---
+
 ## Component state separation
 
 Any Client Component that owns state must separate state logic from rendering using a

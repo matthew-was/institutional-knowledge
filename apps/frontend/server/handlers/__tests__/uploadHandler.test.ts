@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DocumentsRequests } from '../../requests/documents';
-import { type UploadErrorType, uploadHandler } from '../uploadHandler';
+import { createUploadHandlers, type UploadErrorType } from '../uploadHandler';
 
 function makeRequests(
   overrides: Partial<{
@@ -41,9 +41,6 @@ function makeRequests(
       }),
     deleteUpload:
       overrides.deleteUpload ?? vi.fn().mockResolvedValue(undefined),
-    findById: vi.fn(),
-    clearFlag: vi.fn(),
-    patchMetadata: vi.fn(),
   } as DocumentsRequests;
 }
 
@@ -53,11 +50,11 @@ const payload = {
   description: 'Test doc',
 };
 
-describe('uploadHandler', () => {
+describe('createUploadHandlers', () => {
   describe('happy path — all three steps succeed', () => {
     it('calls initiateUpload, uploadFile, finalizeUpload in order and returns success', async () => {
       const requests = makeRequests();
-      const result = await uploadHandler(requests, payload);
+      const result = await createUploadHandlers(requests).upload(payload);
 
       expect(requests.initiateUpload).toHaveBeenCalledOnce();
       expect(requests.uploadFile).toHaveBeenCalledWith(
@@ -90,7 +87,7 @@ describe('uploadHandler', () => {
         }),
       });
 
-      const result = await uploadHandler(requests, payload);
+      const result = await createUploadHandlers(requests).upload(payload);
 
       expect(result).toEqual({
         outcome: 'error',
@@ -113,7 +110,7 @@ describe('uploadHandler', () => {
         }),
       });
 
-      const result = await uploadHandler(requests, payload);
+      const result = await createUploadHandlers(requests).upload(payload);
 
       expect(requests.deleteUpload).toHaveBeenCalledWith('test-upload-id');
       expect(requests.finalizeUpload).not.toHaveBeenCalled();
@@ -141,7 +138,7 @@ describe('uploadHandler', () => {
         }),
       });
 
-      const result = await uploadHandler(requests, payload);
+      const result = await createUploadHandlers(requests).upload(payload);
 
       expect(requests.deleteUpload).toHaveBeenCalledWith('test-upload-id');
       expect(result).toEqual({
@@ -163,7 +160,7 @@ describe('uploadHandler', () => {
         }),
       });
 
-      const result = await uploadHandler(requests, payload);
+      const result = await createUploadHandlers(requests).upload(payload);
 
       expect(requests.deleteUpload).toHaveBeenCalledWith('test-upload-id');
       expect(result).toEqual({
@@ -181,9 +178,9 @@ describe('uploadHandler', () => {
         uploadFile: vi.fn().mockRejectedValue(networkError),
       });
 
-      await expect(uploadHandler(requests, payload)).rejects.toThrow(
-        'network error',
-      );
+      await expect(
+        createUploadHandlers(requests).upload(payload),
+      ).rejects.toThrow('network error');
 
       expect(requests.deleteUpload).toHaveBeenCalledWith('test-upload-id');
     });

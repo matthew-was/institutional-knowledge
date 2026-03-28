@@ -1,37 +1,9 @@
-import { createAdaptorServer } from '@hono/node-server';
 import { HttpResponse, http } from 'msw';
-import { setupServer } from 'msw/node';
-import pino from 'pino';
-import supertest from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { parseConfig } from '../config';
-import { createExpressClient } from '../requests/client';
-import { createHonoApp } from '../server';
+import { describe, expect, it } from 'vitest';
+import { createMswServer, createTestRequest } from './testHelpers';
 
-const testConfig = parseConfig({
-  server: { host: 'localhost', port: 3000 },
-  express: {
-    baseUrl: 'http://localhost:4000',
-    internalKey: 'test-internal-key',
-  },
-  upload: { maxFileSizeMb: 50, acceptedExtensions: ['.pdf', '.jpg'] },
-});
-
-const silentLog = pino({ level: 'silent' });
-
-const app = createHonoApp({
-  config: testConfig,
-  expressClient: createExpressClient(testConfig),
-  log: silentLog,
-});
-const httpServer = createAdaptorServer({ fetch: app.fetch });
-const request = supertest(httpServer);
-
-const mswServer = setupServer();
-
-beforeAll(() => mswServer.listen());
-afterEach(() => mswServer.resetHandlers());
-afterAll(() => mswServer.close());
+const { request } = createTestRequest();
+const mswServer = createMswServer();
 
 const sampleDocument = {
   documentId: '01927c3a-5b2e-7000-8000-000000000001',
@@ -131,10 +103,21 @@ describe('POST /api/curation/documents/:id/clear-flag', () => {
     expect(res.body).toEqual(clearResponse);
   });
 
+  it('400: returns invalid_params for non-UUID id', async () => {
+    const res = await request.post(
+      '/api/curation/documents/not-a-uuid/clear-flag',
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'invalid_params' });
+  });
+
   it('404: propagates not_found error from Express', async () => {
+    const missingId = '01927c3a-5b2e-7000-8000-000000000002';
+
     mswServer.use(
       http.post(
-        'http://localhost:4000/api/documents/nonexistent-id/clear-flag',
+        `http://localhost:4000/api/documents/${missingId}/clear-flag`,
         () =>
           HttpResponse.json(
             { error: 'not_found', message: 'Document not found.' },
@@ -144,7 +127,7 @@ describe('POST /api/curation/documents/:id/clear-flag', () => {
     );
 
     const res = await request.post(
-      '/api/curation/documents/nonexistent-id/clear-flag',
+      `/api/curation/documents/${missingId}/clear-flag`,
     );
 
     expect(res.status).toBe(404);
@@ -175,14 +158,17 @@ describe('POST /api/curation/documents/:id/clear-flag', () => {
   });
 
   it('500: returns structured error body on unexpected Express failure', async () => {
+    const errorId = '01927c3a-5b2e-7000-8000-000000000003';
+
     mswServer.use(
-      http.post('http://localhost:4000/api/documents/some-id/clear-flag', () =>
-        HttpResponse.json({ error: 'internal_error' }, { status: 500 }),
+      http.post(
+        `http://localhost:4000/api/documents/${errorId}/clear-flag`,
+        () => HttpResponse.json({ error: 'internal_error' }, { status: 500 }),
       ),
     );
 
     const res = await request.post(
-      '/api/curation/documents/some-id/clear-flag',
+      `/api/curation/documents/${errorId}/clear-flag`,
     );
 
     expect(res.status).toBe(500);

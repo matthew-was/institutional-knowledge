@@ -6,6 +6,15 @@
  *
  * Paths must not start with '/' — Ky prefixUrl constraint.
  *
+ * The 5 error-capable methods (fetchDocumentDetail, clearDocumentFlag,
+ * updateDocumentMetadata, acceptTerm, rejectTerm) return ServiceResult rather
+ * than throwing, so the route layer can branch on outcome without try/catch.
+ * 4xx errors are caught and returned as error branches; 5xx errors re-throw
+ * so the route handler can log them and return 500.
+ *
+ * List endpoints (fetchDocumentQueue, fetchVocabulary) remain as plain throws —
+ * there is no business-logic error variant for list operations.
+ *
  * Covers DOC-006 through DOC-009 and VOC-001 through VOC-004 as defined in
  * integration-lead-contracts.md.
  */
@@ -19,12 +28,19 @@ import type {
   DocumentQueueParams,
   DocumentQueueResponse,
   RejectCandidateResponse,
+  ServiceResult,
   UpdateDocumentMetadataRequest,
   UpdateDocumentMetadataResponse,
   VocabularyQueueParams,
   VocabularyQueueResponse,
 } from '@institutional-knowledge/shared';
-import type { KyInstance } from 'ky';
+import { HTTPError, type KyInstance } from 'ky';
+
+export type CurationErrorType =
+  | 'not_found'
+  | 'no_active_flag'
+  | 'invalid_params'
+  | 'invalid_state';
 
 export interface CurationRequests {
   /**
@@ -39,13 +55,17 @@ export interface CurationRequests {
    * DOC-007: Fetch document detail.
    * GET api/documents/:id
    */
-  fetchDocumentDetail(documentId: string): Promise<DocumentDetailResponse>;
+  fetchDocumentDetail(
+    documentId: string,
+  ): Promise<ServiceResult<DocumentDetailResponse, CurationErrorType>>;
 
   /**
    * DOC-008: Clear the review flag on a document.
    * POST api/documents/:id/clear-flag
    */
-  clearDocumentFlag(documentId: string): Promise<ClearFlagResponse>;
+  clearDocumentFlag(
+    documentId: string,
+  ): Promise<ServiceResult<ClearFlagResponse, CurationErrorType>>;
 
   /**
    * DOC-009: Update document metadata.
@@ -54,7 +74,7 @@ export interface CurationRequests {
   updateDocumentMetadata(
     documentId: string,
     patch: UpdateDocumentMetadataRequest,
-  ): Promise<UpdateDocumentMetadataResponse>;
+  ): Promise<ServiceResult<UpdateDocumentMetadataResponse, CurationErrorType>>;
 
   /**
    * VOC-001: Fetch the vocabulary review queue.
@@ -68,13 +88,17 @@ export interface CurationRequests {
    * VOC-002: Accept a vocabulary candidate.
    * POST api/curation/vocabulary/:termId/accept
    */
-  acceptTerm(termId: string): Promise<AcceptCandidateResponse>;
+  acceptTerm(
+    termId: string,
+  ): Promise<ServiceResult<AcceptCandidateResponse, CurationErrorType>>;
 
   /**
    * VOC-003: Reject a vocabulary candidate.
    * POST api/curation/vocabulary/:termId/reject
    */
-  rejectTerm(termId: string): Promise<RejectCandidateResponse>;
+  rejectTerm(
+    termId: string,
+  ): Promise<ServiceResult<RejectCandidateResponse, CurationErrorType>>;
 
   /**
    * VOC-004: Add a manual vocabulary term.
@@ -97,25 +121,80 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
 
     async fetchDocumentDetail(
       documentId: string,
-    ): Promise<DocumentDetailResponse> {
-      return http
-        .get(`api/documents/${documentId}`)
-        .json<DocumentDetailResponse>();
+    ): Promise<ServiceResult<DocumentDetailResponse, CurationErrorType>> {
+      try {
+        const data = await http
+          .get(`api/documents/${documentId}`)
+          .json<DocumentDetailResponse>();
+        return { outcome: 'success', data };
+      } catch (err) {
+        if (err instanceof HTTPError && err.response.status < 500) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch((): { error: string; message?: string } => ({
+              error: 'not_found',
+            }));
+          return {
+            outcome: 'error',
+            errorType: body.error as CurationErrorType,
+            errorMessage: body.message ?? body.error,
+          };
+        }
+        throw err;
+      }
     },
 
-    async clearDocumentFlag(documentId: string): Promise<ClearFlagResponse> {
-      return http
-        .post(`api/documents/${documentId}/clear-flag`)
-        .json<ClearFlagResponse>();
+    async clearDocumentFlag(
+      documentId: string,
+    ): Promise<ServiceResult<ClearFlagResponse, CurationErrorType>> {
+      try {
+        const data = await http
+          .post(`api/documents/${documentId}/clear-flag`)
+          .json<ClearFlagResponse>();
+        return { outcome: 'success', data };
+      } catch (err) {
+        if (err instanceof HTTPError && err.response.status < 500) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch((): { error: string; message?: string } => ({
+              error: 'not_found',
+            }));
+          return {
+            outcome: 'error',
+            errorType: body.error as CurationErrorType,
+            errorMessage: body.message ?? body.error,
+          };
+        }
+        throw err;
+      }
     },
 
     async updateDocumentMetadata(
       documentId: string,
       patch: UpdateDocumentMetadataRequest,
-    ): Promise<UpdateDocumentMetadataResponse> {
-      return http
-        .patch(`api/documents/${documentId}/metadata`, { json: patch })
-        .json<UpdateDocumentMetadataResponse>();
+    ): Promise<
+      ServiceResult<UpdateDocumentMetadataResponse, CurationErrorType>
+    > {
+      try {
+        const data = await http
+          .patch(`api/documents/${documentId}/metadata`, { json: patch })
+          .json<UpdateDocumentMetadataResponse>();
+        return { outcome: 'success', data };
+      } catch (err) {
+        if (err instanceof HTTPError && err.response.status < 500) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch((): { error: string; message?: string } => ({
+              error: 'invalid_params',
+            }));
+          return {
+            outcome: 'error',
+            errorType: body.error as CurationErrorType,
+            errorMessage: body.message ?? body.error,
+          };
+        }
+        throw err;
+      }
     },
 
     async fetchVocabulary(
@@ -128,16 +207,54 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         .json<VocabularyQueueResponse>();
     },
 
-    async acceptTerm(termId: string): Promise<AcceptCandidateResponse> {
-      return http
-        .post(`api/curation/vocabulary/${termId}/accept`)
-        .json<AcceptCandidateResponse>();
+    async acceptTerm(
+      termId: string,
+    ): Promise<ServiceResult<AcceptCandidateResponse, CurationErrorType>> {
+      try {
+        const data = await http
+          .post(`api/curation/vocabulary/${termId}/accept`)
+          .json<AcceptCandidateResponse>();
+        return { outcome: 'success', data };
+      } catch (err) {
+        if (err instanceof HTTPError && err.response.status < 500) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch((): { error: string; message?: string } => ({
+              error: 'not_found',
+            }));
+          return {
+            outcome: 'error',
+            errorType: body.error as CurationErrorType,
+            errorMessage: body.message ?? body.error,
+          };
+        }
+        throw err;
+      }
     },
 
-    async rejectTerm(termId: string): Promise<RejectCandidateResponse> {
-      return http
-        .post(`api/curation/vocabulary/${termId}/reject`)
-        .json<RejectCandidateResponse>();
+    async rejectTerm(
+      termId: string,
+    ): Promise<ServiceResult<RejectCandidateResponse, CurationErrorType>> {
+      try {
+        const data = await http
+          .post(`api/curation/vocabulary/${termId}/reject`)
+          .json<RejectCandidateResponse>();
+        return { outcome: 'success', data };
+      } catch (err) {
+        if (err instanceof HTTPError && err.response.status < 500) {
+          const body = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch((): { error: string; message?: string } => ({
+              error: 'not_found',
+            }));
+          return {
+            outcome: 'error',
+            errorType: body.error as CurationErrorType,
+            errorMessage: body.message ?? body.error,
+          };
+        }
+        throw err;
+      }
     },
 
     async addTerm(

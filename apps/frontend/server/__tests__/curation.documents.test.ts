@@ -9,42 +9,15 @@
  *   PATCH /api/curation/documents/:id/metadata — DOC-009
  */
 
-import { createAdaptorServer } from '@hono/node-server';
 import { HttpResponse, http } from 'msw';
-import { setupServer } from 'msw/node';
-import pino from 'pino';
-import supertest from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { parseConfig } from '../config';
-import { createExpressClient } from '../requests/client';
-import { createHonoApp } from '../server';
+import { describe, expect, it } from 'vitest';
+import { createMswServer, createTestRequest } from './testHelpers';
 
-const testConfig = parseConfig({
-  server: { host: 'localhost', port: 3000 },
-  express: {
-    baseUrl: 'http://localhost:4000',
-    internalKey: 'test-internal-key',
-  },
-  upload: { maxFileSizeMb: 50, acceptedExtensions: ['.pdf', '.jpg'] },
-});
-
-const silentLog = pino({ level: 'silent' });
-
-const app = createHonoApp({
-  config: testConfig,
-  expressClient: createExpressClient(testConfig),
-  log: silentLog,
-});
-const httpServer = createAdaptorServer({ fetch: app.fetch });
-const request = supertest(httpServer);
-
-const mswServer = setupServer();
-
-beforeAll(() => mswServer.listen());
-afterEach(() => mswServer.resetHandlers());
-afterAll(() => mswServer.close());
+const { request } = createTestRequest();
+const mswServer = createMswServer();
 
 const docId = '01927c3a-5b2e-7000-8000-000000000001';
+const missingDocId = '01927c3a-5b2e-7000-8000-000000000002';
 
 const sampleDetail = {
   documentId: docId,
@@ -93,9 +66,16 @@ describe('GET /api/curation/documents/:id', () => {
     expect(res.body).toEqual(sampleDetail);
   });
 
+  it('400: returns invalid_params for non-UUID id', async () => {
+    const res = await request.get('/api/curation/documents/not-a-uuid');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'invalid_params' });
+  });
+
   it('404: propagates not_found from Express', async () => {
     mswServer.use(
-      http.get('http://localhost:4000/api/documents/nonexistent-id', () =>
+      http.get(`http://localhost:4000/api/documents/${missingDocId}`, () =>
         HttpResponse.json(
           { error: 'not_found', message: 'Document not found.' },
           { status: 404 },
@@ -103,7 +83,7 @@ describe('GET /api/curation/documents/:id', () => {
       ),
     );
 
-    const res = await request.get('/api/curation/documents/nonexistent-id');
+    const res = await request.get(`/api/curation/documents/${missingDocId}`);
 
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: 'not_found' });
@@ -172,6 +152,16 @@ describe('PATCH /api/curation/documents/:id/metadata', () => {
     expect(res.body).toMatchObject({ error: 'invalid_params' });
   });
 
+  it('400: returns invalid_params for non-UUID id', async () => {
+    const res = await request
+      .patch('/api/curation/documents/not-a-uuid/metadata')
+      .send({ description: 'test' })
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'invalid_params' });
+  });
+
   it('400: returns invalid_params when Hono-level Zod validation fails', async () => {
     // Send an invalid description (empty string fails trim().min(1)).
     const res = await request
@@ -186,7 +176,7 @@ describe('PATCH /api/curation/documents/:id/metadata', () => {
   it('404: propagates not_found from Express', async () => {
     mswServer.use(
       http.patch(
-        'http://localhost:4000/api/documents/nonexistent-id/metadata',
+        `http://localhost:4000/api/documents/${missingDocId}/metadata`,
         () =>
           HttpResponse.json(
             { error: 'not_found', message: 'Document not found.' },
@@ -196,7 +186,7 @@ describe('PATCH /api/curation/documents/:id/metadata', () => {
     );
 
     const res = await request
-      .patch('/api/curation/documents/nonexistent-id/metadata')
+      .patch(`/api/curation/documents/${missingDocId}/metadata`)
       .send(validPatch)
       .set('Content-Type', 'application/json');
 

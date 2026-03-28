@@ -1,37 +1,9 @@
-import { createAdaptorServer } from '@hono/node-server';
 import { HttpResponse, http } from 'msw';
-import { setupServer } from 'msw/node';
-import pino from 'pino';
-import supertest from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { parseConfig } from '../config';
-import { createExpressClient } from '../requests/client';
-import { createHonoApp } from '../server';
+import { describe, expect, it } from 'vitest';
+import { createMswServer, createTestRequest } from './testHelpers';
 
-const testConfig = parseConfig({
-  server: { host: 'localhost', port: 3000 },
-  express: {
-    baseUrl: 'http://localhost:4000',
-    internalKey: 'test-internal-key',
-  },
-  upload: { maxFileSizeMb: 50, acceptedExtensions: ['.pdf', '.jpg'] },
-});
-
-const silentLog = pino({ level: 'silent' });
-
-const app = createHonoApp({
-  config: testConfig,
-  expressClient: createExpressClient(testConfig),
-  log: silentLog,
-});
-const httpServer = createAdaptorServer({ fetch: app.fetch });
-const request = supertest(httpServer);
-
-const mswServer = setupServer();
-
-beforeAll(() => mswServer.listen());
-afterEach(() => mswServer.resetHandlers());
-afterAll(() => mswServer.close());
+const { request } = createTestRequest();
+const mswServer = createMswServer();
 
 describe('POST /api/documents/upload — integration', () => {
   it('201 success path: returns finalized document body from Express', async () => {

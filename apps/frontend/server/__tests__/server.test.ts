@@ -1,30 +1,7 @@
-import { createAdaptorServer } from '@hono/node-server';
-import pino from 'pino';
-import supertest from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { parseConfig } from '../config';
-import { createExpressClient } from '../requests/client';
-import { createHonoApp } from '../server';
+import { createTestRequest, testConfig } from './testHelpers';
 
-const testConfig = parseConfig({
-  server: { host: 'localhost', port: 3000 },
-  express: {
-    baseUrl: 'http://localhost:4000',
-    internalKey: 'test-internal-key',
-  },
-  upload: { maxFileSizeMb: 50, acceptedExtensions: ['.pdf', '.jpg'] },
-});
-
-const silentLog = pino({ level: 'silent' });
-
-// No Next.js handler — creates the Hono app in isolation for Tier 2 tests.
-const app = createHonoApp({
-  config: testConfig,
-  expressClient: createExpressClient(testConfig),
-  log: silentLog,
-});
-const server = createAdaptorServer({ fetch: app.fetch });
-const request = supertest(server);
+const { request } = createTestRequest();
 
 describe('Hono server', () => {
   it('smoke: POST /api/documents/upload returns 400 when body is empty', async () => {
