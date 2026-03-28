@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@base-ui/react/button';
 import { useAcceptCandidate } from './useAcceptCandidate';
 
 interface AcceptCandidateButtonProps {
@@ -18,7 +19,7 @@ export function AcceptCandidateButton({
 
   return (
     <div>
-      <button
+      <Button
         type="button"
         aria-label="Accept term"
         disabled={isAccepting}
@@ -26,7 +27,7 @@ export function AcceptCandidateButton({
         onClick={handleAccept}
       >
         {isAccepting ? 'Accepting…' : 'Accept'}
-      </button>
+      </Button>
       {error !== null && <p role="alert">{error}</p>}
     </div>
   );

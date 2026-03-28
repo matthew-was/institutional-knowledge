@@ -1418,7 +1418,14 @@ Specifically:
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-28):
+
+- Automated checks: confirmed — both `AddVocabularyTermForm` and `TermRelationshipsInput` exist at the correct paths; `AddTermSchema` imported from `@/lib/schemas` (no duplicate schema); `aliases` override (`z.string().optional()`) follows the `MetadataEditSchema` pattern; all three previously vacuous `toBeDefined()` assertions replaced with falsifiable `.value === ''` and `queryByLabelText(...).not.toBeNull()` assertions; `AddVocabularyTermForm.browser.test.tsx` six tests all use `.value`, `.textContent`, or `.disabled`; second code review confirms lint and typecheck pass
+- Manual checks: none required
+- User need: satisfied — form captures all required fields (term name, category, description, aliases, relationships); page exists at `/curation/vocabulary/new`; API call intentionally deferred to Task 15 per plan; form UI shell fully meets US-062
+- Outcome: done
 
 ---
 

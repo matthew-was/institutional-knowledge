@@ -11,6 +11,18 @@ export default defineConfig({
   test: {
     fileParallelism: false,
     exclude: ['node_modules/**', 'dist/**', '.next/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      include: ['src/**/*.{ts,tsx}', 'server/**/*.ts'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.browser.test.{ts,tsx}',
+        'src/**/__tests__/**',
+        'src/testing/**',
+        'server/**/__tests__/**',
+      ],
+    },
     projects: [
       {
         extends: true,

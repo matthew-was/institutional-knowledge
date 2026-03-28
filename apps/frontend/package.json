@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check src server",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "@types/supertest": "catalog:",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/browser": "^4.1.1",
+    "@vitest/coverage-v8": "^4.1.1",
     "jsdom": "^29.0.1",
     "msw": "^2.12.14",
     "supertest": "catalog:",

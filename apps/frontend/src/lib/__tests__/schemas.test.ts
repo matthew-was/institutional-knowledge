@@ -241,11 +241,13 @@ describe('AddTermSchema', () => {
     });
 
     it('passes with all optional fields', () => {
+      // aliases is a comma-separated string in the form-layer schema
+      // (overridden from the shared array type; split to string[] in onSubmit).
       const result = AddTermSchema.safeParse({
         term: 'Home Farm',
         category: 'land_reference',
         description: 'The main farm holding',
-        aliases: ['The Farm', 'Home Place'],
+        aliases: 'The Farm, Home Place',
         relationships: [
           {
             targetTermId: '01927c3a-5b2e-7000-8000-000000000001',
