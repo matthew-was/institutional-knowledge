@@ -7,6 +7,8 @@ config.override.json
 config.override.json5
 *.local.json
 coverage/
+apps/frontend/test-results/
+playwright-report/
 .pnpm-store/
 __pycache__/
 *.pyc

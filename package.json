@@ -12,6 +12,7 @@
     "test:frontend": "pnpm --filter frontend test",
     "test:frontend:coverage": "pnpm --filter frontend test:coverage",
     "test:frontend:e2e": "pnpm --filter frontend test:e2e",
+    "test:frontend:e2e:coverage": "pnpm --filter frontend test:e2e:coverage",
     "typecheck": "pnpm -r typecheck",
     "typecheck:backend": "pnpm --filter backend typecheck",
     "typecheck:frontend": "pnpm --filter frontend typecheck",
@@ -23,6 +24,9 @@
     "testAll:frontend": "pnpm lint:frontend && pnpm typecheck:frontend && pnpm test:frontend"
   },
   "pnpm": {
-    "ignoredBuiltDependencies": ["msw", "sharp"]
+    "ignoredBuiltDependencies": [
+      "msw",
+      "sharp"
+    ]
   }
 }

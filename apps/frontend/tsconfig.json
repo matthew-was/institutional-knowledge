@@ -11,6 +11,6 @@
     },
     "outDir": "./dist"
   },
-  "include": ["src/**/*", "server/**/*", "*.ts", "*.tsx"],
+  "include": ["src/**/*", "server/**/*", "e2e/**/*", "*.ts", "*.tsx"],
   "exclude": ["node_modules", "dist", ".next"]
 }
