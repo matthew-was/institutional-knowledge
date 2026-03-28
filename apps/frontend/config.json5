@@ -2,6 +2,7 @@
   server: { host: "localhost", port: 3000 },
   express: {
     baseUrl: "http://localhost:4000",
+    // Must match auth.frontendKey in apps/backend/config.json5.
     internalKey: "dev-frontend-key"
   },
   upload: {

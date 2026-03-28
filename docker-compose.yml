@@ -69,7 +69,9 @@ services:
   # ── Next.js frontend ──────────────────────────────────────────────────────
   # Internet-facing entry point (ADR-003, ADR-044).
   # Proxies C3 query requests directly to the processing service (ADR-045).
-  # Reads config from apps/frontend/config.json.
+  # Base config is baked into the image (apps/frontend/config.json5).
+  # config.docker.json5 is mounted as config.override.json5 to supply
+  # Docker-specific values (express.baseUrl, express.internalKey).
   frontend:
     build:
       context: .
@@ -78,6 +80,8 @@ services:
       - backend
     ports:
       - "3000:3000"
+    volumes:
+      - ./apps/frontend/config.docker.json5:/app/apps/frontend/config.override.json5:ro
     restart: unless-stopped
 
   # ── Python processing service ─────────────────────────────────────────────

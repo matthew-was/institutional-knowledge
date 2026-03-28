@@ -12,6 +12,7 @@
  *   5. nconf defaults
  */
 
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,17 +29,22 @@ const __dirname = path.dirname(__filename);
 // Resolve config files relative to apps/frontend/ root (two levels up from server/config/)
 const frontendRoot = path.resolve(__dirname, '..', '..');
 
-nconf
+const overridePath = path.join(frontendRoot, 'config.override.json5');
+const overrideIsFile =
+  fs.existsSync(overridePath) && fs.statSync(overridePath).isFile();
+
+const nconfBase = nconf
   .argv()
-  .env({ prefix: 'IK_', separator: '__', lowerCase: true })
-  .file('override', {
-    file: path.join(frontendRoot, 'config.override.json5'),
-    format: JSON5,
-  })
-  .file('base', {
-    file: path.join(frontendRoot, 'config.json5'),
-    format: JSON5,
-  });
+  .env({ prefix: 'IK_', separator: '__', lowerCase: true });
+
+if (overrideIsFile) {
+  nconfBase.file('override', { file: overridePath, format: JSON5 });
+}
+
+nconfBase.file('base', {
+  file: path.join(frontendRoot, 'config.json5'),
+  format: JSON5,
+});
 
 // ---------------------------------------------------------------------------
 // Zod schema — all required config keys

@@ -1691,13 +1691,22 @@ mocked Express backend; `pnpm --filter frontend exec playwright test` command ex
 
 Specifically:
 
-- Create `apps/frontend/config.json5`: base configuration for local development. Required
-  keys:
+- Create `apps/frontend/config.json5`: base configuration for local development (running
+  without Docker). Required keys:
   - `server.port: 3000`
-  - `express.baseUrl: "http://backend:4000"` (Docker Compose service name)
-  - `express.internalKey: "change-me-in-production"`
+  - `express.baseUrl: "http://localhost:4000"` (local dev default; overridden for Docker
+    via `config.docker.json5`)
+  - `express.internalKey: "dev-frontend-key"` (must match `auth.frontendKey` in backend
+    `config.json5`)
   - `upload.maxFileSizeMb: 50`
   - `upload.acceptedExtensions: [".pdf", ".tif", ".tiff", ".jpg", ".jpeg", ".png"]`
+- Create `apps/frontend/config.docker.json5`: Docker-specific config override. This file
+  is volume-mounted into the container as `config.override.json5` (the nconf override
+  layer). Required keys:
+  - `express.baseUrl: "http://backend:4000"` (Docker Compose service name)
+  - `express.internalKey` is intentionally omitted — inherited from `config.json5` as
+    `"dev-frontend-key"`, which already matches `auth.frontendKey` in the backend base
+    config
 - Create `apps/frontend/Dockerfile`: multi-stage build; build stage installs all
   dependencies and compiles Next.js; production stage copies only the built output and
   production dependencies; entry point starts the Hono custom server (not `next start`);
@@ -1718,6 +1727,27 @@ Task 2).
 
 **Condition type**: both
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-28):
+
+- Automated checks: confirmed — (1) `config.json5` contains all five required keys with
+  correct values (`server.port: 3000`, `express.baseUrl: "http://localhost:4000"`,
+  `express.internalKey: "dev-frontend-key"`, `upload.maxFileSizeMb: 50`,
+  `upload.acceptedExtensions` with all six extensions); (2) `docker-compose.yml` lines 75–85
+  contain the `frontend` service with `depends_on: - backend`, port `3000:3000`, and the
+  correct `config.docker.json5` volume mount; (3) `server/__tests__/server.test.ts` line 13–17
+  asserts `expect(headerValues).not.toContain(testConfig.express.internalKey)` — falsifiable
+  under CR-015.
+- Manual checks: Developer confirmed (a) the Dockerfile builds without error via
+  `docker compose -f apps/frontend/docker-compose.yml up`, which builds the image as part of
+  startup and handles the `packages/shared` compilation prerequisite correctly in the `devdeps`
+  stage; (b) the stack starts correctly with requests flowing from the UI through the Hono
+  server to the Express backend. Both manual conditions satisfied.
+- User need: satisfied — all four implementation artifacts (`config.json5`,
+  `config.docker.json5`, `Dockerfile`, root `docker-compose.yml`) correctly deploy the
+  frontend service within Docker Compose with proper Docker service-name routing and no auth
+  key leakage to browser clients.
+- Outcome: done
 
 ---
