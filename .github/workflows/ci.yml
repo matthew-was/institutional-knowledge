@@ -5,7 +5,8 @@
 #   merged. Enable branch protection in GitHub repository settings:
 #     Settings → Branches → Add rule → Branch name pattern: main
 #     Check: "Require status checks to pass before merging"
-#     Add status checks: lint-and-typecheck, test-backend, test-frontend
+#     Add status checks: lint-and-typecheck, test-backend, test-frontend,
+#       test-frontend-e2e
 #   Add test-python to the required checks list when that service is implemented.
 #
 # Required GitHub Actions secrets (none at this time):
@@ -33,7 +34,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           run_install: false
           version: 10
@@ -95,7 +96,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           run_install: false
           version: 10
@@ -135,7 +136,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           run_install: false
           version: 10
@@ -154,6 +155,62 @@ jobs:
 
       - name: Run frontend tests
         run: pnpm --filter frontend test
+
+  # ---------------------------------------------------------------------------
+  # Frontend E2E tests (Playwright)
+  #
+  # Runs the five Playwright scenarios against a real Hono custom server with a
+  # lightweight mock Express server on port 4000. Chromium is the only browser
+  # used in CI (matches playwright.config.ts). The Hono dev server is started
+  # by Playwright's webServer block; the mock Express server is started via
+  # globalSetup. A valid config.override.json is required because the Hono
+  # server reads config at startup — the override supplies dummy values that
+  # satisfy the schema without real service credentials.
+  #
+  # Upload the Playwright HTML report as an artifact on failure so test traces
+  # can be inspected without re-running locally.
+  #
+  # When enabling branch protection: add test-frontend-e2e to required checks.
+  # ---------------------------------------------------------------------------
+  test-frontend-e2e:
+    name: Test frontend E2E (Playwright)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          run_install: false
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @institutional-knowledge/shared build
+
+      - name: Install Playwright browsers
+        run: pnpm --filter frontend exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: pnpm --filter frontend test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: apps/frontend/playwright-report/
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # Python tests — placeholder, enabled when services/processing/ is scaffolded

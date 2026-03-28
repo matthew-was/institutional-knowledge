@@ -21,6 +21,22 @@ export default defineConfig({
         'src/**/__tests__/**',
         'src/testing/**',
         'server/**/__tests__/**',
+        // RSC pages that use Next.js-specific APIs (redirect, async params,
+        // self-call fetch) or are trivial static wrappers — not testable in
+        // Vitest's jsdom environment. Covered by Playwright E2E (Tier 3).
+        // 'use client' pages (curation/documents/page.tsx,
+        // curation/vocabulary/page.tsx) are intentionally kept in coverage.
+        // ** is used to skip the (private) route-group segment (parens are
+        // extglob syntax in micromatch and cannot be matched literally).
+        // * is used for the [id] dynamic segment (brackets are character classes).
+        'src/app/page.tsx',
+        'src/app/**/upload/page.tsx',
+        'src/app/**/upload/success/page.tsx',
+        'src/app/**/curation/page.tsx',
+        'src/app/**/documents/*/page.tsx',
+        'src/app/**/vocabulary/new/page.tsx',
+        // Layouts are pure structural wrappers — nav components tested separately.
+        'src/app/**/layout.tsx',
       ],
     },
     projects: [

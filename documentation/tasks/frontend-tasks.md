@@ -1649,7 +1649,38 @@ mocked Express backend; `pnpm --filter frontend exec playwright test` command ex
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-28):
+
+- Automated checks: confirmed — all three acceptance condition clauses met:
+  - `apps/frontend/e2e/` exists with `upload.spec.ts` (two scenarios: C1 happy path and
+    duplicate detection), `curation.spec.ts` (three scenarios: document queue clear-flag,
+    metadata edit, vocabulary queue accept), `mockExpressServer.ts`, `globalSetup.ts`, and
+    `globalTeardown.ts`.
+  - All five scenarios are present and well-structured with independently falsifiable
+    assertions (`textContent` with `.toBe(...)`, `aria-disabled` attribute assertions,
+    `[role="status"]` text content, `waitForFunction` body-text negation). B-001 CR-015
+    violation (`toBeDefined()` on a `getBy*` result in `VocabularyQueueList.browser.test.tsx`)
+    was resolved and confirmed in round 2 code review (outcome: Pass, no new issues).
+  - `pnpm --filter frontend exec playwright test` is equivalent to the `test:e2e` script in
+    `package.json` (line 13: `"test:e2e": "playwright test"`); `@playwright/test` is
+    installed; `playwright.config.ts` correctly wires `webServer` (Hono on port 3000) and
+    `globalSetup`/`globalTeardown` (mock Express on port 4000).
+- Manual checks: none required (condition type: automated)
+- User need: satisfied — the five scenarios map directly to their user stories:
+  - C1 happy path → US-001, US-002: full three-step upload lifecycle confirmed; success page
+    shows correct archive reference.
+  - C1 duplicate detection → US-020: `DuplicateConflictAlert` renders with `existingRecord`
+    data; form remains interactive so the user can act on the result.
+  - Document queue → US-080, US-081: queue renders flagged items; "Clear flag" removes the
+    item, satisfying the curator's need to release a document for pipeline resumption.
+  - Metadata edit → US-082: form pre-populated; save confirms success via `[role="status"]`
+    message.
+  - Vocabulary queue → US-066: candidate renders; "Accept" removes it while leaving the
+    second item, satisfying the human-gate requirement for vocabulary additions.
+  No gap found between acceptance condition wording and user intent.
+- Outcome: done
 
 ---
 

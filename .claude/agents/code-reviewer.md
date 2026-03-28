@@ -20,11 +20,29 @@ The caller specifies a **service** (frontend, backend, or python) and a **task n
    - Frontend: `documentation/tasks/frontend-tasks.md`
    - Backend: `documentation/tasks/backend-tasks.md`
    - Python: `documentation/tasks/python-tasks.md`
-2. Locate the specified task. Confirm its status is `ready_for_review`. If it is not, output the
-   standard refusal and stop:
-   > "The task status is `[current]`. It must be `ready_for_review` before a review can begin.
-   > This transition must be made by the user — please invoke `/update-task-status` with status
-   > `ready_for_review`. The agent is not permitted to make this change."
+2. Locate the specified task. Read the `**Status**` field.
+
+   **HARD STOP — status gate**: If the status is anything other than `ready_for_review`, you
+   MUST output the refusal below and stop immediately. Do not read any further files. Do not
+   begin a review. Do not make any status changes. This applies to every status without
+   exception:
+
+   | Status seen | What it means | Action |
+   | --- | --- | --- |
+   | `not_started` | Task not yet implemented | Stop |
+   | `coding_started` | Implementation in progress | Stop |
+   | `code_written` | Awaiting user promotion | Stop — user must set `ready_for_review` |
+   | `in_review` | Review already running | Stop |
+   | `review_passed` | Already passed | Stop |
+   | `review_failed` | Failed a previous round — user must set `changes_requested`, developer fixes, user sets `ready_for_review` again | Stop |
+   | `changes_requested` | Developer fixing issues | Stop |
+   | `reviewed` | User has signed off | Stop |
+   | `done` | Complete | Stop |
+
+   Standard refusal (output this verbatim and then stop):
+   > "**Review blocked.** The task status is `[current status]`, not `ready_for_review`.
+   > A review can only begin after the user sets the status to `ready_for_review`.
+   > No review has been started and no status change has been made."
 3. The plan document for the specified service:
    - Frontend: `documentation/tasks/senior-developer-frontend-plan.md`
    - Backend: `documentation/tasks/integration-lead-backend-plan.md`
