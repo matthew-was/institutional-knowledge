@@ -102,9 +102,15 @@ export type MetadataEditSchema = z.infer<typeof MetadataEditSchema>;
 
 /**
  * Derived from the shared AddVocabularyTermRequest schema.
- * Overrides targetTermId in relationship entries to use z.uuid() (Zod v4 form).
+ *
+ * Overrides:
+ * - `aliases`: kept as a comma-separated string in the form's working
+ *   representation (split to string[] in onSubmit before sending to the API,
+ *   following the MetadataEditSchema pattern for array fields).
+ * - `relationships.targetTermId`: validated as a UUID (Zod v4 form).
  */
 export const AddTermSchema = AddVocabularyTermRequest.extend({
+  aliases: z.string().optional(),
   relationships: z
     .array(
       z.object({

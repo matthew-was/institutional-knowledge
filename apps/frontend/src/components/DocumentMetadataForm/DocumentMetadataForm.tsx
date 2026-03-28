@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@base-ui/react/button';
 import type { DocumentDetailResponse } from '@institutional-knowledge/shared';
 import { MetadataEditFields } from '@/components/MetadataEditFields/MetadataEditFields';
 import { useDocumentMetadata } from './useDocumentMetadata';
@@ -29,13 +30,13 @@ export function DocumentMetadataForm({ document }: DocumentMetadataFormProps) {
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
         aria-disabled={isSubmitting}
       >
         {isSubmitting ? 'Saving…' : 'Save changes'}
-      </button>
+      </Button>
     </form>
   );
 }
