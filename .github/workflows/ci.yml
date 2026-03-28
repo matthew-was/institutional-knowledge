@@ -201,18 +201,6 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter frontend exec playwright install --with-deps chromium
 
-      - name: Write CI config override
-        working-directory: apps/frontend
-        run: |
-          cat > config.override.json << 'EOF'
-          {
-            "server": { "port": 3000, "host": "localhost" },
-            "express": { "baseUrl": "http://localhost:4000" },
-            "auth": { "internalKey": "ci-test-key" },
-            "upload": { "maxFileSizeMb": 50, "acceptedExtensions": [".pdf", ".jpg", ".png"] }
-          }
-          EOF
-
       - name: Run E2E tests
         run: pnpm --filter frontend test:e2e
 

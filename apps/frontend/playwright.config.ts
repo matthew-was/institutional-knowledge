@@ -4,6 +4,11 @@ export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/globalSetup.ts',
   globalTeardown: './e2e/globalTeardown.ts',
+  // Single worker — the mock Express server holds shared in-memory state.
+  // Running spec files in parallel across workers causes race conditions:
+  // a curation test's beforeEach /test-reset can fire while an upload test
+  // is mid-flight and reset uploadShouldReturnDuplicate = false.
+  workers: 1,
   fullyParallel: false,
   timeout: 60_000,
   use: {
