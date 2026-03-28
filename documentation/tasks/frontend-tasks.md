@@ -1554,7 +1554,46 @@ and `pnpm --filter frontend tsc --noEmit` pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-28):
+
+- Automated checks: confirmed — all five conditions met by reading the implementation and
+  review directly:
+  - File exists at `server/requests/__tests__/contractSweep.test.ts`: confirmed.
+  - All 12 request functions covered (DOC-001 to DOC-009 minus DOC-004, VOC-001 to VOC-004):
+    confirmed by code review coverage table (lines 27–41 of the review file) and by reading
+    the test file directly.
+  - URL asserted for every function: each `describe` block captures the first spy argument
+    and asserts the full path string (e.g. `'api/documents/initiate'`,
+    `'api/documents/uid-1/upload'`).
+  - HTTP method asserted for every function: implicit via which spy (`spies.get`,
+    `spies.post`, `spies.patch`, `spies.delete`) records the call;
+    `toHaveBeenCalledOnce()` confirms exactly one call on the correct method spy.
+  - `x-internal-key` header: dedicated test at line 71 asserts `ky.create` is called with
+    `headers['x-internal-key']` equal to the config value. This is the correct layer — the
+    header is set once in the Ky instance factory and merged automatically per request.
+    Asserting it at the factory call is the only meaningful assertion; per-request
+    duplication would test Ky internals, not project code.
+  - Body / param structure asserted for all functions that carry a payload: `options.json`
+    for JSON bodies; `options.body` (not `options.json`) for FormData (DOC-002); and
+    `options.searchParams` for GET query params (DOC-006, VOC-001). Functions with no body
+    assert `options.json` / `options.body` is `undefined` (DOC-003, DOC-008, VOC-002,
+    VOC-003).
+  - All assertions are falsifiable (CR-015 satisfied): the review confirmed no
+    `toBeTruthy`, `toBeDefined`, or `typeof` vacuous patterns are present.
+  - `pnpm biome check` and `pnpm --filter frontend tsc --noEmit` pass: confirmed by code
+    review (outcome: Pass, no blocking findings).
+- Manual checks: none required (condition type: automated)
+- User need: satisfied — Task 16 is an engineering quality gate, not directly derived from a
+  single user story. Its purpose is to ensure that every request function maintains its
+  Express contract so that all user-facing features depending on those contracts (document
+  upload, curation queue, vocabulary management, metadata editing) do not silently break
+  after future changes. The test file achieves this: it covers all 12 contracts, runs as a
+  pure Tier 1 unit test (no infrastructure required), and will catch any URL, method, or
+  payload drift in CI before it reaches a user-facing feature. The user need — reliable
+  integration between the Hono custom server and Express — is satisfied.
+- Outcome: done
 
 ---
 
