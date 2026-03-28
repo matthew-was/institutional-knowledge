@@ -2,7 +2,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { VocabularyQueueList } from './VocabularyQueueList';
 
 const mswServer = setupServer();
@@ -25,9 +33,13 @@ const sampleCandidate = {
 describe('VocabularyQueueList', () => {
   it('renders a list item for each candidate', () => {
     const mutate = vi.fn();
-    render(<VocabularyQueueList candidates={[sampleCandidate]} mutate={mutate} />);
+    render(
+      <VocabularyQueueList candidates={[sampleCandidate]} mutate={mutate} />,
+    );
 
-    expect(screen.getByText('Term: Home Farm').textContent).toBe('Term: Home Farm');
+    expect(screen.getByText('Term: Home Farm').textContent).toBe(
+      'Term: Home Farm',
+    );
   });
 
   it('renders nothing when candidates array is empty', () => {
@@ -48,13 +60,19 @@ describe('VocabularyQueueList', () => {
         `/api/curation/vocabulary/${sampleCandidate.termId}/accept`,
         () =>
           HttpResponse.json(
-            { termId: sampleCandidate.termId, term: 'Home Farm', source: 'candidate_accepted' },
+            {
+              termId: sampleCandidate.termId,
+              term: 'Home Farm',
+              source: 'candidate_accepted',
+            },
             { status: 200 },
           ),
       ),
     );
 
-    render(<VocabularyQueueList candidates={[sampleCandidate]} mutate={mutate} />);
+    render(
+      <VocabularyQueueList candidates={[sampleCandidate]} mutate={mutate} />,
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'Accept term' }));
 
