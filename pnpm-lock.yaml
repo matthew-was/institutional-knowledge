@@ -207,6 +207,9 @@ importers:
       '@vitest/browser':
         specifier: ^4.1.1
         version: 4.1.1(msw@2.12.14(@types/node@24.12.0)(typescript@6.0.2))(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.3)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.1.1(@types/node@24.12.0)(jsdom@29.0.1(@noble/hashes@1.8.0))(msw@2.12.14(@types/node@24.12.0)(typescript@6.0.2))(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.3)(tsx@4.21.0)(yaml@2.8.2)))
+      '@vitest/coverage-v8':
+        specifier: ^4.1.1
+        version: 4.1.1(@vitest/browser@4.1.1(msw@2.12.14(@types/node@24.12.0)(typescript@6.0.2))(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.3)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.1.1(@types/node@24.12.0)(jsdom@29.0.1(@noble/hashes@1.8.0))(msw@2.12.14(@types/node@24.12.0)(typescript@6.0.2))(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.3)(tsx@4.21.0)(yaml@2.8.2))))(vitest@4.1.1(@types/node@24.12.0)(jsdom@29.0.1(@noble/hashes@1.8.0))(msw@2.12.14(@types/node@24.12.0)(typescript@6.0.2))(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.3)(tsx@4.21.0)(yaml@2.8.2)))
       jsdom:
         specifier: ^29.0.1
         version: 29.0.1(@noble/hashes@1.8.0)

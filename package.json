@@ -10,6 +10,7 @@
     "test:backend": "pnpm --filter backend test",
     "test:backend:coverage": "pnpm --filter backend test:coverage",
     "test:frontend": "pnpm --filter frontend test",
+    "test:frontend:coverage": "pnpm --filter frontend test:coverage",
     "test:frontend:e2e": "pnpm --filter frontend test:e2e",
     "typecheck": "pnpm -r typecheck",
     "typecheck:backend": "pnpm --filter backend typecheck",
