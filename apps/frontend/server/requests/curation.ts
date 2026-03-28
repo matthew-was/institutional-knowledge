@@ -40,7 +40,8 @@ export type CurationErrorType =
   | 'not_found'
   | 'no_active_flag'
   | 'invalid_params'
-  | 'invalid_state';
+  | 'invalid_state'
+  | 'duplicate_term';
 
 export interface CurationRequests {
   /**
@@ -104,7 +105,9 @@ export interface CurationRequests {
    * VOC-004: Add a manual vocabulary term.
    * POST api/curation/vocabulary/terms
    */
-  addTerm(body: AddVocabularyTermRequest): Promise<AddVocabularyTermResponse>;
+  addTerm(
+    body: AddVocabularyTermRequest,
+  ): Promise<ServiceResult<AddVocabularyTermResponse, CurationErrorType>>;
 }
 
 export function createCurationRequests(http: KyInstance): CurationRequests {
@@ -259,10 +262,27 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
 
     async addTerm(
       body: AddVocabularyTermRequest,
-    ): Promise<AddVocabularyTermResponse> {
-      return http
-        .post('api/curation/vocabulary/terms', { json: body })
-        .json<AddVocabularyTermResponse>();
+    ): Promise<ServiceResult<AddVocabularyTermResponse, CurationErrorType>> {
+      try {
+        const data = await http
+          .post('api/curation/vocabulary/terms', { json: body })
+          .json<AddVocabularyTermResponse>();
+        return { outcome: 'success', data };
+      } catch (err) {
+        if (err instanceof HTTPError && err.response.status < 500) {
+          const responseBody = await err.response
+            .json<{ error: string; message?: string }>()
+            .catch((): { error: string; message?: string } => ({
+              error: 'invalid_params',
+            }));
+          return {
+            outcome: 'error',
+            errorType: responseBody.error as CurationErrorType,
+            errorMessage: responseBody.message ?? responseBody.error,
+          };
+        }
+        throw err;
+      }
     },
   };
 }

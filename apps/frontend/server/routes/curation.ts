@@ -1,4 +1,5 @@
 import {
+  AddVocabularyTermRequest,
   DocumentQueueParams,
   UpdateDocumentMetadataRequest,
   VocabularyQueueParams,
@@ -24,6 +25,7 @@ const ERROR_STATUS: Record<CurationErrorType, ContentfulStatusCode> = {
   no_active_flag: 409,
   invalid_params: 400,
   invalid_state: 409,
+  duplicate_term: 409,
 };
 
 export function createCurationRouter(deps: CurationDeps): Hono {
@@ -220,9 +222,58 @@ export function createCurationRouter(deps: CurationDeps): Hono {
 
   // /vocabulary/terms must be registered before /vocabulary/:termId/* to prevent
   // the literal segment "terms" being captured as a :termId parameter.
-  router.post('/vocabulary/terms', (c) =>
-    c.json({ error: 'not_implemented' }, 501),
-  );
+  /**
+   * POST /api/curation/vocabulary/terms — VOC-004
+   * Adds a manual vocabulary term. Returns 201 on success.
+   * Propagates 400 (invalid body), 409 (duplicate term), 404 (targetTermId not found).
+   */
+  router.post('/vocabulary/terms', async (c) => {
+    let rawBody: unknown;
+    try {
+      rawBody = await c.req.json();
+    } catch {
+      return c.json(
+        {
+          error: 'invalid_params',
+          message: 'Request body must be valid JSON.',
+        },
+        400,
+      );
+    }
+
+    const parsed = AddVocabularyTermRequest.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json(
+        {
+          error: 'invalid_params',
+          message: parsed.error.issues[0]?.message ?? 'Invalid request body.',
+        },
+        400,
+      );
+    }
+
+    try {
+      const result = await handlers.addVocabularyTerm(parsed.data);
+      if (result.outcome === 'error') {
+        deps.log.warn(
+          { errorType: result.errorType },
+          'Add vocabulary term error',
+        );
+        return sendHonoServiceError(c, ERROR_STATUS[result.errorType], result);
+      }
+      deps.log.info({ termId: result.data.termId }, 'Vocabulary term added');
+      return c.json(result.data, 201);
+    } catch (err) {
+      deps.log.error({ err }, 'Unexpected error adding vocabulary term');
+      return c.json(
+        {
+          error: 'add_term_failed',
+          message: 'An unexpected error occurred while adding the term.',
+        },
+        500,
+      );
+    }
+  });
 
   /**
    * POST /api/curation/vocabulary/:termId/accept — VOC-002

@@ -1436,17 +1436,16 @@ layers and wire `AddVocabularyTermForm` to the Hono API route via `useSWRMutatio
 
 **Custom server layers**:
 
-- `server/requests/vocabulary.ts` (extend): one request function:
-  - `addVocabularyTerm(payload)` calls Express
-    `POST /api/curation/vocabulary/terms` (VOC-004); request body from
-    `AddVocabularyTermRequest` imported from `@institutional-knowledge/shared`; response
-    schema (`AddVocabularyTermResponse`) imported from shared
-- `server/handlers/vocabularyHandler.ts` (extend): thin wrapper for add-term; no
-  orchestration logic
-- `server/routes/vocabulary.ts` (extend): one Hono route handler:
-  - `POST /api/curation/vocabulary/terms` returns 201 on success; propagates 400
-    (missing required fields), 409 (normalised term already exists), and 404 (referenced
-    targetTermId not found) from Express with structured error body
+- `server/requests/curation.ts` (extend): `addTerm(body)` is already implemented (VOC-004,
+  `POST api/curation/vocabulary/terms`) — no changes needed in this file
+- `server/handlers/curationHandler.ts` (extend): add `addVocabularyTerm(body)` thin wrapper
+  delegating to `requests.addTerm`; no orchestration logic
+- `server/routes/curation.ts` (extend): replace the `POST /vocabulary/terms` stub (currently
+  returns 501) with a real handler:
+  - Parse body with `AddVocabularyTermRequest` from `@institutional-knowledge/shared`
+  - Return 201 on success; propagate 400 (missing required fields), 409 (normalised term
+    already exists), and 404 (referenced targetTermId not found) from Express with
+    structured error body
 
 **UI layer**:
 
@@ -1478,7 +1477,33 @@ layers and wire `AddVocabularyTermForm` to the Hono API route via `useSWRMutatio
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-28):
+
+- Automated checks: confirmed — all conditions met by reading implementation and tests directly:
+  - `POST /api/curation/vocabulary/terms` returns 201 on success: route handler at
+    `server/routes/curation.ts` lines 230–276 returns `c.json(result.data, 201)` on a
+    successful `addVocabularyTerm` call. Tier 2 route test `curation.vocabulary.test.ts`
+    lines 249–263 assert `res.status` equals 201 and body matches expected term data.
+  - `z.uuid()` (not `z.string().uuid()`) confirmed: `src/lib/schemas.ts` line 117 uses
+    `z.uuid()` directly in `AddTermSchema`. Dedicated test block in
+    `useAddVocabularyTerm.browser.test.tsx` lines 158–196 asserts that a non-UUID value
+    causes `safeParse` to fail (falsifiable — would pass with `z.string()`) and a valid UUID
+    passes. CR-015 satisfied.
+  - 400 propagation: `curation.vocabulary.test.ts` lines 265–273 send missing-fields body,
+    assert `res.status` equals 400 and `res.body` contains `error: 'invalid_params'`.
+  - 409 propagation: lines 275–295 mock Express returning 409 `duplicate_term`, assert Hono
+    route forwards the same status and body.
+  - 404 propagation: lines 297–327 mock Express returning 404 `not_found`, assert Hono route
+    forwards correctly.
+- Manual checks: none required (condition type: automated)
+- User need: satisfied — US-062 requires the archivist to add vocabulary terms manually via
+  the curation web UI and have them stored immediately. The route is fully wired: form submits
+  via `useSWRMutation`, Hono route validates and delegates to Express, 201 response returns
+  the created term. All required error paths (400/409/404) are propagated so the user receives
+  actionable feedback on failures.
+- Outcome: done
 
 ---
 
@@ -1511,10 +1536,10 @@ Request functions to cover:
 | `fetchDocumentDetail` | GET | `/api/documents/:id` | DOC-007 |
 | `clearDocumentFlag` | POST | `/api/documents/:id/clear-flag` | DOC-008 |
 | `updateDocumentMetadata` | PATCH | `/api/documents/:id/metadata` | DOC-009 |
-| `fetchVocabularyQueue` | GET | `/api/curation/vocabulary` | VOC-001 |
-| `acceptVocabularyCandidate` | POST | `/api/curation/vocabulary/:termId/accept` | VOC-002 |
-| `rejectVocabularyCandidate` | POST | `/api/curation/vocabulary/:termId/reject` | VOC-003 |
-| `addVocabularyTerm` | POST | `/api/curation/vocabulary/terms` | VOC-004 |
+| `fetchVocabulary` | GET | `/api/curation/vocabulary` | VOC-001 |
+| `acceptTerm` | POST | `/api/curation/vocabulary/:termId/accept` | VOC-002 |
+| `rejectTerm` | POST | `/api/curation/vocabulary/:termId/reject` | VOC-003 |
+| `addTerm` | POST | `/api/curation/vocabulary/terms` | VOC-004 |
 
 Test file location: `server/requests/__tests__/contractSweep.test.ts`.
 

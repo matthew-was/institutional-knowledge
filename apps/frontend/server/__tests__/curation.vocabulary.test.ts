@@ -8,6 +8,7 @@
  *   GET /api/curation/vocabulary                    — VOC-001
  *   POST /api/curation/vocabulary/:termId/accept    — VOC-002
  *   POST /api/curation/vocabulary/:termId/reject    — VOC-003
+ *   POST /api/curation/vocabulary/terms             — VOC-004
  */
 
 import { HttpResponse, http } from 'msw';
@@ -222,5 +223,106 @@ describe('POST /api/curation/vocabulary/:termId/reject', () => {
 
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({ error: 'invalid_state' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/curation/vocabulary/terms
+// ---------------------------------------------------------------------------
+
+describe('POST /api/curation/vocabulary/terms', () => {
+  const addTermBody = {
+    term: 'Smith Estate',
+    category: 'Organisation',
+    description: 'The estate of John Smith',
+    aliases: ['Smith Farm', 'The Estate'],
+  };
+
+  const addTermResponse = {
+    termId: '01927c3a-5b2e-7000-8000-000000000003',
+    term: 'Smith Estate',
+    category: 'Organisation',
+    source: 'manual',
+    normalisedTerm: 'smith estate',
+  };
+
+  it('201: returns new term data on success', async () => {
+    mswServer.use(
+      http.post('http://localhost:4000/api/curation/vocabulary/terms', () =>
+        HttpResponse.json(addTermResponse, { status: 201 }),
+      ),
+    );
+
+    const res = await request
+      .post('/api/curation/vocabulary/terms')
+      .send(addTermBody)
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual(addTermResponse);
+  });
+
+  it('400: returns invalid_params for missing required fields', async () => {
+    const res = await request
+      .post('/api/curation/vocabulary/terms')
+      .send({ description: 'No term or category' })
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'invalid_params' });
+  });
+
+  it('409: propagates duplicate_term from Express', async () => {
+    mswServer.use(
+      http.post('http://localhost:4000/api/curation/vocabulary/terms', () =>
+        HttpResponse.json(
+          {
+            error: 'duplicate_term',
+            message: 'A term with this normalised form already exists.',
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    const res = await request
+      .post('/api/curation/vocabulary/terms')
+      .send(addTermBody)
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: 'duplicate_term' });
+  });
+
+  it('404: propagates not_found from Express (unknown targetTermId)', async () => {
+    const bodyWithRelationship = {
+      ...addTermBody,
+      relationships: [
+        {
+          targetTermId: '01927c3a-5b2e-7000-8000-000000000099',
+          relationshipType: 'related_to',
+        },
+      ],
+    };
+
+    mswServer.use(
+      http.post('http://localhost:4000/api/curation/vocabulary/terms', () =>
+        HttpResponse.json(
+          {
+            error: 'not_found',
+            message: 'Referenced targetTermId not found.',
+          },
+          { status: 404 },
+        ),
+      ),
+    );
+
+    const res = await request
+      .post('/api/curation/vocabulary/terms')
+      .send(bodyWithRelationship)
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ error: 'not_found' });
   });
 });

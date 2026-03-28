@@ -10,6 +10,8 @@
 
 import type {
   AcceptCandidateResponse,
+  AddVocabularyTermRequest,
+  AddVocabularyTermResponse,
   ClearFlagResponse,
   DocumentDetailResponse,
   DocumentQueueParams,
@@ -68,6 +70,12 @@ export function createCurationHandlers(requests: CurationRequests) {
       termId: string,
     ): Promise<ServiceResult<RejectCandidateResponse, CurationErrorType>> {
       return requests.rejectTerm(termId);
+    },
+
+    addVocabularyTerm(
+      body: AddVocabularyTermRequest,
+    ): Promise<ServiceResult<AddVocabularyTermResponse, CurationErrorType>> {
+      return requests.addTerm(body);
     },
   };
 }
