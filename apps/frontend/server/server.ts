@@ -11,7 +11,24 @@ const log = pino({ name: 'frontend-server' });
 
 const dev = process.env.NODE_ENV !== 'production';
 
-const nextApp = next({ dev, customServer: true });
+// ---------------------------------------------------------------------------
+// In production the Dockerfile sets WORKDIR /app and runs this file as
+//   tsx apps/frontend/server/server.ts
+// so process.cwd() is /app, not apps/frontend/. The NEXT_DIR environment
+// variable lets the Dockerfile declare the correct path to apps/frontend/ so
+// Next.js can locate the .next/ build output.
+//
+// In development (tsx watch) and in tests, NEXT_DIR is unset and process.cwd()
+// is apps/frontend/ — Next.js finds .next/ without an explicit dir.
+// ---------------------------------------------------------------------------
+
+const frontendDir = process.env.NEXT_DIR;
+
+const nextApp = next({
+  dev,
+  customServer: true,
+  ...(frontendDir !== undefined ? { dir: frontendDir } : {}),
+});
 
 // ---------------------------------------------------------------------------
 // createHonoApp — factory exported for test isolation.

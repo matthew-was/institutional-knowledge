@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch server/server.ts",
     "build": "next build",
+    "start": "tsx server/server.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src server",
     "test": "vitest run",
@@ -30,6 +31,7 @@
     "react-hook-form": "^7.55.0",
     "swr": "^2.4.1",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -48,7 +50,6 @@
     "jsdom": "^29.0.1",
     "msw": "^2.12.14",
     "supertest": "catalog:",
-    "tsx": "^4.21.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",

@@ -21,7 +21,7 @@
     "lint:frontend": "pnpm --filter frontend lint",
     "testAll": "pnpm lint && pnpm typecheck && pnpm test",
     "testAll:backend": "pnpm lint:backend && pnpm typecheck:backend && pnpm test:backend",
-    "testAll:frontend": "pnpm lint:frontend && pnpm typecheck:frontend && pnpm test:frontend"
+    "testAll:frontend": "pnpm lint:frontend && pnpm typecheck:frontend && pnpm test:frontend && pnpm test:frontend:e2e"
   },
   "pnpm": {
     "ignoredBuiltDependencies": [

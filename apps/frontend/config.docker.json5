@@ -1,0 +1,18 @@
+{
+  // Docker-specific config overrides.
+  //
+  // This file is volume-mounted into the container at config.override.json5
+  // (the nconf override layer) so Docker builds always use these values instead
+  // of the local-dev defaults in config.json5.
+  //
+  // Mount via docker-compose.yml:
+  //   volumes:
+  //     - ./apps/frontend/config.docker.json5:/app/apps/frontend/config.override.json5:ro
+  //
+  // Keys not listed here inherit from config.json5.
+  // express.internalKey is intentionally absent — it inherits "dev-frontend-key" from
+  // config.json5, which already matches auth.frontendKey in apps/backend/config.json5.
+  express: {
+    baseUrl: "http://backend:4000",
+  }
+}
