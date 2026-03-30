@@ -124,6 +124,7 @@ describe('Knex migrations — integration', () => {
       'flagged_at',
       'submitter_identity',
       'ingestion_run_id',
+      'group_name',
       'created_at',
       'updated_at',
     ];

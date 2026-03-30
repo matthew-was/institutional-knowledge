@@ -112,10 +112,9 @@ group membership is not schema-enforced and relies on a CLI naming pattern.
 Add a `groupName` column to the `documents` table, update `addFileToRun` to query it
 explicitly, and add a migration.
 
-**Blocker**: Defer until Phase 1 CLI work is planned — the `groupName` column needs to be
-populated by the CLI ingestion path, which is not yet designed.
-
-**Depends on**: Phase 1 CLI planning
+**Depends on**: None — the bulk ingestion CLI already passes `groupName` in the ING-003
+request body (`fields.groupName`); Express just needs to persist it to a column rather than
+relying on the `description.startsWith()` convention.
 
 **Complexity**: M
 
@@ -125,4 +124,4 @@ migration added; integration tests updated; `pnpm --filter backend test` passes.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done

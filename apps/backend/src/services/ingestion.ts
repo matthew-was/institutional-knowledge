@@ -383,11 +383,7 @@ export function createIngestionService(
     if (run.grouped && fields.groupName !== undefined) {
       const groupDocs = await db.ingestionRuns.getDocumentsByRunId(runId);
       const hasGroupFailure = groupDocs.some(
-        (d) =>
-          d.status === 'failed' &&
-          // Group membership is stored in the description field convention:
-          // the CLI passes groupName as the description prefix
-          d.description.startsWith(fields.groupName as string),
+        (d) => d.status === 'failed' && d.groupName === fields.groupName,
       );
       if (hasGroupFailure) {
         await storage.deleteStagingFile(runId, originalFilename);
@@ -435,6 +431,7 @@ export function createIngestionService(
       flaggedAt: null,
       submitterIdentity: 'CLI Ingestion',
       ingestionRunId: runId,
+      groupName: fields.groupName ?? null,
     });
 
     log.debug({ documentId, runId }, 'File added to ingestion run');

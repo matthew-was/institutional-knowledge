@@ -143,6 +143,7 @@ async function insertRunDocument(
     flaggedAt: null,
     submitterIdentity: 'CLI Ingestion',
     ingestionRunId: runId,
+    groupName: null,
   });
   return id;
 }
@@ -378,6 +379,7 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
       flaggedAt: null,
       submitterIdentity: 'Primary Archivist',
       ingestionRunId: null,
+      groupName: null,
     });
 
     const res = await request
@@ -465,7 +467,7 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
       .send({ sourceDirectory: '/source', grouped: true });
     const runId: string = createRes.body.runId;
 
-    // Seed a failed document in the same group (description prefixed with groupName)
+    // Seed a failed document in the same group using the groupName column
     await db.documents.insert({
       id: uuidv7(),
       status: 'failed',
@@ -475,7 +477,7 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
       fileHash: `hash-${uuidv7()}`,
       storagePath: null,
       date: null,
-      description: 'Group A - first file',
+      description: 'First file in group',
       documentType: null,
       people: null,
       organisations: null,
@@ -484,6 +486,7 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
       flaggedAt: null,
       submitterIdentity: 'CLI Ingestion',
       ingestionRunId: runId,
+      groupName: 'Group A',
     });
 
     const res2 = await request
@@ -497,6 +500,28 @@ describe('POST /api/ingestion/runs/:runId/files', () => {
 
     expect(res2.status).toBe(422);
     expect(res2.body.error).toBe('group_validation_failed');
+  });
+
+  it('(c) persists groupName on the document row for grouped runs', async () => {
+    const createRes = await request
+      .post('/api/ingestion/runs')
+      .set(AUTH)
+      .send({ sourceDirectory: '/source', grouped: true });
+    const runId: string = createRes.body.runId;
+
+    const res = await request
+      .post(`/api/ingestion/runs/${runId}/files`)
+      .set(AUTH)
+      .field('groupName', 'Family Album')
+      .attach('file', Buffer.from('grouped file content'), {
+        filename: '001 - portrait.jpg',
+        contentType: 'image/jpeg',
+      });
+
+    expect(res.status).toBe(201);
+
+    const doc = await db.documents.getById(res.body.documentId);
+    expect(doc?.groupName).toBe('Family Album');
   });
 });
 
