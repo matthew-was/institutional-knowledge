@@ -431,13 +431,13 @@ registry.registerPath({
 });
 
 // ---------------------------------------------------------------------------
-// QUERY-002: Graph traversal callback (Phase 2 stub)
+// QUERY-002: Graph traversal callback
 // ---------------------------------------------------------------------------
 
 registry.registerPath({
   method: 'post',
   path: '/api/search/graph',
-  summary: 'Graph traversal search callback — Phase 2 stub (QUERY-002)',
+  summary: 'Graph traversal search callback (QUERY-002)',
   request: {
     body: {
       content: { 'application/json': { schema: GraphSearchRequest } },

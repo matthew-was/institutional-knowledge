@@ -18,20 +18,33 @@ Move `DocumentErrorType` to `packages/shared/src/` (e.g. `packages/shared/src/do
 export it from `packages/shared/src/index.ts`, and update the backend import site in
 `apps/backend/src/services/documents.ts` to import from `@institutional-knowledge/shared`.
 
+`missing_file` must be added to `DocumentErrorType` in shared. It is already emitted as a
+bare string literal by the backend route layer (`apps/backend/src/routes/documents.ts` and
+`apps/backend/src/routes/ingestion.ts`) but is absent from the type union, meaning it escapes
+without type coverage. Adding it to shared gives the backend a typed constant to reference.
+
+`upload_failed` is a frontend-synthesised fallback (used when an error response body cannot
+be parsed, and as the catch-all for unexpected throws in the Hono route). It is never emitted
+by the backend and must remain frontend-only. The frontend `UploadErrorType` should be defined
+as `DocumentErrorType | 'upload_failed'` — a local extension of the shared type.
+
 **Depends on**: Frontend Task 6 (`server/requests/documents.ts` refactor) — so the frontend
 import can be added in the same pass.
 
 **Complexity**: S
 
-**Acceptance condition**: `DocumentErrorType` is defined once in `packages/shared`;
-`apps/backend/src/services/documents.ts` imports it from `@institutional-knowledge/shared`;
-`apps/frontend/server/requests/documents.ts` imports it from `@institutional-knowledge/shared`;
-`pnpm --filter backend exec tsc --noEmit` and `pnpm --filter frontend exec tsc --noEmit` both
-pass.
+**Acceptance condition**: `DocumentErrorType` (including `missing_file`) is defined once in
+`packages/shared`; `apps/backend/src/services/documents.ts` imports it from
+`@institutional-knowledge/shared`; the bare `'missing_file'` string literals in
+`apps/backend/src/routes/documents.ts` and `apps/backend/src/routes/ingestion.ts` are replaced
+with a reference to the shared type (or typed against it); `apps/frontend/server/requests/documents.ts`
+imports `DocumentErrorType` from `@institutional-knowledge/shared` and defines
+`UploadErrorType` as `DocumentErrorType | 'upload_failed'`; `pnpm --filter backend exec tsc --noEmit`
+and `pnpm --filter frontend exec tsc --noEmit` both pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: reviewed
 
 ---
 

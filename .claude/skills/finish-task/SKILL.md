@@ -44,7 +44,25 @@ Check `documentation/tasks/code-reviews/` for a file matching
 - If not found: tell the developer no review file was found and ask whether to continue
   without moving one (the remaining steps still apply).
 
-### Step 3 — Confirm commit
+### Step 3 — Update CLAUDE.md
+
+In `CLAUDE.md`, under Quick Orientation:
+
+- Update the "Frontend/Backend/Python Tasks N–M done" count to include this task.
+- Update "Next actionable step" to the next not-started task.
+
+Apply these changes automatically without asking for confirmation.
+
+### Step 4 — Update MEMORY.md
+
+In `MEMORY.md` (`~/.claude/projects/.../memory/MEMORY.md`):
+
+- Add a row to the Phase Status table for this task.
+- Update "Next actionable step".
+
+Apply these changes automatically without asking for confirmation.
+
+### Step 5 — Confirm commit
 
 Run `git diff HEAD --stat` and `git status` to understand what is staged/unstaged.
 
@@ -63,7 +81,7 @@ Present the draft commit message to the developer and ask:
 Wait for confirmation before running `git commit`. If the developer says "edit", accept
 their revised message and use that instead.
 
-### Step 4 — Move the code review file (if found in Step 2)
+### Step 6 — Move the code review file (if found in Step 2)
 
 Before committing, move the review file to `archive/code-reviews/[service]/`:
 
@@ -73,12 +91,12 @@ mv documentation/tasks/code-reviews/[filename] archive/code-reviews/[service]/
 
 Stage it alongside the other changes (`git add`) so it is included in the commit.
 
-### Step 5 — Commit
+### Step 7 — Commit
 
 Run `git commit` with the confirmed message. Record the resulting commit SHA — it is
-needed in Step 9.
+needed in Step 11.
 
-### Step 6 — Push and PR decision
+### Step 8 — Push and PR decision
 
 Ask:
 
@@ -104,24 +122,6 @@ Report the PR URL when done.
 
 **If option 4**: skip both. Note that the commit exists locally only.
 
-### Step 7 — Update CLAUDE.md
-
-In `CLAUDE.md`, under Quick Orientation:
-
-- Update the "Frontend/Backend/Python Tasks N–M done" count to include this task.
-- Update "Next actionable step" to the next not-started task.
-
-Apply these changes automatically without asking for confirmation.
-
-### Step 8 — Update MEMORY.md
-
-In `MEMORY.md` (`~/.claude/projects/.../memory/MEMORY.md`):
-
-- Add a row to the Phase Status table for this task.
-- Update "Next actionable step".
-
-Apply these changes automatically without asking for confirmation.
-
 ### Step 9 — Append lab entry block
 
 Run `date -u +"%Y-%m-%dT%H:%M:%S"` for the timestamp.
@@ -132,9 +132,9 @@ Draft a lab entry block covering:
 - Key architectural or design decisions made during the task
 - Any notable review findings and how they were resolved
 
-The `commits` array in the block **must** include the commit made in Step 5 (using its
+The `commits` array in the block **must** include the commit made in Step 7 (using its
 recorded SHA). Resolve the full hash and construct the GitHub URL:
-`https://github.com/<owner>/<repo>/commit/<full-hash>`. If no commit was made (Step 5
+`https://github.com/<owner>/<repo>/commit/<full-hash>`. If no commit was made (Step 7
 was skipped), the `commits` array should be empty.
 
 **Present the draft as formatted markdown prose** — do NOT show raw JSON or escaped

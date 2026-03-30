@@ -117,9 +117,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend tasks revision complete (2026-03-23). Frontend Tasks 1–17, 13a, and 5a done (2026-03-28). Dependency hygiene chore complete (2026-03-23).
+- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend Tasks 1–18, 13a, and 5a done (2026-03-28). Backend Chore 1 done (2026-03-30).
 - **Design status**: All design documents approved (ADR-001 to ADR-052). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Frontend Task 18. Resolve OQ-3 (embedding model) before Python Task 15/22.
+- **Next actionable step**: Backend Chore 2 (unblocked), then Python tasks (resolve OQ-3 before Python Task 15/22). Python tasks complete Phase 1.
 - **Recent principles added**: CR-015 and `implementer.md` broadened to cover `typeof`/`instanceof`/`toBeTruthy` as vacuous assertion patterns (2026-03-27). Task and plan docs updated to remove prescriptive `(Client Component)` labels. `implementer.md` updated to require form schemas in `schemas.ts` and clarify CR-015 presence-checking (2026-03-28).
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
