@@ -185,6 +185,7 @@ export function createDocumentService(
       // Phase 1 placeholder — real submitter identity added in a later phase
       submitterIdentity: 'Primary Archivist',
       ingestionRunId: null,
+      groupName: null,
     };
 
     await db.documents.insert(doc);

@@ -47,6 +47,7 @@ export interface DocumentRow {
   flaggedAt: Date | null;
   submitterIdentity: string;
   ingestionRunId: string | null;
+  groupName: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

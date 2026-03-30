@@ -96,6 +96,7 @@ async function insertFlaggedDocument(
     flaggedAt: new Date('2026-03-13T10:00:00Z'),
     submitterIdentity: 'Primary Archivist',
     ingestionRunId: null,
+    groupName: null,
     ...overrides,
   };
   await db.documents.insert(row);

@@ -107,6 +107,7 @@ async function insertDocument(
     flaggedAt: null,
     submitterIdentity: 'Primary Archivist',
     ingestionRunId: null,
+    groupName: null,
     ...overrides,
   };
   await db.documents.insert(row);

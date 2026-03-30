@@ -106,6 +106,7 @@ async function insertRunDocument(
     flaggedAt: null,
     submitterIdentity: 'CLI Ingestion',
     ingestionRunId: runId,
+    groupName: null,
     ...overrides,
   };
   await db.documents.insert(row);
