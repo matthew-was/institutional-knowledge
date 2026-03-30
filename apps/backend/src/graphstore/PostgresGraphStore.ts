@@ -213,7 +213,7 @@ export class PostgresGraphStore implements GraphStore {
     return rows.map((r) => ({
       documentId: r.id,
       description: r.description,
-      date: r.date ?? '',
+      date: r.date ?? null,
     }));
   }
 }

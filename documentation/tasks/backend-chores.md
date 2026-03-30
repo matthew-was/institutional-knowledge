@@ -69,7 +69,7 @@ the underlying document has no date; existing integration tests updated to asser
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
 
 ---
 

@@ -14,7 +14,7 @@ import { PostgresGraphStore } from '../PostgresGraphStore.js';
  *   (b) writeRelationship + getRelationships; duplicate insert does not throw
  *   (c) traverse depth 1, 2, 3 on a three-hop chain
  *   (d) findEntitiesByType filtering by category
- *   (e) findDocumentsByEntity join returns correct DocumentReference
+ *   (e) findDocumentsByEntity join returns correct DocumentReference; date: null when no date
  *
  * Schema lifecycle (migrate.latest / rollback) is managed by
  * src/testing/globalSetup.ts. Data isolation between tests is handled by
@@ -476,6 +476,29 @@ describe('PostgresGraphStore — findDocumentsByEntity', () => {
     expect(ref.documentId).toBe(docId);
     expect(ref.description).toBe('Family at the farm, summer 1962');
     expect(ref.date).toBe('1962-06-15');
+  });
+
+  it('(e) returns date: null when document has no date', async () => {
+    const store = makeStore();
+    const entityId = uuidv7();
+    const docId = uuidv7();
+
+    await store.writeEntity({
+      entityId,
+      term: 'Alice',
+      category: 'person',
+      confidence: null,
+    });
+
+    // insertDocument helper does not set date — column defaults to null.
+    await insertDocument(docId, 'Undated family photograph');
+    await insertOccurrence(entityId, docId);
+
+    const refs = await store.findDocumentsByEntity(entityId);
+    expect(refs).toHaveLength(1);
+    // biome-ignore lint/style/noNonNullAssertion: length asserted above
+    const ref = refs[0]!;
+    expect(ref.date).toBeNull();
   });
 
   it('(e) returns empty array when entity has no document occurrences', async () => {

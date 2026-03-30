@@ -34,7 +34,7 @@ export interface TraversalResult {
 export interface DocumentReference {
   documentId: string;
   description: string;
-  date: string;
+  date: string | null;
 }
 
 export interface GraphStore {
