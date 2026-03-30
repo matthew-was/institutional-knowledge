@@ -109,6 +109,7 @@ Do not implement multiple tasks in one session unless the developer explicitly a
 - All handler functions accept injected services — no direct instantiation inside handlers (see dependency-composition-pattern skill)
 - Backend code structure: follow the Dependency Composition, Service, and Repository patterns in `documentation/process/development-principles-backend.md` — route factories receive one service (not `AppDependencies`), services are factory functions returning closures, all SQL lives in `db/repositories/`, `db._knex` is never used outside repositories/test cleanup/transactions
 - Write for human readability: each file should have one clear responsibility; split a file when it becomes hard to follow at a glance, not based on a fixed line count
+- When a task description references a plan module structure diagram, create every named file in that diagram as an empty stub — not just the directories. Missing stubs are a blocking finding in code review.
 
 ## Tests
 

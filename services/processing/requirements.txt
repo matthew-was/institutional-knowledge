@@ -1,0 +1,10 @@
+# Runtime
+fastapi[standard]
+uvicorn[standard]
+dynaconf
+pydantic
+httpx
+structlog
+python-multipart
+docling
+pytesseract

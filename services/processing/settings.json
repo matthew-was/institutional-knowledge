@@ -1,0 +1,79 @@
+{
+  "ocr": {
+    "provider": "docling",
+    "qualityThreshold": 60.0,
+    "qualityScoring": {
+      "confidenceWeight": 0.7,
+      "densityWeight": 0.3
+    }
+  },
+  "llm": {
+    "provider": "ollama",
+    "baseUrl": "http://localhost:11434",
+    "model": "llama3.2",
+    "chunkingMinTokens": 100,
+    "chunkingMaxTokens": 500
+  },
+  "embedding": {
+    "provider": "ollama",
+    "baseUrl": "http://localhost:11434",
+    "model": "CHANGE_ME",
+    "dimension": 384
+  },
+  "metadata": {
+    "patterns": {
+      "documentType": [],
+      "dates": [],
+      "people": [],
+      "organisations": [],
+      "landReferences": [],
+      "description": []
+    },
+    "completenessThreshold": 50.0,
+    "completenessWeights": {
+      "documentType": 0.2,
+      "dates": 0.2,
+      "people": 0.15,
+      "organisations": 0.15,
+      "landReferences": 0.15,
+      "description": 0.15
+    }
+  },
+  "pipeline": {
+    "runningStepTimeoutMinutes": 30
+  },
+  "query": {
+    "router": "passthrough",
+    "llm": {
+      "provider": "ollama",
+      "baseUrl": "http://localhost:11434",
+      "model": "llama3.2"
+    },
+    "vectorSearch": {
+      "topK": 20
+    },
+    "contextAssembly": {
+      "tokenBudget": 4000,
+      "includeParentMetadata": true
+    },
+    "synthesis": {
+      "llm": {
+        "provider": "ollama",
+        "baseUrl": "http://localhost:11434",
+        "model": "llama3.2"
+      },
+      "citationFields": ["documentType", "dates", "people", "organisations"]
+    }
+  },
+  "auth": {
+    "inboundKey": "dev-python-service-key",
+    "expressKey": "dev-python-key"
+  },
+  "service": {
+    "expressBaseUrl": "http://localhost:4000",
+    "http": {
+      "retryCount": 3,
+      "retryDelayMs": 500
+    }
+  }
+}

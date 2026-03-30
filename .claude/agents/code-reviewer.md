@@ -151,7 +151,7 @@ Before writing the review file, invoke `/update-task-status` with status `in_rev
 
 Example: `documentation/tasks/code-reviews/code-review-backend-task-2-2026-03-07-0943.md`
 
-For re-reviews of the same task, use the same pattern with a new timestamp — do not add round numbers or suffixes. The timestamp distinguishes rounds chronologically.
+For re-reviews of the same task, use the same pattern with a new timestamp — do not add round numbers, suffixes, or any other qualifiers (e.g. `round2`, `-v2`, `-recheck`). The timestamp is the only distinguisher between review rounds. Using any suffix other than the timestamp is a violation of this rule.
 
 Reviews are written here (not to `archive/`) so they remain visible as pending action items. After the developer has read the review and confirmed any actions taken, they move the file to `archive/code-reviews/[service]/`.
 

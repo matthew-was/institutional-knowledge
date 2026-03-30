@@ -18,6 +18,8 @@
       "Bash(docker:*)",
       "Bash(date:*)",
       "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
       "Edit(./*)",
       "Read(./*)",
       "Write(./*)"
