@@ -16,6 +16,7 @@
  */
 
 import type {
+  DocumentErrorType,
   DuplicateConflictResponse,
   FinalizeUploadResponse,
   InitiateUploadRequest,
@@ -27,16 +28,11 @@ import { HTTPError, type KyInstance } from 'ky';
 
 /**
  * Error type union for the three-step upload lifecycle.
- * Defined locally here; a future chore will move DocumentErrorType to shared.
+ * Extends the shared DocumentErrorType with 'upload_failed', which is
+ * frontend-only: emitted when an error response body cannot be parsed
+ * or as the catch-all for unexpected throws in the Hono route.
  */
-export type UploadErrorType =
-  | 'unsupported_extension'
-  | 'file_too_large'
-  | 'whitespace_description'
-  | 'not_found'
-  | 'duplicate_detected'
-  | 'missing_file'
-  | 'upload_failed';
+export type UploadErrorType = DocumentErrorType | 'upload_failed';
 
 export interface DocumentsRequests {
   /**

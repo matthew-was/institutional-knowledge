@@ -18,8 +18,6 @@ import { useAddVocabularyTerm } from './useAddVocabularyTerm';
  * - aliases (comma-separated string, optional — split to string[] on submit)
  * - relationships via TermRelationshipsInput (optional)
  *
- * The API call is wired in Task 15. This task provides the form shell and
- * stub submit behaviour.
  */
 export function AddVocabularyTermForm() {
   const {

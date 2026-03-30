@@ -20,7 +20,10 @@
  */
 
 import crypto from 'node:crypto';
-import type { ServiceResult } from '@institutional-knowledge/shared';
+import type {
+  DocumentErrorType,
+  ServiceResult,
+} from '@institutional-knowledge/shared';
 import { archiveReference } from '@institutional-knowledge/shared';
 import type { DuplicateConflictResponse } from '@institutional-knowledge/shared/schemas/documents';
 import { v7 as uuidv7 } from 'uuid';
@@ -84,17 +87,6 @@ export interface CleanupUploadResult {
 }
 
 // ---------------------------------------------------------------------------
-// Error types
-// ---------------------------------------------------------------------------
-
-export type DocumentErrorType =
-  | 'unsupported_extension'
-  | 'file_too_large'
-  | 'whitespace_description'
-  | 'not_found'
-  | 'duplicate_detected'
-  | 'finalized_document';
-
 // ---------------------------------------------------------------------------
 // Service interface
 // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@
  * Unexpected errors are forwarded to the global error handler via next(err).
  */
 
+import type { DocumentErrorType } from '@institutional-knowledge/shared';
 import type { CreateIngestionRunRequest } from '@institutional-knowledge/shared/schemas/ingestion';
 import { CreateIngestionRunRequest as CreateIngestionRunRequestSchema } from '@institutional-knowledge/shared/schemas/ingestion';
 import { Router } from 'express';
@@ -117,8 +118,9 @@ export function createIngestionRouter(service: IngestionService): Router {
         const { runId } = req.params as z.infer<typeof RunIdParams>;
 
         if (req.file === undefined) {
+          const errorType: DocumentErrorType = 'missing_file';
           res.status(400).json({
-            error: 'missing_file',
+            error: errorType,
             message: 'A file field is required in the multipart body',
           });
           return;

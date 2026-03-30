@@ -20,15 +20,13 @@
  * multer memory storage is applied at route level for DOC-002.
  */
 
+import type { DocumentErrorType } from '@institutional-knowledge/shared';
 import { InitiateUploadRequest } from '@institutional-knowledge/shared/schemas/documents';
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
-import type {
-  DocumentErrorType,
-  DocumentService,
-} from '../services/documents.js';
+import type { DocumentService } from '../services/documents.js';
 import { sendServiceError } from './routeUtils.js';
 
 // Validates :uploadId route parameter as a UUID before reaching the handler.
@@ -49,6 +47,7 @@ const ERROR_STATUS: Record<DocumentErrorType, number> = {
   not_found: 404,
   duplicate_detected: 409,
   finalized_document: 409,
+  missing_file: 400,
 };
 
 export function createDocumentsRouter(service: DocumentService): Router {
@@ -88,8 +87,9 @@ export function createDocumentsRouter(service: DocumentService): Router {
       const { uploadId } = req.params as z.infer<typeof UploadIdParams>;
       try {
         if (req.file === undefined) {
-          res.status(400).json({
-            error: 'missing_file',
+          const errorType: DocumentErrorType = 'missing_file';
+          res.status(ERROR_STATUS[errorType]).json({
+            error: errorType,
             message: "Multipart field 'file' is required",
           });
           return;

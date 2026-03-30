@@ -22,6 +22,7 @@ const ERROR_STATUS: Record<UploadErrorType, ContentfulStatusCode> = {
   whitespace_description: 400,
   not_found: 404,
   duplicate_detected: 409,
+  finalized_document: 409,
   missing_file: 400,
   upload_failed: 500,
 };
