@@ -68,7 +68,6 @@
     }
   },
   "AUTH": {
-    "INBOUND_KEY": "dev-python-service-key",
     "EXPRESS_KEY": "dev-python-key"
   },
   "SERVICE": {

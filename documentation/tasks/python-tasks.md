@@ -219,24 +219,33 @@ config singleton.
 
 Dynaconf must load `settings.json` (base config, built into the Docker image) and
 `settings.override.json` (volume-mounted at runtime, optional). Environment variables with the
-`DYNACONF_` prefix must override any key.
+`IK_` prefix must override any key.
 
 Pydantic models must validate the merged config at startup. If validation fails the app must
-crash immediately with a descriptive error message (fail-fast). The following Pydantic model
-hierarchy must be implemented (exact field names from the plan):
+crash immediately with a descriptive error message (fail-fast).
 
-- `OCRConfig` — `provider`, `qualityThreshold`, `qualityScoring` (with `confidenceWeight`,
-  `densityWeight`)
-- `LLMConfig` — `provider`, `baseUrl`, `model`, `chunkingMinTokens`, `chunkingMaxTokens`
-- `EmbeddingConfig` — `provider`, `baseUrl`, `model`, `dimension`
-- `MetadataConfig` — `patterns` (per-field lists of regex strings), `completenessThreshold`,
-  `completenessWeights` (per-field floats)
-- `PipelineConfig` — `runningStepTimeoutMinutes`
-- `QueryLLMConfig`, `VectorSearchConfig`, `ContextAssemblyConfig`, `SynthesisConfig`
-- `QueryConfig` — `router`, `llm`, `vectorSearch`, `contextAssembly`, `synthesis`
-- `AuthConfig` — `inboundKey`, `expressKey`
-- `ServiceConfig` — `expressBaseUrl`, `http` (with `retryCount`, `retryDelayMs`)
-- `AppConfig` — `processing`, `query`, `auth`, `service`
+All keys in `settings.json` and all Pydantic field names use `UPPER_SNAKE_CASE` — see the
+Config Key Casing Standard in `development-principles-python.md`. The following Pydantic
+model hierarchy must be implemented:
+
+- `BaseLLMConfig` — `PROVIDER`, `BASE_URL`, `MODEL`
+- `OCRQualityScoringConfig` — `CONFIDENCE_WEIGHT`, `DENSITY_WEIGHT`
+- `OCRConfig` — `PROVIDER`, `QUALITY_THRESHOLD`, `QUALITY_SCORING` (`OCRQualityScoringConfig`)
+- `LLMConfig(BaseLLMConfig)` — `CHUNKING_MIN_TOKENS`, `CHUNKING_MAX_TOKENS`
+- `EmbeddingConfig(BaseLLMConfig)` — `DIMENSION`
+- `MetadataPatternsConfig` — `DOCUMENT_TYPE`, `DATES`, `PEOPLE`, `ORGANISATIONS`, `LAND_REFERENCES`, `DESCRIPTION` (each `list[str]`)
+- `MetadataCompletenessWeights` — same six fields as `float`
+- `MetadataConfig` — `PATTERNS`, `COMPLETENESS_THRESHOLD`, `COMPLETENESS_WEIGHTS`
+- `PipelineConfig` — `RUNNING_STEP_TIMEOUT_MINUTES`
+- `ProcessingConfig` — `OCR`, `LLM`, `EMBEDDING`, `METADATA`, `PIPELINE`
+- `VectorSearchConfig` — `TOP_K`
+- `ContextAssemblyConfig` — `TOKEN_BUDGET`, `INCLUDE_PARENT_METADATA`
+- `SynthesisConfig` — `LLM` (`BaseLLMConfig`), `CITATION_FIELDS`
+- `QueryConfig` — `ROUTER`, `LLM` (`BaseLLMConfig`), `VECTOR_SEARCH`, `CONTEXT_ASSEMBLY`, `SYNTHESIS`
+- `AuthConfig` — `INBOUND_KEY`, `EXPRESS_KEY`
+- `ServiceHTTPConfig` — `RETRY_COUNT`, `RETRY_DELAY_MS`
+- `ServiceConfig` — `EXPRESS_BASE_URL`, `HTTP` (`ServiceHTTPConfig`)
+- `AppConfig` — `PROCESSING` (`ProcessingConfig`), `QUERY` (`QueryConfig`), `AUTH` (`AuthConfig`), `SERVICE` (`ServiceConfig`)
 
 The singleton must be importable from all other modules as `from shared.config import config`.
 
@@ -246,13 +255,32 @@ The singleton must be importable from all other modules as `from shared.config i
 
 **Acceptance condition**: A pytest unit test in `tests/shared/test_config.py` confirms: (1)
 valid `settings.json` produces a populated `AppConfig` instance with correct types; (2) a
-missing required field (`auth.inboundKey`) causes a Pydantic `ValidationError` at load time;
-(3) a `DYNACONF_AUTH__INBOUND_KEY` environment variable overrides the file value. All three
+missing required field (`AUTH.INBOUND_KEY`) causes a Pydantic `ValidationError` at load time;
+(3) a `IK_AUTH__INBOUND_KEY` environment variable overrides the file value. All three
 assertions pass.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-31):
+
+- Automated checks: confirmed — all three conditions covered by falsifiable tests in
+  `tests/shared/test_config.py`. (1) `test_singleton_config_spot_check` asserts two values
+  from the live `AppConfig` singleton, reaching three levels of nesting; both values match
+  `settings.json`. (2) `test_config_missing_attribute` loads a fixture file that omits
+  `AUTH.INBOUND_KEY` and asserts `pydantic.ValidationError` is raised. (3)
+  `test_config_env_var_override` sets `IK_AUTH__INBOUND_KEY` via `monkeypatch` and asserts the
+  override is reflected; the `UPPER_SNAKE_CASE` key convention makes the Dynaconf
+  double-underscore mapping direct with no normalisation step required.
+- Manual checks: none required
+- User need: satisfied — US-096 (provider abstraction, runtime selection via config) and
+  US-097 (all operational values from external file, not hardcoded) are both addressed. The
+  base `settings.json` file carries all operational values; `settings.override.json` and
+  `IK_`-prefixed environment variables provide the runtime override path. Pydantic validation
+  at startup satisfies the fail-fast requirement. No gap between acceptance condition and user
+  need.
+- Outcome: done
 
 ---
 
@@ -264,7 +292,7 @@ client for all outbound Express calls.
 Requirements:
 
 - Use `httpx` (sync or async consistent with the FastAPI pattern chosen in Task 18)
-- Read `auth.expressKey` from the config singleton and add it as the `x-internal-key` header
+- Read `AUTH.EXPRESS_KEY` from the config singleton and add it as the `x-internal-key` header
   on every outbound request
 - Serialise all request bodies from Python snake_case to camelCase JSON (e.g.
   `document_id` → `documentId`, `top_k` → `topK`); this is the canonical serialisation rule
@@ -278,7 +306,7 @@ Requirements:
   - `graph_search(entity_names: list[str], max_depth: int) -> GraphSearchResponse`
     — Phase 2 stub; raises `NotImplementedError`
 - Implement retry logic: retry on connection errors and 5xx responses up to
-  `service.http.retryCount` times, with `service.http.retryDelayMs` delay between retries
+  `SERVICE.HTTP.RETRY_COUNT` times, with `SERVICE.HTTP.RETRY_DELAY_MS` delay between retries
 - Raise a typed `ExpressCallError` (define this exception class in the same file) on
   non-2xx responses that exhaust retries or on non-retryable errors (4xx)
 
@@ -292,7 +320,7 @@ calls are permitted elsewhere.
 **Acceptance condition**: A pytest unit test in `tests/shared/test_http_client.py` confirms:
 (1) the `x-internal-key` header is added to every outgoing request using the value from
 config; (2) a request body with Python snake_case keys is serialised to camelCase JSON before
-sending; (3) on a simulated 503 response the client retries up to `retryCount` times before
+sending; (3) on a simulated 503 response the client retries up to `RETRY_COUNT` times before
 raising `ExpressCallError`; (4) on a simulated 401 response the client raises `ExpressCallError`
 immediately (no retry). All assertions use mocked HTTP transport — no live Express server is
 required.
@@ -308,7 +336,7 @@ required.
 **Description**: Implement the FastAPI auth middleware in `services/processing/app.py` that
 validates the `x-internal-key` header on every route.
 
-The middleware reads the expected key from `auth.inboundKey` in the config singleton. If the
+The middleware reads the expected key from `AUTH.INBOUND_KEY` in the config singleton. If the
 header is absent or the value does not match, the middleware returns HTTP 401 Unauthorized and
 does not invoke the route handler. The health endpoint (`GET /health`) is the only route that
 bypasses auth validation.
@@ -442,12 +470,12 @@ Files to create:
 - `pipeline/steps/text_quality_scoring.py` — `WeightedTextQualityScorer` (no separate factory
   needed — this is the only Phase 1 implementation). The scoring formula:
   - Per-page score = OCR confidence (converted to 0–100) multiplied by
-    `ocr.qualityScoring.confidenceWeight`, added to the text density score (characters per
-    page scaled to 0–100) multiplied by `ocr.qualityScoring.densityWeight`. Text density
+    `PROCESSING.OCR.QUALITY_SCORING.CONFIDENCE_WEIGHT`, added to the text density score (characters per
+    page scaled to 0–100) multiplied by `PROCESSING.OCR.QUALITY_SCORING.DENSITY_WEIGHT`. Text density
     score = `min(len(text_per_page[i]) / TARGET_CHARS_PER_PAGE, 1.0) × 100` (implementer
     chooses `TARGET_CHARS_PER_PAGE`).
   - Document score = average of per-page scores
-  - A page fails if its score is below `ocr.qualityThreshold`
+  - A page fails if its score is below `PROCESSING.OCR.QUALITY_THRESHOLD`
   - All weights and threshold are read from config — no hardcoded values
   - All pages are scored regardless of any individual page outcome (no fail-fast)
   - Flag type `"quality_threshold_failure"` is returned if any page fails; reason must list
@@ -534,8 +562,8 @@ Files to create:
   - For each field (`documentType`, `dates`, `people`, `organisations`, `landReferences`,
     `description`): if the field is non-empty/non-None, it is "detected"
   - `score = (sum of weights of detected fields / total weight of all fields) × 100`
-  - All weights and `metadata.completenessThreshold` are read from config
-  - `passed_threshold = score >= metadata.completenessThreshold`
+  - All weights and `PROCESSING.METADATA.COMPLETENESS_THRESHOLD` are read from config
+  - `passed_threshold = score >= PROCESSING.METADATA.COMPLETENESS_THRESHOLD`
   - `detected_fields` and `missing_fields` list the field names respectively
 
 The completeness scorer must share no code paths with the text quality scorer — independent
@@ -579,7 +607,7 @@ Files to create:
   - `RelationshipResult` dataclass: `source_entity_name: str`, `target_entity_name: str`,
     `relationship_type: str`, `confidence: float`
 - `shared/adapters/ollama_llm.py` — `OllamaLLMAdapter` implementing `LLMService`. Calls the
-  Ollama HTTP API at `llm.baseUrl` with model `llm.model`. Constructs the combined-pass
+  Ollama HTTP API at `PROCESSING.LLM.BASE_URL` with model `PROCESSING.LLM.MODEL`. Constructs the combined-pass
   prompt as described in the plan (chunking with min/max token constraints, entity and
   relationship extraction per ADR-038 types, metadata fields included but not used in
   Phase 1 per ADR-036). Parses the structured JSON response with Pydantic. On JSON parse
@@ -611,9 +639,9 @@ wraps the `LLMService.combined_pass()` call and applies chunk post-processing.
 
 After receiving `LLMCombinedResult` from the adapter, the step applies:
 
-1. **Merge**: any chunk with `token_count < llm.chunkingMinTokens` is merged with an adjacent
+1. **Merge**: any chunk with `token_count < PROCESSING.LLM.CHUNKING_MIN_TOKENS` is merged with an adjacent
    chunk (prefer next; if last chunk, merge with previous)
-2. **Split**: any chunk with `token_count > llm.chunkingMaxTokens` is split on paragraph
+2. **Split**: any chunk with `token_count > PROCESSING.LLM.CHUNKING_MAX_TOKENS` is split on paragraph
    boundaries first; if still over limit, split on sentence boundaries
 3. **Re-index**: assign final sequential `chunk_index` values starting from 0
 
@@ -630,8 +658,8 @@ implementer must choose a safe fallback (e.g. hard split at character count).
 **Complexity**: M
 
 **Acceptance condition**: Unit tests in `tests/pipeline/test_llm_combined_pass.py` (same file
-as Task 10 tests) confirm: (1) a chunk below `chunkingMinTokens` is merged with the next
-chunk to form one chunk; (2) a chunk above `chunkingMaxTokens` is split into two or more
+as Task 10 tests) confirm: (1) a chunk below `CHUNKING_MIN_TOKENS` is merged with the next
+chunk to form one chunk; (2) a chunk above `CHUNKING_MAX_TOKENS` is split into two or more
 chunks; (3) after post-processing all chunks are assigned sequential 0-based `chunk_index`
 values; (4) `entities` and `relationships` are unchanged by post-processing. Tests use inline
 min/max values — no live LLM required.
@@ -654,8 +682,8 @@ Files to create:
   - `embed(text: str) -> EmbeddingResult` (abstract)
   - `EmbeddingResult` dataclass: `embedding: list[float]`, `dimension: int`, `model: str`
 - `shared/adapters/ollama_embedding.py` — `OllamaEmbeddingAdapter` implementing
-  `EmbeddingService`. Calls the Ollama embeddings API at `embedding.baseUrl` with model
-  `embedding.model`. Validates that the returned vector length matches `embedding.dimension`
+  `EmbeddingService`. Calls the Ollama embeddings API at `PROCESSING.EMBEDDING.BASE_URL` with model
+  `PROCESSING.EMBEDDING.MODEL`. Validates that the returned vector length matches `PROCESSING.EMBEDDING.DIMENSION`
   config value; raises `ValueError` if the dimension does not match.
 - `shared/factories/embedding_factory.py` — `create_embedding_service()` reading
   `embedding.provider` from config; returns `OllamaEmbeddingAdapter` for `"ollama"`; raises
@@ -742,7 +770,7 @@ The module exposes a function (or class method) that:
    `refined_search_terms = original query text`, `intent = "unknown"`,
    `extracted_entities = []`, `routing_hint = None`, `confidence = 0.0`
 
-Config keys used: `query.llm.provider`, `query.llm.baseUrl`, `query.llm.model`.
+Config keys used: `QUERY.LLM.PROVIDER`, `QUERY.LLM.BASE_URL`, `QUERY.LLM.MODEL`.
 
 **Depends on**: Task 10, Task 13
 
@@ -821,9 +849,9 @@ an `AssembledContext`. Requirements:
 - Return `AssembledContext` dataclass: `chunks: list[SearchResult]`, `total_tokens: int`,
   `truncated: bool` (True if budget caused exclusion of at least one chunk)
 
-Config keys: `query.contextAssembly.tokenBudget`, `query.contextAssembly.includeParentMetadata`
+Config keys: `QUERY.CONTEXT_ASSEMBLY.TOKEN_BUDGET`, `QUERY.CONTEXT_ASSEMBLY.INCLUDE_PARENT_METADATA`
 
-When `includeParentMetadata` is True, the document-level metadata fields (description, date,
+When `INCLUDE_PARENT_METADATA` is True, the document-level metadata fields (description, date,
 document_type) are included alongside chunk text in the assembled context (used when
 constructing the synthesis prompt in Task 17).
 
