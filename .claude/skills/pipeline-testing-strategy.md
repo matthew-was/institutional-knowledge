@@ -522,7 +522,7 @@ jobs:
           cache: 'pnpm'
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: 'pip'
       - run: pnpm install
       - run: pnpm test:unit
@@ -536,7 +536,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.13'
       - run: pip install -r services/processing/requirements.txt
       - run: pytest services/processing/tests/ -m integration -v
 

@@ -55,11 +55,13 @@ Express.
 
 ```bash
 datamodel-codegen \
-  --url http://localhost:3001/openapi.json \
-  --output services/processing/shared/generated/ \
+  --url http://localhost:4000/openapi.json \
+  --output shared/generated/models.py \
   --output-model-type pydantic_v2.BaseModel \
   --use-annotated \
-  --target-python-version 3.11
+  --target-python-version 3.13 \
+  --openapi-scopes paths \
+  --formatters ruff-format ruff-check
 ```
 
 - Review the generated files in `services/processing/shared/generated/`
@@ -82,7 +84,35 @@ equivalent) succeeds in a Python REPL. Confirmed by manual inspection.
 
 **Condition type**: manual
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-30):
+
+- Automated checks: not applicable — condition type is manual
+- Manual checks: The generated file `services/processing/shared/generated/models.py` was
+  produced by `datamodel-codegen` on 2026-03-30 (timestamp `2026-03-30T17:55:23+00:00`)
+  against the Express OpenAPI spec. The file uses `--target-python-version 3.13` syntax
+  (`StrEnum`, native generics, `from __future__ import annotations`). `ApiDocumentsInitiatePostRequest`
+  is present (the acceptance condition cited `InitiateUploadRequest` as an illustrative example;
+  the generated name reflects the OpenAPI path/operation structure and satisfies the condition).
+  `shared/generated/__init__.py` exists with ADR-048 docstring. `datamodel-code-generator`
+  is listed in `requirements-dev.txt`. Developer must confirm the following before this task
+  is considered fully closed:
+
+  ```bash
+  # From services/processing/ with the virtualenv activated:
+  python3 -c "from shared.generated.models import ApiDocumentsInitiatePostRequest; print('ok')"
+  ```
+
+  Expected output: `ok` with no errors.
+
+- User need: Task 0 is an enabling infrastructure task — it ensures the Python service has
+  typed, committed Pydantic v2 models derived from the Express OpenAPI contract, so that no
+  Python task that calls Express requires the backend to be running at build or test time
+  (ADR-048). The generated file is present and correctly structured. The user need (typed
+  contract boundary between Python and Express) is satisfied structurally; the manual import
+  check above confirms it at runtime.
+- Outcome: done (pending developer confirmation of manual import check)
 
 ---
 
@@ -126,7 +156,59 @@ request to the running FastAPI app returns `{"status": "ok"}` with HTTP 200.
 
 **Condition type**: both
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-03-30):
+
+- Automated checks: The directory tree is confirmed by reading the repository. All
+  plan-specified Python package directories are present with `__init__.py` files:
+  `pipeline/`, `pipeline/steps/`, `pipeline/interfaces/`, `pipeline/adapters/`,
+  `pipeline/factories/`, `query/`, `query/interfaces/`, `query/implementations/`,
+  `shared/`, `shared/interfaces/`, `shared/adapters/`, `shared/factories/`,
+  `shared/generated/`, `tests/`, `tests/__init__.py` (present — B-2 resolved),
+  `tests/pipeline/`, `tests/query/`, `tests/shared/`, `tests/fakes/`. All eight skeleton
+  stub files required by the plan are present: `pipeline/orchestrator.py`,
+  `query/router_factory.py`, `query/query_understanding.py`, `query/context_assembly.py`,
+  `query/response_synthesis.py`, `query/query_handler.py`, `shared/http_client.py`,
+  `shared/config.py`, `tests/test_app.py`. `docling` is uncommented in `requirements.txt`
+  (B-3 resolved). `app.py` defines `GET /health` returning `{"status": "ok"}` —
+  structurally correct. Automated condition (directory tree matches plan) confirmed.
+  One observation: the plan's module structure lists `fixtures/` as a required directory
+  (for representative integration test documents, ADR-032); this directory is absent and
+  has no `.gitkeep`. This does not affect pytest or imports and was not flagged by the
+  code reviewer, but the developer should add a `fixtures/` placeholder before Task 22
+  (pipeline integration tests) is started.
+- Manual checks: Developer must confirm the following two checks before this task is
+  considered fully closed:
+
+  1. From `services/processing/` with the virtualenv activated:
+
+     ```bash
+     pytest -m "not integration" tests/
+     ```
+
+     Expected: output contains "no tests ran" with zero errors (no import failures).
+
+  2. Start the service:
+
+     ```bash
+     uvicorn app:app --reload
+     ```
+
+     Then in a second terminal:
+
+     ```bash
+     curl http://localhost:8000/health
+     ```
+
+     Expected: `{"status":"ok"}` with HTTP 200.
+
+- User need: Task 1 creates the skeleton that all subsequent Python tasks build on. The
+  plan module structure (ADR-042 boundary: `pipeline/` and `query/` share nothing except
+  `shared/`) is correctly reflected in the directory layout. The service is importable and
+  has a working health endpoint. The user need (a runnable, correctly structured Python
+  service skeleton ready for incremental implementation) is satisfied.
+- Outcome: done (pending developer confirmation of two manual checks above)
 
 ---
 

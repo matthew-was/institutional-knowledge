@@ -1,0 +1,8 @@
+-r requirements.txt
+
+# Dev
+pytest
+pytest-asyncio
+ruff
+respx
+datamodel-code-generator
