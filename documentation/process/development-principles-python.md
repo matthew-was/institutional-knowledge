@@ -290,13 +290,36 @@ Use Pydantic v2 models at every external boundary:
 
 - FastAPI request and response bodies (automatic via FastAPI)
 - Express API responses — parse through generated models from `shared/generated/`
-- Config — via Dynaconf settings validated with a Pydantic `BaseSettings` model
+- Config — via Dynaconf settings validated with a Pydantic `BaseModel`
 
 **Do not hand-write models that duplicate generated ones.** If a model is generated from the
 OpenAPI spec, import it from `shared/generated/`. Only write manual Pydantic models for
 Python-internal types that have no Express equivalent.
 
 **No mutable default arguments**: use `field(default_factory=list)` not `field(default=[])`.
+
+---
+
+## Config Key Casing Standard
+
+`settings.json` (and `settings.override.json`) must use `UPPER_SNAKE_CASE` for all keys at
+every nesting level. This matches Dynaconf's native internal representation — Dynaconf
+uppercases all keys regardless of how they appear in the file, so writing them in
+`UPPER_SNAKE_CASE` makes the source of truth and the internal representation identical.
+
+Pydantic config models (`AppConfig` and all nested models) must use `UPPER_SNAKE_CASE`
+field names to match. Accessing config values throughout the service uses `UPPER_SNAKE_CASE`
+(e.g. `config.AUTH.INBOUND_KEY`, `config.LLM.BASE_URL`).
+
+This means no key-casing bridge is needed between Dynaconf and Pydantic — `as_dict()` maps
+directly to the model fields.
+
+Environment variable overrides follow the same convention:
+`IK_AUTH__INBOUND_KEY` overrides `AUTH.INBOUND_KEY`.
+
+**What this rules out**: camelCase or snake_case keys in `settings.json`; camelCase field
+names on config Pydantic models. These create a mismatch with Dynaconf's internal
+representation and require a lossy normalisation step.
 
 ---
 
@@ -350,6 +373,7 @@ Omit the citation if no ADR directly governs the file.
 | Calling Express directly from `pipeline/` or `query/` without going through `shared/http_client.py` | Bypasses auth header injection and retry logic | HTTP Client Pattern |
 | Importing `pipeline/` from `query/` or vice versa | Violates the module boundary | Module Boundary |
 | Hand-writing Pydantic models that duplicate generated ones | Duplicates drift silently | Pydantic Model Standard |
+| camelCase or snake_case keys in `settings.json` or config Pydantic models | Mismatches Dynaconf's internal representation; requires a lossy normalisation step | Config Key Casing Standard |
 | Mutable default arguments (`def f(items=[])`) | Classic Python footgun; shared across calls | Type Annotation Standard |
 | Direct database connection from the Python service | Express is the sole DB writer | ADR-031 |
 | `Any` without an inline justification comment | Hides real type; defeats static analysis | Type Annotation Standard |
