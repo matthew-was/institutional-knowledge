@@ -1,7 +1,9 @@
 """Dynaconf + Pydantic config singleton (ADR-015, ADR-016)."""
 
+from typing import Annotated
+
 from dynaconf import Dynaconf
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LLMBaseConfig(BaseModel):
@@ -95,7 +97,7 @@ class AuthConfig(BaseModel):
 
 
 class ServiceHTTPConfig(BaseModel):
-    RETRY_COUNT: int
+    RETRY_COUNT: Annotated[int, Field(ge=1)]
     RETRY_DELAY_MS: int
 
 

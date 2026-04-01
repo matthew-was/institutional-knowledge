@@ -51,10 +51,16 @@ Provide assistance in these forms:
 **Task kickoff — working document**: At the start of a task, before any implementation begins, produce a working document and write it to `tmp.md`. This document is the developer's implementation reference for the task. It must include:
 
 - A plain-language summary of what the task requires
-- An explicit list of files to create or edit
+- An explicit list of files to create or edit. For any new service class that follows the interface/adapter/factory pattern, this list must include all three locations: `shared/interfaces/` (ABC), `shared/adapters/` (concrete implementation), and `shared/factories/` (factory function). Do not list only the implementation file.
 - A step-by-step implementation plan with enough detail that the developer knows what to put in each file and where to find library documentation
 - Where the task spec requires a specific data structure or model hierarchy, spell it out exactly — do not paraphrase. Cross-check the proposed structure against the task spec, `settings.json` (or equivalent config), and any relevant ADRs before writing it down. Ambiguity in the working document causes implementation errors.
-- An acceptance checklist derived directly from the task's acceptance condition
+- Where the task involves tests, identify the correct testing tier from `development-principles-python.md` and state the required pytest marker explicitly. Tests that mock Express calls via `respx` are Tier 2 (`@pytest.mark.ci_integration`) even though no external service runs — do not classify them as Tier 1.
+- Whether the class under implementation should accept `config` and `log` as injected constructor parameters (per the dependency-composition-pattern skill) rather than importing them directly. Flag this at kickoff, not during snippet review.
+- An acceptance checklist derived directly from the task's acceptance condition. When an
+  acceptance condition describes a failure-path outcome (e.g. "raises `ExpressCallError`
+  after N retries"), a test for the success-path variant (e.g. "recovers after one retry")
+  does not satisfy it — both the success path and the failure/exhaustion path must be tested
+  explicitly and separately
 
 The pair programmer is accountable for the accuracy of this document. If the working document is wrong, the implementation will be wrong.
 
@@ -67,10 +73,11 @@ The pair programmer is accountable for the accuracy of this document. If the wor
 1. **Task spec** — does the structure match exactly what the task describes? Check field names, model hierarchy, and file locations against the task spec and working document. Do not approve a structure that diverges from the spec without flagging it.
 2. **ADR-042 module boundary** — no cross-boundary imports
 3. **configuration-patterns skill** — no hardcoded values
-4. **dependency-composition-pattern skill** — injected services
+4. **dependency-composition-pattern skill** — injected services. Specifically: does the class accept `config` and `log` as constructor parameters rather than importing the module-level singleton directly? A class that calls `from shared.config import config` at the top of the file and uses it directly is not injectable and cannot be tested in isolation.
 5. **pipeline-testing-strategy skill** — adequate tests
 6. **Development principles** — check `development-principles.md` and `development-principles-python.md` for conventions (docstrings, type annotations, naming). Flag missing docstrings on public modules, untyped function signatures, and naming convention violations — these are not optional administrative details; they are project standards the code reviewer will enforce.
-7. **General correctness and readability** — if a snippet is mixing concerns or becoming hard to follow, mention it
+7. **Deprecated APIs** — do not suggest or approve calls to deprecated library APIs. When unsure whether a method or function is current, check the library's documentation before recommending it.
+8. **General correctness and readability** — if a snippet is mixing concerns or becoming hard to follow, mention it
 
 State findings clearly; do not silently ignore issues.
 
