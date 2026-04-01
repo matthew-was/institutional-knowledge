@@ -149,22 +149,35 @@ def create_pipeline_service(
 
 ## HTTP Client Pattern (ADR-044)
 
-All outbound calls to Express go through `shared/http_client.py`. No other file may call
-Express directly.
+All outbound calls to Express go through the `HttpClientBase` interface. No other file may
+call Express directly.
+
+**Required file layout**:
+
+- `shared/interfaces/http_client.py` — `HttpClientBase` ABC defining all public methods
+- `shared/adapters/http_client.py` — `HttpClient` concrete implementation; also defines `ExpressCallError`
+- `shared/factories/http_client.py` — `create_http_client(config, log) -> HttpClientBase` factory
+
+Application code depends only on `HttpClientBase`. The factory return type is the interface,
+not the concrete class. This allows the HTTP adapter to be swapped for an RPC or other
+transport without changing any consumer.
 
 ```python
 # shared/interfaces/http_client.py
-class HttpClient(ABC):
+class HttpClientBase(ABC):
     @abstractmethod
-    async def post_processing_results(self, payload: ProcessingResponse) -> None: ...
+    async def post_processing_results(self, payload: ApiProcessingResultsPostRequest) -> ApiProcessingResultsPostResponse: ...
 
     @abstractmethod
-    async def vector_search(self, embedding: list[float], top_k: int) -> list[SearchResult]: ...
+    async def vector_search(self, embedding: list[float], top_k: int) -> ApiSearchVectorPostResponse: ...
+
+    @abstractmethod
+    async def aclose(self) -> None: ...
 ```
 
 - The client adds the `x-internal-key` header automatically on every request (ADR-044)
-- On 4xx responses the client raises `ExpressClientError` with the status and body
-- On 5xx or network errors the client retries up to `config.http.retry_count` times before
+- On 4xx responses the client raises `ExpressCallError` with the status and body immediately (no retry)
+- On 5xx or network errors the client retries up to `config.SERVICE.HTTP.RETRY_COUNT` times before
   raising `ExpressCallError`
 - Response bodies are parsed into generated Pydantic models from `shared/generated/`
 
@@ -320,6 +333,28 @@ Environment variable overrides follow the same convention:
 **What this rules out**: camelCase or snake_case keys in `settings.json`; camelCase field
 names on config Pydantic models. These create a mismatch with Dynaconf's internal
 representation and require a lossy normalisation step.
+
+## Config Field Constraints
+
+When a numeric config field has a minimum value required for correct runtime behaviour (not
+just sensible operation), enforce it with a Pydantic field constraint so the invalid range
+is statically unreachable:
+
+```python
+from typing import Annotated
+from pydantic import BaseModel, Field
+
+class ServiceHTTPConfig(BaseModel):
+    RETRY_COUNT: Annotated[int, Field(ge=1)]
+    RETRY_DELAY_MS: Annotated[int, Field(ge=0)]
+```
+
+Use `ge` (greater than or equal) or `gt` (strictly greater than) as appropriate. A value of
+`RETRY_COUNT = 0` would produce incorrect retry logic — the constraint makes this impossible
+at config load time, eliminating unreachable code paths in the implementation.
+
+Do not add constraints for values that are merely suboptimal (e.g. a very high `TOP_K`) —
+reserve constraints for values that would cause incorrect behaviour.
 
 ---
 

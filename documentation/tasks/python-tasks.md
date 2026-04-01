@@ -327,7 +327,34 @@ required.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-01):
+
+- Automated checks: confirmed — all four conditions covered by falsifiable tests in
+  `tests/shared/test_http_client.py`, all using `respx` mocked transport with no live
+  Express server.
+  (1) `test_auth_header` asserts `request.headers["x-internal-key"] == config.AUTH.EXPRESS_KEY`;
+  the header is set at `httpx.AsyncClient` construction so it is present on every request.
+  (2) `test_serialization_snake_to_camel` asserts `request_body["topK"] == 5` and
+  `"top_k" not in request_body`; serialisation is handled by `ApiSearchVectorPostRequest`
+  Pydantic model and `model_dump(mode="json")`.
+  (3) `test_fail_on_multiple_5xx` mocks infinite 503 responses via `itertools.repeat`,
+  asserts `respx_mock.calls.call_count == config.SERVICE.HTTP.RETRY_COUNT` and
+  `exc_info.value.status_code == 503`; `RETRY_COUNT` is constrained `>= 1` by
+  `Annotated[int, Field(ge=1)]` in `ServiceHTTPConfig`, ruling out the implicit-None
+  return path at config load time.
+  (4) `test_4xx_immediate_return` asserts `call_count == 1` and
+  `exc_info.value.status_code == 401`; the adapter raises immediately for any
+  `status_code < 500`.
+- Manual checks: none required
+- User need: satisfied — US-096 (provider abstraction, runtime config selection) is met by
+  the `HttpClientBase` ABC in `shared/interfaces/`, the concrete `HttpClient` adapter, and
+  the `create_http_client` factory returning the interface type (ADR-044). US-097 (all
+  operational values from external config) is met by reading `RETRY_COUNT` and
+  `RETRY_DELAY_MS` from the Dynaconf/Pydantic config singleton — no retry values are
+  hardcoded. No gap between acceptance condition and user need.
+- Outcome: done
 
 ---
 
