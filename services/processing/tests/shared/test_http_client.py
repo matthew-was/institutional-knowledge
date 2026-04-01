@@ -25,9 +25,12 @@ def http_client() -> HttpClientBase:
     return create_http_client(config=config, log=structlog.get_logger())
 
 
+document_id = UUID("cd50d49f-20c5-46d2-9a78-4b3042f9b9d0")
+
+
 def make_payload() -> ApiProcessingResultsPostRequest:
     return ApiProcessingResultsPostRequest(
-        documentId=UUID("cd50d49f-20c5-46d2-9a78-4b3042f9b9d0"),
+        documentId=document_id,
         stepResults={
             "ocr": StepResults(status=Status5.completed, errorMessage=""),
         },
@@ -59,7 +62,7 @@ async def test_auth_header(
         httpx.Response(
             200,
             json={
-                "documentId": "cd50d49f-20c5-46d2-9a78-4b3042f9b9d0",
+                "documentId": str(document_id),
                 "accepted": True,
             },
         )
@@ -69,7 +72,7 @@ async def test_auth_header(
     request = respx_mock.calls.last.request
     assert request.headers["x-internal-key"] == config.AUTH.EXPRESS_KEY
     assert response.accepted
-    assert response.documentId == UUID("cd50d49f-20c5-46d2-9a78-4b3042f9b9d0")
+    assert response.documentId == document_id
 
 
 @pytest.mark.ci_integration
@@ -84,7 +87,7 @@ async def test_serialization_snake_to_camel(
                 "results": [
                     {
                         "chunkId": "00000000-0000-0000-0000-000000000001",
-                        "documentId": "cd50d49f-20c5-46d2-9a78-4b3042f9b9d0",
+                        "documentId": str(document_id),
                         "text": "Some text",
                         "chunkIndex": 0,
                         "tokenCount": 2,
@@ -107,7 +110,7 @@ async def test_serialization_snake_to_camel(
     assert request_body["topK"] == 5
     assert "top_k" not in request_body
     assert len(response.results) == 1
-    assert result.documentId == UUID("cd50d49f-20c5-46d2-9a78-4b3042f9b9d0")
+    assert result.documentId == document_id
 
 
 @pytest.mark.ci_integration
@@ -121,7 +124,7 @@ async def test_retry_on_5xx(
             httpx.Response(
                 200,
                 json={
-                    "documentId": "cd50d49f-20c5-46d2-9a78-4b3042f9b9d0",
+                    "documentId": str(document_id),
                     "accepted": True,
                 },
             ),
@@ -131,7 +134,7 @@ async def test_retry_on_5xx(
     response = await http_client.post_processing_results(payload=payload)
     assert respx_mock.calls.call_count == 2
     assert response.accepted
-    assert response.documentId == UUID("cd50d49f-20c5-46d2-9a78-4b3042f9b9d0")
+    assert response.documentId == document_id
 
 
 @pytest.mark.ci_integration
