@@ -6,8 +6,7 @@
 #     Settings → Branches → Add rule → Branch name pattern: main
 #     Check: "Require status checks to pass before merging"
 #     Add status checks: lint-and-typecheck, test-backend, test-frontend,
-#       test-frontend-e2e
-#   Add test-python to the required checks list when that service is implemented.
+#       test-frontend-e2e, test-python
 #
 # Required GitHub Actions secrets (none at this time):
 #   The backend integration test database uses hardcoded credentials defined
@@ -213,30 +212,29 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Python tests — placeholder, enabled when services/processing/ is scaffolded
-  #
-  # When enabling: add test-python to the branch protection required checks.
+  # Python tests
   # The Python version is read from services/processing/.python-version — do
   # not hardcode the version in this workflow.
   # ---------------------------------------------------------------------------
-  # test-python:
-  #   name: Test Python processing service
-  #   runs-on: ubuntu-latest
-  #
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         # Python version is read from services/processing/.python-version.
-  #         # Do not hardcode the version here — update .python-version to change it.
-  #         python-version-file: services/processing/.python-version
-  #
-  #     - name: Install Python dependencies
-  #       working-directory: services/processing
-  #       run: pip install -e ".[dev]"
-  #
-  #     - name: Run Python tests
-  #       run: pytest services/processing/
+  test-python:
+    name: Test Python processing service
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Python version is read from services/processing/.python-version.
+          # Do not hardcode the version here — update .python-version to change it.
+          python-version-file: services/processing/.python-version
+
+      - name: Install Python dependencies
+        working-directory: services/processing
+        run: pip install -r requirements-dev.txt
+
+      - name: Run Python tests
+        working-directory: services/processing
+        run: pytest

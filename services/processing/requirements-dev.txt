@@ -3,6 +3,7 @@
 # Dev
 pytest
 pytest-asyncio
+pytest-cov
 ruff
 respx
 datamodel-code-generator
