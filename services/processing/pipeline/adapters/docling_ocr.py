@@ -1,0 +1,18 @@
+"""DoclingAdapter — primary OCR implementation (ADR-011)."""
+
+import structlog
+
+from pipeline.interfaces.ocr_service import OCRResult, OCRService
+from shared.config import AppConfig
+
+
+class DoclingAdapter(OCRService):
+    def __init__(self, config: AppConfig, log: structlog.BoundLogger) -> None:
+        self.config = config
+        self.log = log.bind(service="docling_ocr")
+
+    def extract_text(self, file_path: str) -> OCRResult:
+        raise NotImplementedError
+
+    def supports_file_type(self, file_extension: str) -> bool:
+        return file_extension.lower() in {"pdf", "png", "jpg", "tiff"}
