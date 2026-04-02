@@ -386,7 +386,29 @@ incorrect key returns 401; (4) `POST /process` with no `x-internal-key` header r
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-02):
+
+- Automated checks: confirmed — all five conditions covered by falsifiable tests in
+  `tests/test_app.py`, all using `httpx.AsyncClient` with `httpx.ASGITransport(app=app)`.
+  (1) `test_health_route_no_auth` — GET /health with no auth header → 200 + `{"status": "ok"}`;
+  the middleware bypasses `/health` via explicit path check before any key validation.
+  (2) `test_api_success_with_auth` — POST /process with correct `x-internal-key` → 501 +
+  `{"detail": "Not implemented"}`; middleware passes through; stub raises `HTTPException(501)`.
+  (3) `test_api_process_fail_with_wrong_auth` — POST /process, wrong key → 401; the `elif`
+  branch returns `JSONResponse(status_code=401)` on value mismatch.
+  (4) `test_api_process_fail_with_no_auth` — POST /process, no header → 401; the
+  `"x-internal-key" not in request.headers` check fires before the value comparison.
+  (5) `test_api_query_fail_with_no_auth` — POST /query, no header → 401; the same middleware
+  applies to all non-health routes. All assertions are falsifiable: disabling the middleware
+  would cause tests 3, 4, and 5 to return 501 instead of 401.
+- Manual checks: none required
+- User need: satisfied — ADR-044 requires shared-key auth on all Python inbound routes; every
+  POST route is gated, the health probe is correctly exempted, and the key is sourced from
+  `config.AUTH.INBOUND_KEY` (not hardcoded), satisfying US-097. No gap between acceptance
+  condition and user need.
+- Outcome: done
 
 ---
 

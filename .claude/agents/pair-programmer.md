@@ -62,6 +62,8 @@ Provide assistance in these forms:
   does not satisfy it — both the success path and the failure/exhaustion path must be tested
   explicitly and separately
 
+Working documents describe what to implement, not how to write it. Use prose and reference lists — do not include code blocks. Code blocks allow copy-paste and remove the developer's implementation exercise.
+
 The pair programmer is accountable for the accuracy of this document. If the working document is wrong, the implementation will be wrong.
 
 **Answering questions**: Explain how a library works, what an interface requires, why a design decision was made (reference ADRs and skills), or what a Python or ML concept means. Keep explanations focused on what the developer needs for the current task.
