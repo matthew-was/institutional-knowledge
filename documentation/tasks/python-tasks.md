@@ -445,7 +445,30 @@ use mock config values — no real document files are required at this step.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-02):
+
+- Automated checks: confirmed. `tests/pipeline/test_ocr_extraction.py` contains three
+  `@pytest.mark.ci_integration` tests covering all stated conditions: (1)
+  `test_docling_ocr_service_instantiation` monkeypatches `PROVIDER` to `"docling"` and
+  asserts `isinstance(adapter, OCRService)` and `isinstance(adapter, DoclingAdapter)` —
+  Python's ABC machinery would raise `TypeError` at instantiation if any abstract method were
+  missing, so a passing `isinstance` check is a genuine confirmation that the interface is
+  fully implemented; (2) `test_tesseract_ocr_service_instantiation` covers the `"tesseract"`
+  case in the same way; (3) `test_unknown_ocr_service_instantiation` monkeypatches `PROVIDER`
+  to `"unknown"` and asserts `ValueError` with the exact message
+  `"unknown is not a supported OCR Provider"` — the assertion is falsifiable. All three tests
+  use monkeypatched config values; no real document files are required.
+- Manual checks: none required.
+- User need: satisfied. US-028 requires text extraction from Phase 1 document types (PDF,
+  TIFF, JPEG, PNG) via OCR. This task establishes the `OCRService` interface layer — the ABC,
+  both adapters (DoclingAdapter for PDF/PNG/JPG/TIFF; TesseractAdapter for PNG/JPG/TIFF/JPEG),
+  and the config-driven factory — which is the architectural prerequisite for the extraction
+  step (Task 6). The `OCRResult` return type correctly carries per-page text and confidence
+  fields. Provider selection from `ocr.provider` config satisfies the Infrastructure as
+  Configuration principle. No gap between acceptance condition and user need.
+- Outcome: done
 
 ---
 
