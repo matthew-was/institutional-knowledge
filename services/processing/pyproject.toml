@@ -5,3 +5,9 @@ exclude = ["shared/generated/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "ANN"]
+
+[tool.coverage.run]
+omit = [
+    "*/tests/*",
+    "*/shared/generated/*",
+]

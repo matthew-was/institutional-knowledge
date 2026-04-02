@@ -18,3 +18,5 @@ docker-compose.override.yml
 .vscode/
 tmp.md
 .coverage
+.ruff_cache
+htmlcov

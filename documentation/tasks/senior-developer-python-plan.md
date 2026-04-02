@@ -968,8 +968,8 @@ class QueryConfig(BaseModel):
     synthesis: SynthesisConfig
 
 class AuthConfig(BaseModel):
-    inboundKey: str   # validates incoming x-internal-key headers
-    expressKey: str   # used on outbound calls to Express
+    INBOUND_KEY: str   # validates incoming x-internal-key headers
+    EXPRESS_KEY: str   # used on outbound calls to Express
 
 class ServiceConfig(BaseModel):
     express_base_url: str
@@ -1051,10 +1051,10 @@ The following config keys are required in `settings.json` or `settings.override.
 
 **Auth**
 
-- `auth.inboundKey` — the shared key for validating inbound requests from Next.js, Express,
+- `AUTH.INBOUND_KEY` — the shared key for validating inbound requests from Next.js, Express,
   and CLI (ADR-044); Python checks this against the `x-internal-key` header on incoming
   requests
-- `auth.expressKey` — the shared key used on outbound calls to Express (processing results,
+- `AUTH.EXPRESS_KEY` — the shared key used on outbound calls to Express (processing results,
   vector search, graph search); a different per-pair key that Express validates against
   `auth.pythonKey` in its own config
 
