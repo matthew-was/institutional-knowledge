@@ -192,7 +192,6 @@ async def extract_pages(self, file_path: str, ocr_service: OCRService) -> Extrac
         return ExtractionResult(
             step_status="failed",
             error_message=f"Failed to open document: {e}",
-            retry_on_next_trigger=True
         )
 
     # Check for zero-page document (Special Case 1)
@@ -426,7 +425,6 @@ WHERE document_id = doc_123 AND step_name = 'text_extraction';
 return ExtractionResult(
     step_status="failed",
     error_message="OCR service unavailable",
-    retry_on_next_trigger=True
 )
 ```
 
@@ -471,7 +469,8 @@ class OCRStepResult:
     # Step status for pipeline_steps table
     step_status: str  # "completed" or "failed"
     error_message: str | None  # If failed, why
-    retry_on_next_trigger: bool  # If failed, should next run retry?
+    # Retry logic is Express's responsibility: it reads step_status = "failed" and
+    # increments attempt_count in pipeline_steps against pipeline.maxRetries (UR-068/069)
 ```
 
 Express receives this and decides:

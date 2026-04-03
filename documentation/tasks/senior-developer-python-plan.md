@@ -136,9 +136,10 @@ For individual page extraction failures (non-catastrophic), the page exception i
 logged; the page is treated as yielding empty text with confidence 0.0; processing continues
 to the next page.
 
-If the file cannot be opened at all, return step status `failed` with an error message and
-`retry_on_next_trigger: True` — Express will increment the attempt count and retry on the
-next processing run (UR-068, UR-069).
+If the file cannot be opened at all, return step status `failed` with an error message.
+Express owns retry logic: it increments `attempt_count` in `pipeline_steps` and retries on
+the next processing run based on `pipeline.maxRetries` config (UR-068, UR-069). Python does
+not carry a retry flag — `step_status = "failed"` is sufficient.
 
 **Step status recording**
 

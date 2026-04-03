@@ -489,10 +489,15 @@ The step receives a file path and an `OCRService` instance. It must:
      from any page"` (UR-048/US-033)
    - Some pages yield text, others do not: flag type `"partial_extraction"`, reason listing
      the zero-text page numbers (UR-049/US-034)
-3. For individual page extraction failures (non-catastrophic): catch the exception, log it,
-   treat the page as yielding empty text with confidence 0.0, and continue
+3. For individual page extraction failures (non-catastrophic): the adapter catches the
+   exception internally, logs it, and substitutes empty text with confidence 0.0 for the
+   failed page before returning a complete `OCRResult`. The step does not see a per-page
+   exception — it only sees the assembled result. An image-only page (no extractable text)
+   and a page that failed during extraction are treated identically at the step level: both
+   appear as empty strings in `text_per_page` and flow into the catastrophic checks.
 4. If the file cannot be opened at all: return step status `failed` with an error message
-   and `retry_on_next_trigger: True` (UR-068/UR-069/US-049)
+   (UR-068/UR-069/US-049 — retry logic is Express's responsibility via `attempt_count` in
+   `pipeline_steps`; Python does not carry a retry flag)
 
 The step returns an `ExtractionResult` dataclass:
 
@@ -523,7 +528,52 @@ function.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-03):
+
+- Automated checks: confirmed — all four cases are covered by separate, falsifiable test
+  functions in `tests/pipeline/test_ocr_extraction.py`, each marked `@pytest.mark.ci_integration`:
+  (1) `test_zero_page_document_extraction` asserts `step_status == "completed"` and
+  `document_flags[0].type == "extraction_failure"` with the exact reason string;
+  (2) `test_empty_pages_extraction` asserts the same flag type with reason `"No extractable
+  text from any page"`; (3) `test_empty_partial_extraction` asserts `type == "partial_extraction"`
+  and `reason == "Pages [1, 3] returned no text"` (zero-text pages named); (4)
+  `test_file_open_error` asserts `step_status == "failed"` and a non-empty `error_message`.
+  Mock helpers correctly live in `tests/fakes/ocr_service.py` per the fakes convention.
+- Manual checks: none required
+- User need: satisfied — US-031 (no fail-fast: all pages evaluated via `all()`/`any()`);
+  US-033 (all-empty: `step_status="completed"` retains the document with an
+  `extraction_failure` flag); US-034 (partial: `partial_extraction` flag names the empty pages);
+  US-035 (zero-page: `extraction_failure` flag with zero-pages reason); US-049 (technical
+  failure: `step_status="failed"` delegates retry responsibility to Express via
+  `attempt_count` — the task description states this split explicitly).
+- Outcome: done
+
+**OQ-T6-001: Page-level extraction outcome disambiguation**
+
+The current spec does not distinguish between three distinct cases that can produce a page
+with no text in `text_per_page`:
+
+- **Case A — Image-only page**: the adapter successfully processed the page but it contains
+  no extractable text (e.g. a scanned photograph or diagram). Expected behaviour, not an error.
+- **Case B — Page extraction error**: the adapter encountered an exception on a specific page
+  (e.g. the page is corrupt or malformed within an otherwise valid file). An adapter-level
+  failure on one page, not a file-level failure.
+- **Case C — File opens but yields no usable data**: the file is accessible but the adapter
+  cannot extract anything meaningful — beyond what is already covered by the zero-pages and
+  all-empty catastrophic checks.
+
+Questions requiring resolution before the `PageExtractionError` handler and tests are finalised:
+
+1. Should Case A (image page) and Case B (page error) produce the same flag type and reason,
+   or should they be distinguished in the `DocumentFlag`?
+2. Should Case B result in `step_status="completed"` (partial result returned) or
+   `step_status="failed"` (retry on next trigger)?
+3. Is Case C distinct from the zero-pages and all-empty checks already in the spec, or is it
+   fully covered by those?
+4. How should adapters signal the difference between Case A and Case B — by returning empty
+   text (Case A) or raising `PageExtractionError` (Case B)?
 
 ---
 

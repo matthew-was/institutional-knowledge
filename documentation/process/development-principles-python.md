@@ -414,5 +414,7 @@ Omit the citation if no ADR directly governs the file.
 | `Any` without an inline justification comment | Hides real type; defeats static analysis | Type Annotation Standard |
 | Tier 1 unit tests that construct a service or mock a dependency | Not a unit test; belongs in Tier 2 | Testing Strategy |
 | Tier 2 tests that call real external services | Breaks CI reproducibility | Testing Strategy |
+| Test helper fakes for service ABCs defined inline in a test file | Prevents reuse across test files; put them in `tests/fakes/<service_name>.py` | Testing Strategy |
+| `not s.strip()` or `not some_str` as an emptiness check | Implicit truthiness; prefer `s.strip() == ""` or `some_str == ""` for consistency with the project's explicit-comparison style | Explicit Comparisons |
 | `ruff` rule suppressions without an explanatory comment | Creates invisible technical debt | Ruff Standard |
 | Hardcoded provider names, URLs, or credentials in application code | Prevents runtime swapping; breaks Infrastructure as Configuration | Technology Constraints |
