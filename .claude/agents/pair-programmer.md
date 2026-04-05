@@ -78,7 +78,7 @@ The pair programmer is accountable for the accuracy of this document. If the wor
 2. **ADR-042 module boundary** — no cross-boundary imports
 3. **configuration-patterns skill** — no hardcoded values
 4. **dependency-composition-pattern skill** — injected services. Specifically: does the class accept `config` and `log` as constructor parameters rather than importing the module-level singleton directly? A class that calls `from shared.config import config` at the top of the file and uses it directly is not injectable and cannot be tested in isolation.
-5. **pipeline-testing-strategy skill** — adequate tests
+5. **pipeline-testing-strategy skill** — adequate tests. Specifically: any test helper that creates a fake implementation of a service ABC (`OCRService`, `LLMService`, `EmbeddingService`, etc.) must be placed in `tests/fakes/<service_name>.py`, not defined inline in the test file. Flag this at kickoff when the task involves writing such helpers.
 6. **Development principles** — check `development-principles.md` and `development-principles-python.md` for conventions (docstrings, type annotations, naming). Flag missing docstrings on public modules, untyped function signatures, and naming convention violations — these are not optional administrative details; they are project standards the code reviewer will enforce.
 7. **Deprecated APIs** — do not suggest or approve calls to deprecated library APIs. When unsure whether a method or function is current, check the library's documentation before recommending it.
 8. **General correctness and readability** — if a snippet is mixing concerns or becoming hard to follow, mention it
