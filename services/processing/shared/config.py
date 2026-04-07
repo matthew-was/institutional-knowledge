@@ -15,6 +15,7 @@ class LLMBaseConfig(BaseModel):
 class OCRQualityScoringConfig(BaseModel):
     CONFIDENCE_WEIGHT: float
     DENSITY_WEIGHT: float
+    TARGET_CHARS_PER_PAGE: Annotated[int, Field(gt=0)]
 
 
 class OCRConfig(BaseModel):

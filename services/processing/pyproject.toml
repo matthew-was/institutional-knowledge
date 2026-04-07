@@ -10,4 +10,5 @@ select = ["E", "F", "I", "UP", "ANN"]
 omit = [
     "*/tests/*",
     "*/shared/generated/*",
+    "**/interfaces/*"
 ]

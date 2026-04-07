@@ -5,7 +5,8 @@
       "QUALITY_THRESHOLD": 60.0,
       "QUALITY_SCORING": {
         "CONFIDENCE_WEIGHT": 0.7,
-        "DENSITY_WEIGHT": 0.3
+        "DENSITY_WEIGHT": 0.3,
+        "TARGET_CHARS_PER_PAGE": 1800
       }
     },
     "LLM": {
@@ -64,7 +65,12 @@
         "BASE_URL": "http://localhost:11434",
         "MODEL": "llama3.2"
       },
-      "CITATION_FIELDS": ["DOCUMENT_TYPE", "DATES", "PEOPLE", "ORGANISATIONS"]
+      "CITATION_FIELDS": [
+        "DOCUMENT_TYPE",
+        "DATES",
+        "PEOPLE",
+        "ORGANISATIONS"
+      ]
     }
   },
   "AUTH": {

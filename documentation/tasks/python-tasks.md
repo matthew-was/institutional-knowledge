@@ -581,8 +581,12 @@ Questions requiring resolution before the `PageExtractionError` handler and test
 
 **Description**: Implement the text quality scoring step.
 
-Files to create:
+Files to create or edit:
 
+- `services/processing/settings.json` — add `TARGET_CHARS_PER_PAGE: 1800` under
+  `PROCESSING.OCR.QUALITY_SCORING`
+- `shared/config.py` — add `TARGET_CHARS_PER_PAGE: Annotated[int, Field(gt=0)]` to
+  `OCRQualityScoringConfig`
 - `pipeline/interfaces/text_quality_scorer.py` — `TextQualityScorer` abstract base class with:
   - `score(text_per_page: list[str], confidence_per_page: list[float]) -> QualityResult`
     (abstract)
@@ -594,11 +598,12 @@ Files to create:
   - Per-page score = OCR confidence (converted to 0–100) multiplied by
     `PROCESSING.OCR.QUALITY_SCORING.CONFIDENCE_WEIGHT`, added to the text density score (characters per
     page scaled to 0–100) multiplied by `PROCESSING.OCR.QUALITY_SCORING.DENSITY_WEIGHT`. Text density
-    score = `min(len(text_per_page[i]) / TARGET_CHARS_PER_PAGE, 1.0) × 100` (implementer
-    chooses `TARGET_CHARS_PER_PAGE`).
+    score = `min(len(text_per_page[i]) / TARGET_CHARS_PER_PAGE, 1.0) × 100` where
+    `TARGET_CHARS_PER_PAGE` is read from `PROCESSING.OCR.QUALITY_SCORING.TARGET_CHARS_PER_PAGE`
+    in config (default: 1800).
   - Document score = average of per-page scores
   - A page fails if its score is below `PROCESSING.OCR.QUALITY_THRESHOLD`
-  - All weights and threshold are read from config — no hardcoded values
+  - All weights, threshold, and `TARGET_CHARS_PER_PAGE` are read from config — no hardcoded values
   - All pages are scored regardless of any individual page outcome (no fail-fast)
   - Flag type `"quality_threshold_failure"` is returned if any page fails; reason must list
     every failing page by 1-indexed number (UR-051/US-036)
@@ -617,7 +622,14 @@ function).
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-07):
+
+- Automated checks: confirmed — all four acceptance conditions covered by falsifiable Tier 1 unit tests in `tests/pipeline/test_text_quality_scoring.py`. (1) `test_all_pages_pass_threshold`: three pages at full confidence and density above threshold 50; asserts `passed_threshold is True` and `failing_pages == []`. (2) `test_single_page_below_threshold`: page 2 scores 10 (confidence 0.1, density 10%), below threshold 50; asserts `failing_pages == [2]`. (3) `test_all_pages_scored_no_early_exit`: pages 2 and 3 both fail; asserts `failing_pages == [2, 3]` — an early exit after page 2 would produce `[2]` only. (4) `test_document_score_is_arithmetic_mean`: manually computes expected mean from first principles; asserts `result.document_score == pytest.approx(...)`. All tests are Tier 1 (no `ci_integration` marker). B-001 from round 1 (missing `Field(gt=0)` on `TARGET_CHARS_PER_PAGE`) confirmed resolved in `shared/config.py`. `settings.json` contains `TARGET_CHARS_PER_PAGE: 1800` under `PROCESSING.OCR.QUALITY_SCORING`.
+- Manual checks: none required
+- User need: satisfied — US-036/UR-051 requires every failing page to be identified in the flag reason. `WeightedTextQualityScorer` accumulates 1-indexed page numbers in `failing_pages` across all pages with no early exit, producing the complete list the orchestrator needs to construct the flag. The user need is met at this layer.
+- Outcome: done
 
 ---
 
