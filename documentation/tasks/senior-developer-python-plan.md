@@ -187,10 +187,12 @@ transaction.
 `WeightedTextQualityScorer` (default implementation, not behind a separate factory — it is
 the only implementation in Phase 1). The scoring formula is a weighted combination of OCR
 confidence (converted to 0–100) and text density (characters per page scaled to 0–100). All
-weights and the quality threshold are read from config keys:
+weights, the quality threshold, and the target character count are read from config keys:
 
 - `ocr.qualityScoring.confidenceWeight` (float, default 0.6)
 - `ocr.qualityScoring.densityWeight` (float, default 0.4)
+- `ocr.qualityScoring.targetCharsPerPage` (int, default 1800) — denominator for text density
+  score; `min(len(text) / targetCharsPerPage, 1.0) × 100`
 - `ocr.qualityThreshold` (float, default 60.0)
 
 The document score is the average of per-page scores. A page fails if its score falls below
@@ -999,6 +1001,7 @@ The following config keys are required in `settings.json` or `settings.override.
 - `ocr.qualityThreshold` — float (0–100); page score below this triggers a flag
 - `ocr.qualityScoring.confidenceWeight` — float
 - `ocr.qualityScoring.densityWeight` — float
+- `ocr.qualityScoring.targetCharsPerPage` — int (gt 0)
 
 **LLM (shared — used by pipeline and query)**
 
