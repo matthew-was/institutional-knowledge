@@ -52,6 +52,7 @@ class MetadataCompletenessWeights(BaseModel):
 
 
 class MetadataConfig(BaseModel):
+    EXTRACTOR: str
     PATTERNS: MetadataPatternsConfig
     COMPLETENESS_THRESHOLD: float
     COMPLETENESS_WEIGHTS: MetadataCompletenessWeights
