@@ -205,6 +205,10 @@ scoring arithmetic.
 The test must call the function directly. If reaching the logic under test requires constructing
 a service or mocking a dependency, it is not a unit test — write a Tier 2 test instead.
 
+Tier 1 tests must not carry `@pytest.mark.ci_integration` — they run unconditionally
+everywhere. The marker is reserved for Tier 2. Use `tests/pipeline/test_text_quality_scoring.py`
+as the reference for what an unmarked Tier 1 test file looks like.
+
 ### Tier 2 — CI integration tests (run in CI; no external services required)
 
 Cover service wiring, data flow, and HTTP contract compliance. Express calls are intercepted
@@ -413,6 +417,7 @@ Omit the citation if no ADR directly governs the file.
 | Direct database connection from the Python service | Express is the sole DB writer | ADR-031 |
 | `Any` without an inline justification comment | Hides real type; defeats static analysis | Type Annotation Standard |
 | Tier 1 unit tests that construct a service or mock a dependency | Not a unit test; belongs in Tier 2 | Testing Strategy |
+| `@pytest.mark.ci_integration` on a Tier 1 test | Tier 1 tests run unconditionally — the marker is redundant and creates false Tier 2 signals | Testing Strategy |
 | Tier 2 tests that call real external services | Breaks CI reproducibility | Testing Strategy |
 | Test helper fakes for service ABCs defined inline in a test file | Prevents reuse across test files; put them in `tests/fakes/<service_name>.py` | Testing Strategy |
 | `not s.strip()` or `not some_str` as an emptiness check | Implicit truthiness; prefer `s.strip() == ""` or `some_str == ""` for consistency with the project's explicit-comparison style | Explicit Comparisons |

@@ -23,13 +23,41 @@
       "DIMENSION": 384
     },
     "METADATA": {
+      "EXTRACTOR": "regex",
       "PATTERNS": {
-        "DOCUMENT_TYPE": [],
-        "DATES": [],
-        "PEOPLE": [],
-        "ORGANISATIONS": [],
-        "LAND_REFERENCES": [],
-        "DESCRIPTION": []
+        "DOCUMENT_TYPE": [
+          "(?i)last will and testament",
+          "(?i)\\bdeed of conveyance\\b",
+          "(?i)\\bmortgage deed\\b",
+          "(?i)\\bletter\\b",
+          "(?i)\\bdeed\\b",
+          "(?i)\\bwill\\b",
+          "(?i)\\binvoice\\b",
+          "(?i)\\bmortgage\\b"
+        ],
+        "DATES": [
+          "\\b\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{2,4}\\b",
+          "\\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},?\\s+\\d{4}\\b",
+          "\\b\\d{4}\\b",
+          "\\d{1,2}(?:st|nd|rd|th)?\\s+[A-Za-z]+\\s+\\d{4}"
+        ],
+        "PEOPLE": [
+          "\\b(?:Mr|Mrs|Miss|Dr|Rev)\\.?\\s+[A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*\\b",
+          "\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b"
+        ],
+        "ORGANISATIONS": [
+          "\\b(?:[A-Z][a-z]+\\s+)+(?:Ltd|Limited|Co|Company|Council|Association|Society|Bank)\\b"
+        ],
+        "LAND_REFERENCES": [
+          "\\bLot\\s+\\d+\\b",
+          "\\bSection\\s+\\d+\\b",
+          "\\bBlock\\s+\\d+\\b",
+          "\\b\\d+\\s+acres?\\b"
+        ],
+        "DESCRIPTION": [
+          "(?i)re:\\s*([^.\\n]+)",
+          "(?i)subject:\\s*([^.\\n]+)"
+        ]
       },
       "COMPLETENESS_THRESHOLD": 50.0,
       "COMPLETENESS_WEIGHTS": {

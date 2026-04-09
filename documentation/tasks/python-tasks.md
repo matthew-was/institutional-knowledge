@@ -670,13 +670,21 @@ They must be documented in a decision log before US-040 can be closed (see FLAG-
 **Acceptance condition**: Unit tests in `tests/pipeline/test_pattern_metadata.py` confirm:
 (1) a known text string containing a date pattern returns a non-empty `dates` list when the
 matching pattern is configured; (2) a text string with no matching patterns returns all fields
-as empty/None; (3) a technical failure in the regex engine (simulated via a malformed regex
-in config) returns step status `failed` (not a flag — a retry-able technical failure). Tests
-do not depend on OQ-4 decisions — they use test-specific inline pattern strings.
+as empty/None; (3) a malformed regex pattern in config causes `RegexPatternExtractor` to raise
+`re.error` (the orchestrator catches this and records step status `failed` — the adapter's
+responsibility is to propagate the exception, not to return a step status). Tests do not
+depend on OQ-4 decisions — they use test-specific inline pattern strings.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-09):
+
+- Automated checks: confirmed — all three conditions met. `test_date_pattern_match` (line 46) asserts a configured slash-date pattern returns `dates[0] == "22/03/1923"` (falsifiable). `test_no_matches` (line 70) asserts all list fields empty, both `str | None` fields `None`, and all six confidence values `0.0` when no patterns are configured (comprehensive and falsifiable). `test_malformed_regex` (line 87) asserts `pytest.raises(re.PatternError)` on `"["` input; `re.PatternError` is `re.error` in Python 3.12+, matching the spec exactly.
+- Manual checks: none required
+- User need: satisfied — US-037 requires automatic detection of document type, dates, people, organisations, and description. `MetadataResult` covers all five fields (plus `land_references` and `detection_confidence`). `RegexPatternExtractor` applies config-driven patterns, deduplicates matches, and sets per-field confidence. The description overwrite precedence rule is correctly deferred to the orchestrator. `create_metadata_extractor` selects the adapter from config, consistent with the Infrastructure as Configuration principle.
+- Outcome: done
 
 ---
 
