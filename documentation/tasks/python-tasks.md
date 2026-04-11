@@ -726,7 +726,14 @@ inline weight values — no dependency on OQ-4 decisions.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-11):
+
+- Automated checks: confirmed — all four required tests present and falsifiable. `test_all_fields_populated` asserts `score == pytest.approx(100.0)` and `passed_threshold is True`. `test_no_fields_populated` asserts `score == pytest.approx(0.0)` and `passed_threshold is False`. `test_populated_fields_above_threshold` asserts `score == pytest.approx(65.0)` and `passed_threshold is True` (arithmetic verified: (0.2+0.15+0.15+0.15)/1.0*100 = 65.0). `test_populated_fields_below_threshold` asserts `score == pytest.approx(35.0)` and `passed_threshold is False` (arithmetic verified: (0.2+0.15)/1.0*100 = 35.0). All tests use inline weights via a `make_weighted_field_presence_scorer()` factory — no OQ-4 dependency. No `@pytest.mark.ci_integration` markers on Tier 1 tests. No implicit truthiness (explicit `is not None and value != ""` for scalars; `len(value) > 0` for lists).
+- Manual checks: none required
+- User need: satisfied — US-038/UR-054 requires metadata completeness to be assessed independently of text quality with its own configurable threshold. `WeightedFieldPresenceScorer` shares no code with `WeightedTextQualityScorer`; threshold is read from config (`COMPLETENESS_THRESHOLD`); the scorer produces a `CompletenessResult` the orchestrator uses independently of any text quality result.
+- Outcome: done
 
 ---
 
