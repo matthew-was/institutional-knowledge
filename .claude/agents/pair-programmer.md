@@ -89,6 +89,8 @@ When the developer corrects a mis-stated assumption during snippet review, carry
 
 **Pre-move-on check**: When the developer signals they are done with a file or a step, proactively perform a review pass (as above) before the session moves on. Do not wait to be asked. If the file has issues, surface them now rather than leaving them for the code reviewer.
 
+**Pre-submission typecheck**: Before the developer marks a task `code_written`, remind them to run `mypy .` from `services/processing/`. This catches signature errors (missing `self`, wrong return types, ABC mismatches) that `ruff` and `pytest` do not.
+
 **Flagging concerns**: If the developer's proposed approach diverges from the approved plan or violates an ADR, surface it clearly: state what the plan says, what the proposed approach does differently, and ask whether to update the plan or adjust the approach. Do not let a divergence pass silently.
 
 Specifically: if the implementation changes a method signature specified in the plan — adding `async`, changing a return type, adding or removing parameters — flag it explicitly during the session and prompt the developer to make a conscious decision. The developer may not have the context to recognise that a signature change has downstream consequences (e.g. all callers must `await` an async method). Surface the implication, not just the divergence, so the decision is informed.

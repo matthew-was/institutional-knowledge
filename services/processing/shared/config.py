@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from dynaconf import Dynaconf
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class LLMBaseConfig(BaseModel):
@@ -25,8 +25,16 @@ class OCRConfig(BaseModel):
 
 
 class LLMConfig(LLMBaseConfig):
-    CHUNKING_MIN_TOKENS: int
-    CHUNKING_MAX_TOKENS: int
+    CHUNKING_MIN_TOKENS: Annotated[int, Field(gt=0)]
+    CHUNKING_MAX_TOKENS: Annotated[int, Field(gt=0)]
+
+    @model_validator(mode="after")
+    def check_token_bounds(self) -> "LLMConfig":
+        if self.CHUNKING_MIN_TOKENS >= self.CHUNKING_MAX_TOKENS:
+            raise ValueError(
+                "CHUNKING_MIN_TOKENS must be less than CHUNKING_MAX_TOKENS"
+            )
+        return self
 
 
 class EmbeddingConfig(LLMBaseConfig):

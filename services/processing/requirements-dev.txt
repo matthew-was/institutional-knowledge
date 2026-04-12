@@ -5,5 +5,6 @@ pytest
 pytest-asyncio
 pytest-cov
 ruff
+mypy
 respx
 datamodel-code-generator

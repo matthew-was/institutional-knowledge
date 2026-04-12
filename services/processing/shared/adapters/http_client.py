@@ -38,7 +38,9 @@ class HttpClient(HttpClientBase):
     async def aclose(self) -> None:
         await self.client.aclose()
 
-    async def _with_retry(self, call: Callable[[], Awaitable[T]]) -> T:
+    async def _with_retry(
+        self, call: Callable[[], Awaitable[httpx.Response]]
+    ) -> httpx.Response:
         for attempt in range(self.config.SERVICE.HTTP.RETRY_COUNT):
             try:
                 r = await call()
@@ -74,6 +76,7 @@ class HttpClient(HttpClientBase):
                         attempts=self.config.SERVICE.HTTP.RETRY_COUNT,
                     )
                     raise ExpressCallError(exc.response.status_code, exc.response.text)
+        raise ExpressCallError(0, "no attempts made")
 
     async def post_processing_results(
         self, payload: ApiProcessingResultsPostRequest
