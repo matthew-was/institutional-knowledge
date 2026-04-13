@@ -4,15 +4,13 @@ import structlog
 
 from pipeline.adapters.regex_pattern_extractor import RegexPatternExtractor
 from pipeline.interfaces.metadata_extractor import PatternMetadataExtractor
-from shared.config import AppConfig
+from shared.config import MetadataConfig
 
 
 def create_metadata_extractor(
-    config: AppConfig, log: structlog.BoundLogger
+    config: MetadataConfig, log: structlog.BoundLogger
 ) -> PatternMetadataExtractor:
-    if config.PROCESSING.METADATA.EXTRACTOR == "regex":
-        return RegexPatternExtractor(config=config.PROCESSING.METADATA, log=log)
+    if config.EXTRACTOR == "regex":
+        return RegexPatternExtractor(config=config, log=log)
 
-    raise ValueError(
-        f"{config.PROCESSING.METADATA.EXTRACTOR} is not a supported Metadata Extractor"
-    )
+    raise ValueError(f"{config.EXTRACTOR} is not a supported Metadata Extractor")

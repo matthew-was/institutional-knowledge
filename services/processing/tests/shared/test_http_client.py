@@ -8,7 +8,7 @@ import respx
 import structlog
 
 from shared.adapters.http_client import ExpressCallError
-from shared.config import config
+from shared.config import AuthConfig, ServiceConfig, ServiceHTTPConfig
 from shared.factories.http_client import create_http_client
 from shared.generated.models import (
     ApiProcessingResultsPostRequest,
@@ -19,10 +19,22 @@ from shared.generated.models import (
 )
 from shared.interfaces.http_client import HttpClientBase
 
+auth_config = AuthConfig(EXPRESS_KEY="dev-python-key", INBOUND_KEY="test_key")
+
+service_http_config = ServiceHTTPConfig(RETRY_COUNT=3, RETRY_DELAY_MS=500)
+
+service_config = ServiceConfig(
+    EXPRESS_BASE_URL="http://localhost:4000", HTTP=service_http_config
+)
+
 
 @pytest.fixture
 def http_client() -> HttpClientBase:
-    return create_http_client(config=config, log=structlog.get_logger())
+    return create_http_client(
+        auth_config=auth_config,
+        service_config=service_config,
+        log=structlog.get_logger(),
+    )
 
 
 document_id = UUID("cd50d49f-20c5-46d2-9a78-4b3042f9b9d0")
@@ -70,7 +82,7 @@ async def test_auth_header(
     payload = make_payload()
     response = await http_client.post_processing_results(payload=payload)
     request = respx_mock.calls.last.request
-    assert request.headers["x-internal-key"] == config.AUTH.EXPRESS_KEY
+    assert request.headers["x-internal-key"] == auth_config.EXPRESS_KEY
     assert response.accepted
     assert response.documentId == document_id
 
@@ -106,7 +118,7 @@ async def test_serialization_snake_to_camel(
     request = respx_mock.calls.last.request
     request_body = json.loads(request.content)
     result = response.results[0]
-    assert request.headers["x-internal-key"] == config.AUTH.EXPRESS_KEY
+    assert request.headers["x-internal-key"] == auth_config.EXPRESS_KEY
     assert request_body["topK"] == 5
     assert "top_k" not in request_body
     assert len(response.results) == 1
@@ -148,7 +160,7 @@ async def test_fail_on_multiple_5xx(
     payload = make_payload()
     with pytest.raises(ExpressCallError) as exc_info:
         await http_client.post_processing_results(payload=payload)
-    assert respx_mock.calls.call_count == config.SERVICE.HTTP.RETRY_COUNT
+    assert respx_mock.calls.call_count == service_config.HTTP.RETRY_COUNT
     assert exc_info.value.status_code == 503
 
 
