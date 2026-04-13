@@ -76,6 +76,7 @@ class HttpClient(HttpClientBase):
                         attempts=self.config.SERVICE.HTTP.RETRY_COUNT,
                     )
                     raise ExpressCallError(exc.response.status_code, exc.response.text)
+        # Unreachable while RETRY_COUNT >= 1 (Field(ge=1)), but satisfies mypy.
         raise ExpressCallError(0, "no attempts made")
 
     async def post_processing_results(
