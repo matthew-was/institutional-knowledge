@@ -4,6 +4,8 @@ import pytest
 import structlog
 
 from pipeline.adapters.regex_pattern_extractor import RegexPatternExtractor
+from pipeline.factories.metadata_factory import create_metadata_extractor
+from pipeline.interfaces.metadata_extractor import PatternMetadataExtractor
 from shared.config import (
     MetadataCompletenessWeights,
     MetadataConfig,
@@ -17,7 +19,7 @@ test_text_no_match_on_date_or_document_type = "On 14th March 1923, Mr. Thomas Ha
 
 def make_extractor(
     override_patterns: dict[str, list[str]],
-) -> RegexPatternExtractor:
+) -> PatternMetadataExtractor:
     patterns = MetadataPatternsConfig(
         DOCUMENT_TYPE=override_patterns.get("DOCUMENT_TYPE", []),
         DATES=override_patterns.get("DATES", []),
@@ -40,7 +42,65 @@ def make_extractor(
         COMPLETENESS_THRESHOLD=50.0,
         COMPLETENESS_WEIGHTS=completeness_weights,
     )
-    return RegexPatternExtractor(config=config, log=structlog.get_logger())
+    return create_metadata_extractor(config=config, log=structlog.get_logger())
+
+
+def test_regex_pattern_extractor_instantiated_correctly() -> None:
+    patterns = MetadataPatternsConfig(
+        DOCUMENT_TYPE=[],
+        DATES=[],
+        PEOPLE=[],
+        ORGANISATIONS=[],
+        LAND_REFERENCES=[],
+        DESCRIPTION=[],
+    )
+    completeness_weights = MetadataCompletenessWeights(
+        DOCUMENT_TYPE=0.0,
+        DATES=0.0,
+        PEOPLE=0.0,
+        ORGANISATIONS=0.0,
+        LAND_REFERENCES=0.0,
+        DESCRIPTION=0.0,
+    )
+    config = MetadataConfig(
+        EXTRACTOR="regex",
+        PATTERNS=patterns,
+        COMPLETENESS_THRESHOLD=50.0,
+        COMPLETENESS_WEIGHTS=completeness_weights,
+    )
+    extractor = create_metadata_extractor(config=config, log=structlog.get_logger())
+
+    assert isinstance(extractor, RegexPatternExtractor)
+
+
+def test_unknown_extractor_service_error() -> None:
+    patterns = MetadataPatternsConfig(
+        DOCUMENT_TYPE=[],
+        DATES=[],
+        PEOPLE=[],
+        ORGANISATIONS=[],
+        LAND_REFERENCES=[],
+        DESCRIPTION=[],
+    )
+    completeness_weights = MetadataCompletenessWeights(
+        DOCUMENT_TYPE=0.0,
+        DATES=0.0,
+        PEOPLE=0.0,
+        ORGANISATIONS=0.0,
+        LAND_REFERENCES=0.0,
+        DESCRIPTION=0.0,
+    )
+    config = MetadataConfig(
+        EXTRACTOR="unknown",
+        PATTERNS=patterns,
+        COMPLETENESS_THRESHOLD=50.0,
+        COMPLETENESS_WEIGHTS=completeness_weights,
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        create_metadata_extractor(config=config, log=structlog.get_logger())
+
+    assert str(exc_info.value) == "unknown is not a supported Metadata Extractor"
 
 
 def test_date_pattern_match() -> None:
@@ -177,3 +237,14 @@ def test_description_pattern_match() -> None:
         == "Transfer of land at Block 4, comprising 48 acres, formerly in the name of William James Hargreaves"  # noqa: E501
     )
     assert result.detection_confidence["description"] == 1.0
+
+
+def test_early_return_for_no_text() -> None:
+    extractor = make_extractor(
+        override_patterns={"DESCRIPTION": ["(?i)re:\\s*([^.\\n]+)"]}
+    )
+    result = extractor.extract(text="", document_type_hint=None)
+
+    assert result.document_type is None
+    assert len(result.dates) == 0
+    assert len(result.land_references) == 0

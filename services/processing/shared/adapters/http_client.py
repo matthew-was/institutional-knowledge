@@ -7,7 +7,7 @@ from typing import TypeVar
 import httpx
 import structlog
 
-from shared.config import AppConfig
+from shared.config import AuthConfig, ServiceConfig
 from shared.generated.models import (
     ApiProcessingResultsPostRequest,
     ApiProcessingResultsPostResponse,
@@ -28,52 +28,57 @@ class ExpressCallError(Exception):
 
 
 class HttpClient(HttpClientBase):
-    def __init__(self, config: AppConfig, log: structlog.BoundLogger) -> None:
-        self.config = config
-        self.log = log.bind(service="http_client")
-        headers = {"x-internal-key": config.AUTH.EXPRESS_KEY}
-        base_url = config.SERVICE.EXPRESS_BASE_URL
-        self.client = httpx.AsyncClient(headers=headers, base_url=base_url)
+    def __init__(
+        self,
+        auth_config: AuthConfig,
+        service_config: ServiceConfig,
+        log: structlog.BoundLogger,
+    ) -> None:
+        self._service_config = service_config
+        self._log = log.bind(service="http_client")
+        headers = {"x-internal-key": auth_config.EXPRESS_KEY}
+        base_url = service_config.EXPRESS_BASE_URL
+        self._client = httpx.AsyncClient(headers=headers, base_url=base_url)
 
     async def aclose(self) -> None:
-        await self.client.aclose()
+        await self._client.aclose()
 
     async def _with_retry(
         self, call: Callable[[], Awaitable[httpx.Response]]
     ) -> httpx.Response:
-        for attempt in range(self.config.SERVICE.HTTP.RETRY_COUNT):
+        for attempt in range(self._service_config.HTTP.RETRY_COUNT):
             try:
                 r = await call()
                 r.raise_for_status()
                 return r
             except httpx.TransportError as exc:
-                if attempt < self.config.SERVICE.HTTP.RETRY_COUNT - 1:
-                    self.log.warning(
+                if attempt < self._service_config.HTTP.RETRY_COUNT - 1:
+                    self._log.warning(
                         "retrying express call, transport error",
                         attempt=attempt,
                         status_code=0,
                     )
-                    await asyncio.sleep(self.config.SERVICE.HTTP.RETRY_DELAY_MS / 1000)
+                    await asyncio.sleep(self._service_config.HTTP.RETRY_DELAY_MS / 1000)
                 else:
-                    self.log.error(
+                    self._log.error(
                         "express call failed after retries, transport error",
-                        attempts=self.config.SERVICE.HTTP.RETRY_COUNT,
+                        attempts=self._service_config.HTTP.RETRY_COUNT,
                     )
                     raise ExpressCallError(0, str(exc))
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code < 500:
                     raise ExpressCallError(exc.response.status_code, exc.response.text)
-                elif attempt < self.config.SERVICE.HTTP.RETRY_COUNT - 1:
-                    self.log.warning(
+                elif attempt < self._service_config.HTTP.RETRY_COUNT - 1:
+                    self._log.warning(
                         "retrying express call",
                         attempt=attempt,
                         status_code=exc.response.status_code,
                     )
-                    await asyncio.sleep(self.config.SERVICE.HTTP.RETRY_DELAY_MS / 1000)
+                    await asyncio.sleep(self._service_config.HTTP.RETRY_DELAY_MS / 1000)
                 else:
-                    self.log.error(
+                    self._log.error(
                         "express call failed after retries",
-                        attempts=self.config.SERVICE.HTTP.RETRY_COUNT,
+                        attempts=self._service_config.HTTP.RETRY_COUNT,
                     )
                     raise ExpressCallError(exc.response.status_code, exc.response.text)
         # Unreachable while RETRY_COUNT >= 1 (Field(ge=1)), but satisfies mypy.
@@ -83,7 +88,7 @@ class HttpClient(HttpClientBase):
         self, payload: ApiProcessingResultsPostRequest
     ) -> ApiProcessingResultsPostResponse:
         response = await self._with_retry(
-            lambda: self.client.post(
+            lambda: self._client.post(
                 "/api/processing/results", json=payload.model_dump(mode="json")
             )
         )
@@ -94,7 +99,7 @@ class HttpClient(HttpClientBase):
     ) -> ApiSearchVectorPostResponse:
         payload = ApiSearchVectorPostRequest(embedding=embedding, topK=top_k)
         response = await self._with_retry(
-            lambda: self.client.post(
+            lambda: self._client.post(
                 "/api/search/vector", json=payload.model_dump(mode="json")
             )
         )

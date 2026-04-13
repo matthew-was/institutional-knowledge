@@ -1395,6 +1395,12 @@ written before the rule existed and violate it:
   should accept `OCRConfig`
 - `pipeline/factories/ocr_factory.py` — passes full `AppConfig` to adapters; should narrow to
   `config.PROCESSING.OCR` before calling each adapter
+- `pipeline/factories/metadata_factory.py` — accepts `AppConfig`; should accept `MetadataConfig`
+  (it reads `config.PROCESSING.METADATA.EXTRACTOR` and already passes `config.PROCESSING.METADATA`
+  to the adapter — only the factory's own signature needs tightening)
+- `tests/shared/test_http_client.py` — call site passes the full `config` singleton to
+  `create_http_client`; once the factory signature is fixed, this must narrow to `config.AUTH`
+  and `config.SERVICE`
 
 **Depends on**: None
 
@@ -1404,10 +1410,30 @@ revisiting `app.py` again.
 
 **Complexity**: S
 
-**Acceptance condition**: All five files updated so that adapters receive only the sub-config
+**Acceptance condition**: All seven files updated so that adapters receive only the sub-config
 they require; factories narrow before passing; `ruff check services/processing/` passes;
 `python3 -m pytest services/processing/tests/ -m ci_integration` passes with no regressions.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-13):
+
+- Automated checks: confirmed — all seven files read and verified against the acceptance
+  condition. `shared/adapters/http_client.py`: `HttpClient.__init__` accepts `auth_config:
+  AuthConfig, service_config: ServiceConfig`. `shared/factories/http_client.py`:
+  `create_http_client` accepts `auth_config: AuthConfig, service_config: ServiceConfig`.
+  `pipeline/adapters/docling_ocr.py`: `DoclingAdapter.__init__` accepts `config: OCRConfig`.
+  `pipeline/adapters/tesseract_ocr.py`: `TesseractAdapter.__init__` accepts `config: OCRConfig`.
+  `pipeline/factories/ocr_factory.py`: `create_ocr_service` accepts `config: OCRConfig`.
+  `pipeline/factories/metadata_factory.py`: `create_metadata_extractor` accepts `config:
+  MetadataConfig`. `tests/shared/test_http_client.py`: constructs `AuthConfig` and
+  `ServiceConfig` independently and passes them as keyword arguments to `create_http_client`.
+  No adapter or factory imports or accepts `AppConfig`. Developer confirmed `ruff check`,
+  `pytest -m ci_integration`, and `mypy` all pass with zero exit code.
+- Manual checks: none required
+- User need: satisfied — this is a principles-compliance chore; the narrowing rule (Principle
+  of Least Knowledge) is now applied consistently across all adapters and factories that
+  pre-dated the rule
+- Outcome: done

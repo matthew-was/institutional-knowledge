@@ -5,16 +5,14 @@ import structlog
 from pipeline.adapters.docling_ocr import DoclingAdapter
 from pipeline.adapters.tesseract_ocr import TesseractAdapter
 from pipeline.interfaces.ocr_service import OCRService
-from shared.config import AppConfig
+from shared.config import OCRConfig
 
 
-def create_ocr_service(config: AppConfig, log: structlog.BoundLogger) -> OCRService:
-    if config.PROCESSING.OCR.PROVIDER == "docling":
+def create_ocr_service(config: OCRConfig, log: structlog.BoundLogger) -> OCRService:
+    if config.PROVIDER == "docling":
         return DoclingAdapter(config=config, log=log)
 
-    if config.PROCESSING.OCR.PROVIDER == "tesseract":
+    if config.PROVIDER == "tesseract":
         return TesseractAdapter(config=config, log=log)
 
-    raise ValueError(
-        f"{config.PROCESSING.OCR.PROVIDER} is not a supported OCR Provider"
-    )
+    raise ValueError(f"{config.PROVIDER} is not a supported OCR Provider")

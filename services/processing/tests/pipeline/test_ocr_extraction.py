@@ -10,13 +10,21 @@ from pipeline.interfaces.ocr_service import (
     OCRService,
 )
 from pipeline.steps.ocr_extraction import run_ocr_extraction
-from shared.config import config
+from shared.config import OCRConfig, OCRQualityScoringConfig
 from tests.fakes.ocr_service import create_error_ocr_service, create_mock_ocr_service
+
+quality_scoring_config = OCRQualityScoringConfig(
+    CONFIDENCE_WEIGHT=0.5, DENSITY_WEIGHT=0.5, TARGET_CHARS_PER_PAGE=10
+)
 
 
 @pytest.mark.ci_integration
 def test_docling_ocr_service_instantiation(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(config.PROCESSING.OCR, "PROVIDER", "docling")
+    config = OCRConfig(
+        PROVIDER="docling",
+        QUALITY_THRESHOLD=0.5,
+        QUALITY_SCORING=quality_scoring_config,
+    )
     adapter = create_ocr_service(config=config, log=structlog.get_logger())
     assert isinstance(adapter, OCRService)
     assert isinstance(adapter, DoclingAdapter)
@@ -24,7 +32,11 @@ def test_docling_ocr_service_instantiation(monkeypatch: pytest.MonkeyPatch) -> N
 
 @pytest.mark.ci_integration
 def test_tesseract_ocr_service_instantiation(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(config.PROCESSING.OCR, "PROVIDER", "tesseract")
+    config = OCRConfig(
+        PROVIDER="tesseract",
+        QUALITY_THRESHOLD=0.5,
+        QUALITY_SCORING=quality_scoring_config,
+    )
     adapter = create_ocr_service(config=config, log=structlog.get_logger())
     assert isinstance(adapter, OCRService)
     assert isinstance(adapter, TesseractAdapter)
@@ -32,7 +44,11 @@ def test_tesseract_ocr_service_instantiation(monkeypatch: pytest.MonkeyPatch) ->
 
 @pytest.mark.ci_integration
 def test_unknown_ocr_service_instantiation(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(config.PROCESSING.OCR, "PROVIDER", "unknown")
+    config = OCRConfig(
+        PROVIDER="unknown",
+        QUALITY_THRESHOLD=0.5,
+        QUALITY_SCORING=quality_scoring_config,
+    )
     with pytest.raises(ValueError) as exc_info:
         create_ocr_service(config=config, log=structlog.get_logger())
     assert str(exc_info.value) == "unknown is not a supported OCR Provider"
