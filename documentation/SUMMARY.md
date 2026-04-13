@@ -5,19 +5,19 @@
 | Item | Status |
 | --- | --- |
 | Scope and requirements | ✓ Approved 2026-02-17 |
-| Architecture decisions (41 ADRs) | ✓ Approved 2026-02-25 |
+| Architecture decisions (52 ADRs) | ✓ Approved (last: ADR-052, 2026-03-25) |
 | Architecture and system diagrams | ✓ Approved 2026-02-25 |
-| Foundational skills (13 files) | ✓ All written 2026-02-27 |
-| Agents created | 2 of 8 (Product Owner, Head of Development) |
-| Implementation | Not started |
+| Foundational skills (15 files) | ✓ All written |
+| Agents (10 of 10) | ✓ All written |
+| Backend implementation | ✓ Complete — 19 tasks + chores, merged to main |
+| Frontend implementation | ✓ Complete — 18 tasks + 13a + 5a, merged to main |
+| Python service implementation | ⏳ In progress — Tasks 0–10 done; Task 11 next |
 
-**Current phase**: Skills and agents creation. All design is complete and approved.
+**Current phase**: Implementation in progress.
 
-**Next actionable step**: Create remaining 6 agents (Integration Lead, Senior Developer × 2,
-Implementer, Pair Programmer, Code Reviewer, Project Manager). See [process/agent-workflow.md](process/agent-workflow.md)
-for role definitions.
+**Next actionable step**: Python Task 11 (LLM combined pass step — chunk post-processing).
 
-**Known blockers**: None.
+**Known blockers**: OQ-3 (embedding model) must be resolved before Python Tasks 15/22.
 
 ---
 
@@ -28,8 +28,15 @@ for role definitions.
                   (138 requirements, 101 user stories, 15 Architectural Flags)
 2026-02-25        architecture-decisions.md approved (ADR-001 to ADR-041)
                   architecture.md and system-diagrams.md approved
-2026-02-25 to 27  All 13 foundational skills written
-2026-02-27        Next — create remaining 6 agents
+2026-02-25 to 27  All foundational skills written; all 10 agents written
+2026-03-06        Platform Engineer phases 1 & 2 complete (monorepo scaffold, Docker Compose)
+2026-03-09        Platform Engineer phase 3 complete (GitHub Actions CI/CD)
+2026-03-21        Backend Tasks 1–16 complete, merged to main
+2026-03-22        Backend Tasks 17–18 + post-audit chores complete
+2026-03-23        Frontend task list rebuilt (18 tasks; Hono + Next.js; ADR-050, ADR-051)
+2026-03-28        Frontend Tasks 1–18 + 13a + 5a complete, merged to main
+2026-03-30        Backend Chores 1, 2, 4 done; Python Tasks 0 + 1 done
+2026-04-12        Python Tasks 0–10 done
 ```
 
 ---
@@ -73,72 +80,40 @@ See ADR-005 in [decisions/architecture-decisions.md](decisions/architecture-deci
 .claude/
 ├── settings.json
 ├── agents/
-│   ├── product-owner.md                    ← Created
-│   ├── head-of-development.md              ← Created
-│   ├── integration-lead.md                 ← Not yet created
-│   ├── senior-developer-component-1.md     ← Not yet created
-│   ├── senior-developer-component-2.md     ← Not yet created
-│   ├── implementer.md                      ← Not yet created
-│   ├── pair-programmer.md                  ← Not yet created
-│   ├── code-reviewer.md                    ← Not yet created
-│   └── project-manager.md                  ← Not yet created
+│   ├── product-owner.md
+│   ├── head-of-development.md
+│   ├── integration-lead.md
+│   ├── senior-developer-frontend.md
+│   ├── senior-developer-python.md
+│   ├── implementer.md
+│   ├── pair-programmer.md
+│   ├── code-reviewer.md
+│   ├── project-manager.md
+│   └── platform-engineer.md
 └── skills/
-    ├── agent-file-conventions.md           ← Written
-    ├── approval-workflow.md                ← Written
-    ├── overview-review-workflow.md         ← Written
-    ├── user-stories-review-workflow.md     ← Written
-    ├── adr-review-workflow.md              ← Written
-    ├── configuration-patterns.md           ← Written
-    ├── dependency-composition-pattern.md   ← Written
-    ├── metadata-schema.md                  ← Written
-    ├── pipeline-testing-strategy.md        ← Written
-    ├── notion-lab-entry.md                 ← Written
-    ├── ocr-extraction-workflow.md          ← Written
-    ├── embedding-chunking-strategy.md      ← Written
-    └── rag-implementation.md               ← Written
+    ├── agent-file-conventions.md
+    ├── approval-workflow.md
+    ├── overview-review-workflow.md
+    ├── user-stories-review-workflow.md
+    ├── adr-review-workflow.md
+    ├── configuration-patterns.md
+    ├── dependency-composition-pattern.md
+    ├── metadata-schema.md
+    ├── pipeline-testing-strategy.md
+    ├── ocr-extraction-workflow.md
+    ├── embedding-chunking-strategy.md
+    ├── rag-implementation.md
+    ├── document-review-workflow.md
+    ├── update-task-status/     ← invocable skill (/update-task-status)
+    └── finish-task/            ← invocable skill (/finish-task <service> <task-number>)
 ```
 
 ---
 
-## Creating the Remaining Agents
+## Agents
 
-Each agent is a markdown file in `.claude/agents/`. Read the
-[`agent-file-conventions.md`](../.claude/skills/agent-file-conventions.md) skill before
-writing any agent file.
-
-See [process/agent-workflow.md](process/agent-workflow.md) for full role definitions,
-input/output formats, scope constraints, and the per-agent context table.
-
-### Agents Still to Create
-
-**Integration Lead** — owns the PostgreSQL schema and API contracts as shared infrastructure.
-Key context: [project/architecture.md](project/architecture.md),
-[decisions/architecture-decisions.md](decisions/architecture-decisions.md), component
-specifications (written by Senior Developers — not yet created).
-
-**Senior Developer (Component 1)** — produces the C1 implementation plan and specification.
-Key context: [requirements/user-requirements.md](requirements/user-requirements.md),
-[requirements/phase-1-user-stories.md](requirements/phase-1-user-stories.md),
-[decisions/architecture-decisions.md](decisions/architecture-decisions.md).
-
-**Senior Developer (Component 2)** — produces the C2 implementation plan and specification.
-Key context: same as C1 Senior Developer. Note: C2 is a learning component; the specification
-process should preserve the developer's learning experience (see S-6 in project-summary.md).
-
-**Implementer** — writes production-ready code from Senior Developer plans. Used for
-Component 1 only (developer's existing domain). Key context: C1 specification (when created),
-`configuration-patterns.md` skill, `pipeline-testing-strategy.md` skill.
-
-**Pair Programmer** — active coding partner for learning components (C2–C4). Key context:
-current component specification, Project Manager task list, relevant skills.
-
-**Code Reviewer** — quality and security validation. Key context:
-[process/development-principles.md](process/development-principles.md) (universal) +
-service-specific file (`development-principles-frontend.md` / `development-principles-backend.md` / `development-principles-python.md`),
-[decisions/architecture-decisions.md](decisions/architecture-decisions.md).
-
-**Project Manager** — converts Senior Developer plans into ordered task lists. Output written
-to `tasks/component-N-tasks.md`.
+All 10 agents are written. See [process/agent-workflow.md](process/agent-workflow.md) for
+role definitions, input/output formats, scope constraints, and the per-agent context table.
 
 ---
 
@@ -152,13 +127,11 @@ documentation/
 │   ├── user-requirements.md         ← Product Owner — approved 2026-02-17
 │   └── phase-1-user-stories.md      ← Product Owner — approved 2026-02-17
 └── tasks/
-    ├── component-1-tasks.md         ← Project Manager (not yet created)
-    └── component-2-tasks.md         ← Project Manager (not yet created)
+    ├── backend-tasks.md             ← Project Manager + Implementer — 19 tasks, all done
+    ├── backend-chores.md            ← Post-audit chores — Chores 1, 2, 4 done; Chore 3 blocked
+    ├── frontend-tasks.md            ← Project Manager + Implementer — 18 tasks + 13a + 5a, all done
+    └── python-tasks.md              ← Project Manager + Pair Programmer — 23 tasks; Tasks 0–10 done
 ```
-
-Component specifications (produced by Senior Developer agents) will be written as new
-documents under `documentation/` — paths to be determined when the Senior Developer agents
-are created.
 
 ---
 

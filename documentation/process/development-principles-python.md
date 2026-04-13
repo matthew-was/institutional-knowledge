@@ -105,6 +105,31 @@ def create_ocr_service(config: Config, log: Logger) -> OCRService:
     raise ValueError(f"Unknown OCR provider: {config.ocr.provider}")
 ```
 
+**Config narrowing rule**: every component — factory or adapter — accepts only the narrowest
+config it actually needs. Narrowing happens at the call site (the composition root or wiring
+layer) before the factory is called. Factories accept the sub-config their provider decision
+requires; adapters accept the sub-config their implementation requires. Neither should accept
+`AppConfig` just to dig into it — that is a form of config-bag coupling and violates the
+Principle of Least Knowledge.
+
+```python
+# Correct — call site narrows; factory and adapter each receive only what they need
+llm_service = create_llm_service(config=app_config.PROCESSING.LLM, log=log)
+
+def create_llm_service(config: LLMConfig, log: Logger) -> LLMService:
+    if config.PROVIDER == "ollama":
+        return OllamaLLMAdapter(config=config, log=log)
+    raise ValueError(f"{config.PROVIDER} is not a supported LLM provider")
+
+class OllamaLLMAdapter(LLMService):
+    def __init__(self, config: LLMConfig, log: Logger) -> None: ...
+
+# Wrong — factory or adapter accepts the full config bag
+def create_llm_service(config: AppConfig, log: Logger) -> LLMService: ...
+class OllamaLLMAdapter(LLMService):
+    def __init__(self, config: AppConfig, log: Logger) -> None: ...
+```
+
 ---
 
 ## Service Pattern
@@ -421,5 +446,7 @@ Omit the citation if no ADR directly governs the file.
 | Tier 2 tests that call real external services | Breaks CI reproducibility | Testing Strategy |
 | Test helper fakes for service ABCs defined inline in a test file | Prevents reuse across test files; put them in `tests/fakes/<service_name>.py` | Testing Strategy |
 | `not s.strip()` or `not some_str` as an emptiness check | Implicit truthiness; prefer `s.strip() == ""` or `some_str == ""` for consistency with the project's explicit-comparison style | Explicit Comparisons |
+| Factory or adapter accepting `AppConfig` when a sub-config suffices | Violates config narrowing rule (Principle of Least Knowledge); couples the component to the full config shape and makes it harder to test in isolation | Dependency Composition Pattern |
+| Direct key access (`data["key"]`) on an external API response body | `KeyError` propagates as an unhandled exception; use `data.get("key")` and guard the `None` case before proceeding | HTTP Client Pattern |
 | `ruff` rule suppressions without an explanatory comment | Creates invisible technical debt | Ruff Standard |
 | Hardcoded provider names, URLs, or credentials in application code | Prevents runtime swapping; breaks Infrastructure as Configuration | Technology Constraints |

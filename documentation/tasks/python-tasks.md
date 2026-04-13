@@ -777,7 +777,36 @@ in the LLM response causes Pydantic `ValidationError` and returns status `failed
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-12):
+
+- Automated checks: confirmed — all four conditions covered by tests in
+  `tests/pipeline/test_llm_combined_pass.py`.
+  (1) `test_valid_json_response` — respx-mocked well-formed Ollama response parsed into
+  `LLMCombinedResult`; field-level assertions on chunks, metadata_fields, entities, and
+  relationships all pass.
+  (2) `test_malformed_json_response_returns_none` — `"not json"` string causes
+  `json.JSONDecodeError`, caught by adapter, returns `None`. The acceptance condition text
+  says "return status `failed`" — the code review (round 4) correctly identifies this as the
+  pipeline-step level contract (Task 11); the adapter contract is `None`. Test accurately
+  validates the adapter boundary.
+  (3) `test_missing_response_field_returns_none` — response JSON omits the required `chunks`
+  field; Pydantic `ValidationError` is raised and caught; `None` returned. Confirmed.
+  (4) `test_llm_service_creates_ollama_service` — `create_llm_service` with
+  `PROVIDER="ollama"` returns an `OllamaLLMAdapter` instance confirmed via `isinstance`.
+  Test is correctly unmarked (Tier 1, no network calls).
+- Manual checks: none required
+- User need: satisfied — the `LLMService` ABC provides the shared interface required by both
+  pipeline and query modules (ADR-042 boundary); `OllamaLLMAdapter` implements it with
+  structured JSON parsing and safe error handling; `create_llm_service()` factory enables
+  config-driven provider selection (ADR-038).
+- Pending PM note: plan description omits `organisations` from the `metadata_fields` prose.
+  The implementation correctly includes it in the prompt (adapter line 109) and in the test
+  fixture. `metadata_fields` is typed `dict[str, Any]` — deliberately unstructured in Phase 1
+  per ADR-036. The omission in the plan is a prose gap only; no implementation item is
+  missing and no acceptance condition is unmet. No action required.
+- Outcome: done
 
 ---
 
@@ -1179,6 +1208,10 @@ Requirements:
 
 **Depends on**: Task 4, Task 18, Task 19
 
+**Note**: Python Chore 1 (config narrowing) should be completed before this task. Chore 1
+changes the signatures of `create_http_client`, `create_ocr_service`, and their adapters —
+doing it after this task would require revisiting the lifespan wiring immediately.
+
 **Complexity**: S
 
 **Acceptance condition**: Unit tests in `tests/test_app.py` confirm using fully mocked
@@ -1335,6 +1368,45 @@ formatted with `ruff format`. Document the lint and format commands in the proje
 **Acceptance condition**: Running `ruff check services/processing/` from the repository root
 reports zero violations. Running `ruff format --check services/processing/` reports zero
 unformatted files. A `ruff.toml` or equivalent config file exists in `services/processing/`.
+
+**Condition type**: automated
+
+**Status**: not_started
+
+---
+
+## Python Chores
+
+### Chore 1: Narrow `AppConfig` to sub-configs in existing adapters and factories
+
+**Description**: The config narrowing rule (added to `development-principles-python.md` during
+Task 10) requires that adapters and concrete implementations accept only the sub-config they
+need, with factories doing the narrowing before passing config down. The following files were
+written before the rule existed and violate it:
+
+- `shared/adapters/http_client.py` — `HttpClient.__init__` accepts `AppConfig`; should accept
+  `ServiceConfig` and `AuthConfig` (it needs `SERVICE.HTTP.*` for retry logic and
+  `AUTH.EXPRESS_KEY` for the auth header)
+- `shared/factories/http_client.py` — passes full `AppConfig`; should narrow to
+  `config.SERVICE` and `config.AUTH` before calling the adapter
+- `pipeline/adapters/docling_ocr.py` — `DoclingAdapter.__init__` accepts `AppConfig`; should
+  accept `OCRConfig`
+- `pipeline/adapters/tesseract_ocr.py` — `TesseractAdapter.__init__` accepts `AppConfig`;
+  should accept `OCRConfig`
+- `pipeline/factories/ocr_factory.py` — passes full `AppConfig` to adapters; should narrow to
+  `config.PROCESSING.OCR` before calling each adapter
+
+**Depends on**: None
+
+**Recommended sequencing**: Complete before Task 18 (orchestrator). Task 20 (`app.py` lifespan
+wiring) calls all factories — doing this chore after Task 20 would require immediately
+revisiting `app.py` again.
+
+**Complexity**: S
+
+**Acceptance condition**: All five files updated so that adapters receive only the sub-config
+they require; factories narrow before passing; `ruff check services/processing/` passes;
+`python3 -m pytest services/processing/tests/ -m ci_integration` passes with no regressions.
 
 **Condition type**: automated
 

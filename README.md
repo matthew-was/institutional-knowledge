@@ -90,10 +90,12 @@ Sources:
 
 **Phase 1** (current) — Local single-user pipeline with document intake, processing, curation, and CLI query.
 
-- ✅ Architecture and requirements approved (all 41 ADRs, 138 requirements, 101 user stories)
-- ✅ All foundational skills written (13 skill files)
-- ⏳ Agent creation in progress (2 of 8 agents created)
-- Implementation not yet started
+- ✅ Architecture and requirements approved (52 ADRs, 138 requirements, 101 user stories)
+- ✅ All 15 foundational skills written
+- ✅ All 10 agents written
+- ✅ Backend implementation complete (19 tasks + post-audit chores, merged to main)
+- ✅ Frontend implementation complete (18 tasks + additional stories, merged to main)
+- ⏳ Python service implementation in progress (Tasks 0–10 done; Task 11 next)
 
 See [documentation/](documentation/) for detailed specifications, architecture decisions, and project roadmap.
 
