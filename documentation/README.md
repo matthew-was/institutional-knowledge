@@ -64,8 +64,12 @@ Institution-specific vocabulary (entity types, relationships, domain terms) is m
 | process/development-principles.md | Current | Universal principles (all services) |
 | process/development-principles-backend.md | Current | Backend-specific patterns |
 | process/development-principles-frontend.md | Current | Frontend-specific patterns |
-| process/development-principles-python.md | Current | Python-specific patterns (stub — to be filled in before Python Task 1) |
+| process/development-principles-python.md | Current | Python-specific patterns |
 | SUMMARY.md | Current | Project status, milestone timeline, .claude/ setup guide |
+| tasks/backend-tasks.md | Complete | 19 tasks — all done and merged to main |
+| tasks/backend-chores.md | In progress | Post-audit chores; Chores 1, 2, 4 done; Chore 3 blocked on Node 26 |
+| tasks/frontend-tasks.md | Complete | 18 tasks + 13a + 5a — all done and merged to main |
+| tasks/python-tasks.md | In progress | 23 tasks; Tasks 0–10 done; Task 11 next |
 
 ---
 
