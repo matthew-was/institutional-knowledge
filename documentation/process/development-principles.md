@@ -162,6 +162,13 @@ schema (e.g. `.refine(s => s.trim().length > 0)` for non-whitespace strings), it
 there — not in the service. Service-level guards that duplicate schema constraints are dead
 code once the middleware enforces them.
 
+**Corollary — test the public interface, not internal helpers**: tests should drive the
+publicly exposed function or method of a module or class. Internal helpers are implementation
+detail — test them only indirectly through the public entry point. If a module exposes one
+public function that delegates to several private helpers, write tests against the public
+function; do not test the helpers in isolation. This applies equally to a class with private
+methods and a module with unexported functions.
+
 For service-specific testing strategy, see:
 
 - Backend: `development-principles-backend.md` — Backend testing strategy — two tiers
