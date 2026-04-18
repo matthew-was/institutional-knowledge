@@ -131,9 +131,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend Tasks 1–18, 13a, and 5a done (2026-03-28). Backend Chores 1, 2, and 4 done (2026-03-30). Chore 3 blocked on Node 26. Python Tasks 0 - 10 done (2026-04-12). Python Chore 1 done (2026-04-13).
+- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend Tasks 1–18, 13a, and 5a done (2026-03-28). Backend Chores 1, 2, and 4 done (2026-03-30). Chore 3 blocked on Node 26. Python Tasks 0 - 11 done (2026-04-18). Python Chore 1 done (2026-04-13).
 - **Design status**: All design documents approved (ADR-001 to ADR-052). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Python Task 11 (LLM combined pass step — chunk post-processing). Resolve OQ-3 before Python Task 15/22. Python tasks complete Phase 1.
+- **Next actionable step**: Python Task 12 (`EmbeddingService` interface and `OllamaEmbeddingAdapter`). Resolve OQ-3 before Python Task 15/22. Python tasks complete Phase 1.
 - **Recent principles added**: CR-015 and `implementer.md` broadened to cover `typeof`/`instanceof`/`toBeTruthy` as vacuous assertion patterns (2026-03-27). Task and plan docs updated to remove prescriptive `(Client Component)` labels. `implementer.md` updated to require form schemas in `schemas.ts` and clarify CR-015 presence-checking (2026-03-28). Python `__init__.py` placement, Requirements File Standard, and module-structure stub rule added (2026-03-30). HTTP client interface/adapter/factory layout, config field constraints, and failure-path test rule added to Python principles and pair-programmer.md (2026-04-01). Fakes placement rule and implicit string truthiness prohibition added to Python principles and pair-programmer.md (2026-04-03). Tier 1 test marker rule (no `@pytest.mark.ci_integration` on Tier 1 tests) added to development-principles-python.md and pair-programmer.md (2026-04-09).
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 
