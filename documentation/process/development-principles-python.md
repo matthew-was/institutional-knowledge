@@ -215,7 +215,8 @@ generator produces.
 
 ## Testing Strategy — Three Tiers
 
-This is a specialisation of the universal Test Early principle (see `development-principles.md`).
+This is a specialisation of the universal Test Early principle (see `development-principles.md`),
+including its corollary: test the public interface, not internal helpers.
 
 The Python service has no direct database connection (ADR-031 — Express is the sole DB writer).
 All external I/O is either Express HTTP calls or AI service calls (OCR, LLM, embeddings).

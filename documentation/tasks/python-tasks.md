@@ -817,10 +817,10 @@ wraps the `LLMService.combined_pass()` call and applies chunk post-processing.
 
 After receiving `LLMCombinedResult` from the adapter, the step applies:
 
-1. **Merge**: any chunk with `token_count < PROCESSING.LLM.CHUNKING_MIN_TOKENS` is merged with an adjacent
-   chunk (prefer next; if last chunk, merge with previous)
-2. **Split**: any chunk with `token_count > PROCESSING.LLM.CHUNKING_MAX_TOKENS` is split on paragraph
+1. **Split**: any chunk with `token_count > PROCESSING.LLM.CHUNKING_MAX_TOKENS` is split on paragraph
    boundaries first; if still over limit, split on sentence boundaries
+2. **Merge**: any chunk with `token_count < PROCESSING.LLM.CHUNKING_MIN_TOKENS` is merged with an adjacent
+   chunk (prefer next; if last chunk, merge with previous)
 3. **Re-index**: assign final sequential `chunk_index` values starting from 0
 
 The step returns an updated `LLMCombinedResult` with the post-processed `chunks` list.
@@ -844,7 +844,34 @@ min/max values — no live LLM required.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-04-18):
+
+- Automated checks: confirmed. All four acceptance conditions are covered by tests in
+  `tests/pipeline/test_llm_combined_pass.py`: (1) `test_two_chunks_below_min_tokens`
+  constructs two chunks with `len < CHUNKING_MIN_TOKENS=10` and asserts they are merged into
+  one chunk with the correct combined text and `chunk_index=0`; (2)
+  `test_split_chunk_above_max_tokens` constructs a 150-char chunk with `CHUNKING_MAX_TOKENS=100`
+  and asserts it is split into two chunks of length 100 and 50; (3) both tests assert
+  sequential 0-based `chunk_index` values, as does `test_chunks_above_and_below_token_count_re_indexed`
+  which explicitly names re-indexing as its scenario; (4) entities are explicitly asserted to
+  pass through unchanged in both merge and split tests; relationships pass through structurally
+  (the implementation reconstructs `LLMCombinedResult` with `relationships=combined_pass.relationships`
+  at line 178 and no test contradicts this). All tests use inline config values
+  (`CHUNKING_MIN_TOKENS=10`, `CHUNKING_MAX_TOKENS=100`) with a fake `MockedLLMService` — no
+  live LLM required. The fake is correctly placed in `tests/fakes/llm_service.py` and marked
+  `@pytest.mark.ci_integration` as Tier 2 tests (they inject a fake dependency, not pure
+  function calls). The LLM failure path (`combined_pass` returns `None` → `step_status=failed`)
+  is covered by `test_none_result_from_service_returns_empty_result`.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied. The step implements the post-processing pipeline (split → merge →
+  re-index) that ensures chunk token counts respect the configured bounds after the LLM
+  combined pass. The hard character-split fallback means no document is ever lost due to a
+  missing boundary. Entities, relationships, and metadata fields pass through unchanged,
+  preserving the LLM's semantic extraction output. This correctly supports US-046
+  (AI-determined semantic chunking with token-bounded outputs).
+- Outcome: done
 
 ---
 
