@@ -53,10 +53,10 @@ class OllamaLLMAdapter(LLMService):
     def __init__(self, config: LLMConfig, log: structlog.BoundLogger) -> None:
         self._model = config.MODEL
         self._log = log.bind(service="ollama_client")
-        self._client = httpx.Client(base_url=config.BASE_URL)
+        self._client = httpx.AsyncClient(base_url=config.BASE_URL)
 
-    def close(self) -> None:
-        self._client.close()
+    async def close(self) -> None:
+        await self._client.aclose()
 
     @staticmethod
     def _build_prompt(text: str, document_type: str | None) -> str:
@@ -112,7 +112,7 @@ Document text:
 
 {text}"""
 
-    def combined_pass(
+    async def combined_pass(
         self, text: str, document_type: str | None
     ) -> LLMCombinedResult | None:
         prompt = self._build_prompt(text, document_type)
@@ -124,7 +124,7 @@ Document text:
         }
 
         try:
-            response = self._client.post("/api/generate", json=payload)
+            response = await self._client.post("/api/generate", json=payload)
             response.raise_for_status()
             data = response.json()
             response_data = data.get("response")
