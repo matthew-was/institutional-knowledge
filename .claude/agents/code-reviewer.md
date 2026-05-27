@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Code review agent for the Institutional Knowledge project. Invoke after an Implementer or developer marks a task code_complete. The caller specifies the service (frontend or backend) and the task number. Reviews code for quality, security, and plan compliance. Does not modify source code or task files — writes a review file to documentation/tasks/code-reviews/ (staging). Developer moves it to archive/code-reviews/[service]/ after confirming actions taken.
+description: Code review agent for the Institutional Knowledge project. Invoke after an Implementer or developer marks a task code_complete. The caller specifies the service (frontend, backend, or python) and the task number. Reviews code for quality, security, and plan compliance. Does not modify source code or task files — writes a review file to documentation/tasks/code-reviews/ (staging). Developer moves it to archive/code-reviews/[service]/ after confirming actions taken.
 tools: Read, Grep, Glob, Bash, Write, Edit
 model: sonnet
 skills: configuration-patterns, pipeline-testing-strategy
@@ -77,12 +77,21 @@ Confirm the task's acceptance condition is met:
 
 If the acceptance condition is not met, this is a **blocking** finding.
 
-### 2. TypeScript strict mode (frontend and backend)
+### 2. TypeScript strict mode (frontend and backend only)
 
 - No use of `any` without an inline comment explaining why it is unavoidable
 - No non-null assertions (`!`) without an inline comment
 - All function parameters and return types explicitly typed
 - No implicit `any` from untyped library usage
+
+### 2a. Python type annotation enforcement (Python only)
+
+- Every function must have type annotations on all parameters and the return type — `ruff`
+  enforces this via the `ANN` ruleset, but also check by eye for any that slipped through
+- `Any` is prohibited without an inline comment explaining why it cannot be avoided
+- No untyped lambda expressions used as primary logic (use a typed function instead)
+- Verify `mypy .` passes — the completion checklist requires it, but re-confirm if any
+  function signatures were added or changed during review
 
 ### 3. Security at boundaries
 
@@ -130,6 +139,27 @@ If the acceptance condition is not met, this is a **blocking** finding.
 - Unit tests cover pure functions, validation logic, data transformations only — no DB, no HTTP
 - All handler tests are route integration tests (supertest → validate middleware → service → real DB); no service-layer integration tests (see CR-007 and pipeline-testing-strategy skill)
 - No tests that always pass regardless of implementation (vacuous tests)
+
+**Python-specific test quality checks**:
+
+- Tier 1 tests (pure functions, no service construction) must **not** carry
+  `@pytest.mark.ci_integration` — the marker is reserved for Tier 2; its presence on a
+  Tier 1 test is a **blocking** finding
+- Tier 2 tests (service wiring, respx mocks, fake injections) must carry
+  `@pytest.mark.ci_integration` — omitting it means the test may be skipped in CI,
+  which is a **blocking** finding
+- Fake implementations of service ABCs (`OCRService`, `LLMService`, `EmbeddingService`)
+  must live in `tests/fakes/<service_name>.py`, not defined inline in a test file —
+  **blocking** if violated
+- `@pytest.mark.asyncio` on individual async tests is redundant (`asyncio_mode = auto`
+  in `pytest.ini`) — flag as a **suggestion** to remove
+- `pytest.fail()` guard is required before accessing fields on a possibly-`None` result;
+  bare `assert result is not None` before attribute access is a **suggestion** to improve
+- Internal pipeline types must be `@dataclass`, not Pydantic `BaseModel` — using Pydantic
+  for an internal result type is a **blocking** finding
+- Adapters that parse external JSON responses must use private `_Model` Pydantic classes
+  for parsing and convert to public dataclasses before returning — omitting the conversion
+  step is a **blocking** finding
 
 ### 10. Plan compliance
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft — 2026-03-04
+Approved — 2026-03-04 (Tasks 0–12 done; Tasks 13–24 not\_started)
 
 ## Source plan
 

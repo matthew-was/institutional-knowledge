@@ -64,21 +64,39 @@ Check the transition against the table above.
 
 > "The transition to `[status]` is user-only. Please edit the file directly:
 >
-> [backend-tasks.md:LINE](documentation/tasks/backend-tasks.md#LLINE)
+> [tasks-file.md:LINE](documentation/tasks/[tasks-file].md#LLINE)
 >
 > Change: `**Status**: [current]`
 > To: `**Status**: [new]`"
 
+Use the actual task file name for the service in the link (e.g. `backend-tasks.md`,
+`frontend-tasks.md`, or `python-tasks.md`).
+
 ### Step 3 — Run the completion checklist (code_written transitions only)
 
-If the new status is `code_written`, run the following before applying the change:
+If the new status is `code_written`, run the checklist for the relevant service before
+applying the change. If any command fails, output the failure and stop — fix the failures
+first, then re-invoke this skill.
 
-1. `pnpm biome check apps/backend/src` (backend tasks) or equivalent for the service
-2. `pnpm --filter backend exec tsc --noEmit` (backend tasks) or equivalent
-3. `pnpm --filter backend test` (backend tasks) or equivalent
+**Backend tasks** (`backend-tasks.md`):
 
-If any command fails, output the failure and stop. Fix the failures first, then
-re-invoke this skill.
+1. `pnpm biome check apps/backend/src`
+2. `pnpm --filter backend exec tsc --noEmit`
+3. `pnpm --filter backend test`
+
+**Frontend tasks** (`frontend-tasks.md`):
+
+1. `pnpm biome check apps/frontend/src`
+2. `pnpm --filter frontend exec tsc --noEmit`
+3. `pnpm --filter frontend test`
+
+**Python tasks** (`python-tasks.md`) — run from `services/processing/` with the
+virtualenv activated:
+
+1. `ruff check .`
+2. `ruff format --check .`
+3. `mypy .`
+4. `pytest -m "not integration" tests/`
 
 ### Step 4 — Apply the change
 
