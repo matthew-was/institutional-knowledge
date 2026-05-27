@@ -28,7 +28,7 @@ def llm_service() -> LLMService:
 
 @pytest.mark.ci_integration
 @respx.mock
-def test_valid_json_response(
+async def test_valid_json_response(
     llm_service: LLMService, respx_mock: respx.MockRouter
 ) -> None:
     respx_mock.post("/api/generate").mock(
@@ -40,7 +40,7 @@ def test_valid_json_response(
         )
     )
 
-    result = llm_service.combined_pass(
+    result = await llm_service.combined_pass(
         text="John Smith conveyed land to William Jones.", document_type="deed"
     )
 
@@ -54,7 +54,7 @@ def test_valid_json_response(
 
 @pytest.mark.ci_integration
 @respx.mock
-def test_malformed_json_response_returns_none(
+async def test_malformed_json_response_returns_none(
     llm_service: LLMService, respx_mock: respx.MockRouter
 ) -> None:
     respx_mock.post("/api/generate").mock(
@@ -64,7 +64,7 @@ def test_malformed_json_response_returns_none(
         )
     )
 
-    result = llm_service.combined_pass(
+    result = await llm_service.combined_pass(
         text="John Smith conveyed land to William Jones.", document_type="deed"
     )
 
@@ -73,7 +73,7 @@ def test_malformed_json_response_returns_none(
 
 @pytest.mark.ci_integration
 @respx.mock
-def test_missing_response_field_returns_none(
+async def test_missing_response_field_returns_none(
     llm_service: LLMService, respx_mock: respx.MockRouter
 ) -> None:
     respx_mock.post("/api/generate").mock(
@@ -85,14 +85,18 @@ def test_missing_response_field_returns_none(
         )
     )
 
-    result = llm_service.combined_pass(
+    result = await llm_service.combined_pass(
         text="John Smith conveyed land to William Jones.", document_type="deed"
     )
 
     assert result is None
 
 
-def test_llm_service_creates_ollama_service() -> None:
+@pytest.mark.ci_integration
+@respx.mock
+async def test_llm_service_creates_ollama_service(
+    respx_mock: respx.MockRouter,
+) -> None:
     config = LLMConfig(
         CHUNKING_MIN_TOKENS=100,
         CHUNKING_MAX_TOKENS=1000,
@@ -102,7 +106,21 @@ def test_llm_service_creates_ollama_service() -> None:
     )
     llm_service = create_llm_service(config=config, log=structlog.get_logger())
 
-    assert isinstance(llm_service, OllamaLLMAdapter)
+    respx_mock.post("http://test:11343/api/generate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "response": '{"chunks": [], "metadata_fields": {}, "entities": [], "relationships": []}'
+            },
+        )
+    )
+
+    result = await llm_service.combined_pass(
+        text="test document", document_type="deed"
+    )
+
+    assert result is not None
+    assert isinstance(result, LLMCombinedResult)
 
 
 def test_llm_service_raises_error_for_unknown_provider() -> None:
@@ -131,7 +149,7 @@ llm_combined_pass_config = LLMConfig(
 
 
 @pytest.mark.ci_integration
-def test_two_chunks_below_min_tokens() -> None:
+async def test_two_chunks_below_min_tokens() -> None:
     llm_combined_pass_merge_response = LLMCombinedResult(
         chunks=[
             ChunkResult(
@@ -146,7 +164,7 @@ def test_two_chunks_below_min_tokens() -> None:
         relationships=[],
     )
     mock_llm_service = create_mock_llm_service(llm_combined_pass_merge_response)
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         config=llm_combined_pass_config,
         document_type=None,
@@ -171,7 +189,7 @@ def test_two_chunks_below_min_tokens() -> None:
 
 
 @pytest.mark.ci_integration
-def test_split_chunk_above_max_tokens() -> None:
+async def test_split_chunk_above_max_tokens() -> None:
     llm_combined_pass_split_response = LLMCombinedResult(
         chunks=[
             ChunkResult(
@@ -185,7 +203,7 @@ def test_split_chunk_above_max_tokens() -> None:
         relationships=[],
     )
     mock_llm_service = create_mock_llm_service(llm_combined_pass_split_response)
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         config=llm_combined_pass_config,
         document_type=None,
@@ -213,7 +231,7 @@ def test_split_chunk_above_max_tokens() -> None:
 
 
 @pytest.mark.ci_integration
-def test_chunks_above_and_below_token_count_re_indexed() -> None:
+async def test_chunks_above_and_below_token_count_re_indexed() -> None:
     llm_combined_pass_mixed_response = LLMCombinedResult(
         chunks=[
             ChunkResult(
@@ -237,7 +255,7 @@ def test_chunks_above_and_below_token_count_re_indexed() -> None:
         relationships=[],
     )
     mock_llm_service = create_mock_llm_service(llm_combined_pass_mixed_response)
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         config=llm_combined_pass_config,
         document_type=None,
@@ -265,7 +283,7 @@ def test_chunks_above_and_below_token_count_re_indexed() -> None:
 
 
 @pytest.mark.ci_integration
-def test_multi_paragraph_chunk_splits_and_flushes_correctly() -> None:
+async def test_multi_paragraph_chunk_splits_and_flushes_correctly() -> None:
     _para_a = "A" * 50
     _para_b = "B" * 40
     _para_c = "C" * 60
@@ -284,7 +302,7 @@ def test_multi_paragraph_chunk_splits_and_flushes_correctly() -> None:
     mock_llm_service = create_mock_llm_service(
         llm_combined_pass_multi_paragraph_response
     )
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         config=llm_combined_pass_config,
         document_type=None,
@@ -305,7 +323,7 @@ def test_multi_paragraph_chunk_splits_and_flushes_correctly() -> None:
 
 
 @pytest.mark.ci_integration
-def test_oversized_paragraph_splits_to_sentences_under_max() -> None:
+async def test_oversized_paragraph_splits_to_sentences_under_max() -> None:
     _sentence_a = "F" * 60
     _sentence_b = "G" * 60
     llm_combined_pass_sentence_split_response = LLMCombinedResult(
@@ -323,7 +341,7 @@ def test_oversized_paragraph_splits_to_sentences_under_max() -> None:
     mock_llm_service = create_mock_llm_service(
         llm_combined_pass_sentence_split_response
     )
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         config=llm_combined_pass_config,
         document_type=None,
@@ -344,7 +362,7 @@ def test_oversized_paragraph_splits_to_sentences_under_max() -> None:
 
 
 @pytest.mark.ci_integration
-def test_last_chunk_below_min_merges_into_previous() -> None:
+async def test_last_chunk_below_min_merges_into_previous() -> None:
     llm_combined_pass_last_chunk_merges_response = LLMCombinedResult(
         chunks=[
             ChunkResult(text="H" * 40, chunk_index=0, token_count=0),
@@ -357,7 +375,7 @@ def test_last_chunk_below_min_merges_into_previous() -> None:
     mock_llm_service = create_mock_llm_service(
         llm_combined_pass_last_chunk_merges_response
     )
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         config=llm_combined_pass_config,
         document_type=None,
@@ -375,7 +393,7 @@ def test_last_chunk_below_min_merges_into_previous() -> None:
 
 
 @pytest.mark.ci_integration
-def test_last_chunk_below_min_kept_when_combined_exceeds_max() -> None:
+async def test_last_chunk_below_min_kept_when_combined_exceeds_max() -> None:
     llm_combined_pass_last_chunk_no_merge_response = LLMCombinedResult(
         chunks=[
             ChunkResult(text="I" * 97, chunk_index=0, token_count=0),
@@ -388,7 +406,7 @@ def test_last_chunk_below_min_kept_when_combined_exceeds_max() -> None:
     mock_llm_service = create_mock_llm_service(
         llm_combined_pass_last_chunk_no_merge_response
     )
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         config=llm_combined_pass_config,
         document_type=None,
@@ -409,10 +427,10 @@ def test_last_chunk_below_min_kept_when_combined_exceeds_max() -> None:
 
 
 @pytest.mark.ci_integration
-def test_none_result_from_service_returns_empty_result() -> None:
+async def test_none_result_from_service_returns_empty_result() -> None:
     mock_llm_service = create_mock_llm_service(None)
 
-    result = run_llm_combined_pass(
+    result = await run_llm_combined_pass(
         text=llm_combined_pass_text,
         document_type=None,
         llm_service=mock_llm_service,

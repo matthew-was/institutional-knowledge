@@ -43,9 +43,9 @@ class LLMCombinedResult:
 
 class LLMService(ABC):
     @abstractmethod
-    def combined_pass(
+    async def combined_pass(
         self, text: str, document_type: str | None
     ) -> LLMCombinedResult | None: ...
 
     @abstractmethod
-    def close(self) -> None: ...
+    async def close(self) -> None: ...

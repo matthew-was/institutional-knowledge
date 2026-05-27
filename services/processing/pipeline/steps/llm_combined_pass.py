@@ -143,14 +143,16 @@ def merge_chunks(chunks: list[ChunkResult], config: LLMConfig) -> list[ChunkResu
     return working_chunks
 
 
-def run_llm_combined_pass(
+async def run_llm_combined_pass(
     text: str,
     document_type: str | None,
     llm_service: LLMService,
     config: LLMConfig,
     log: structlog.BoundLogger,
 ) -> LLMCombinedPassResult:
-    combined_pass = llm_service.combined_pass(text=text, document_type=document_type)
+    combined_pass = await llm_service.combined_pass(
+        text=text, document_type=document_type
+    )
 
     if combined_pass is None:
         log.error("error processing llm combined_pass result, pass returned no data")

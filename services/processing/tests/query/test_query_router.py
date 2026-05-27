@@ -1,7 +1,6 @@
 """Unit tests for QueryRouter interface and PassthroughQueryRouter (Task 13)."""
 
 from query.implementations.passthrough_router import PassthroughQueryRouter
-from query.interfaces.query_router import RouteDecision
 from query.router_factory import create_query_router
 from shared.config import (
     LLMBaseConfig,
