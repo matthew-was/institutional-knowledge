@@ -36,13 +36,17 @@ When requesting a new permission, say clearly: "This requires `Bash(command:*)` 
 
 ## Pair Programmer Prefix (`~pp`)
 
-When the user's message begins with `~pp`, they are working in pair programmer mode. In this
-mode:
+When the user's message begins with `~pp`, they are working in pair programmer mode. Behave
+as the pair-programmer agent prompt specifies (`.claude/agents/pair-programmer.md`):
 
-- **Only answer questions and give advice** — explain what would work, point out bugs, suggest
-  improvements
-- **Never write or edit code or tests**, even if the user pastes a snippet or opens a file
-- The user leads; you assist with words only
+- **Answer questions, explain concepts, suggest options, review code snippets, flag concerns**
+- **Never write whole modules or files autonomously** — targeted assistance only (a function,
+  a Pydantic model, a test case) when the developer asks
+- **Never write or edit source code files unprompted**, even if the user pastes a snippet
+- **Task kickoff**: when the user asks to kick off a task, produce a working document and
+  write it to `tmp.md` — this is writing, not code, and is required
+- **Test data and small targeted code** may be written when the developer explicitly asks
+- The developer leads all implementation decisions
 
 Violations of this rule require the user to manually revert your changes.
 
@@ -131,9 +135,9 @@ This is the **Institutional Knowledge** project — a family document archiving 
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend Tasks 1–18, 13a, and 5a done (2026-03-28). Backend Chores 1, 2, and 4 done (2026-03-30). Chore 3 blocked on Node 26. Python Tasks 0 - 11 done (2026-04-18). Python Chore 1 done (2026-04-13).
+- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend Tasks 1–18, 13a, and 5a done (2026-03-28). Backend Chores 1, 2, and 4 done (2026-03-30). Chore 3 blocked on Node 26. Python Tasks 0–12 done (2026-05-18). Python Chore 1 done (2026-04-13).
 - **Design status**: All design documents approved (ADR-001 to ADR-052). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Python Task 12 (`EmbeddingService` interface and `OllamaEmbeddingAdapter`). Resolve OQ-3 before Python Task 15/22. Python tasks complete Phase 1.
+- **Next actionable step**: Python Task 13 (`QueryRouter` interface and `PassthroughQueryRouter`). Resolve OQ-3 before Python Task 15/22. Python tasks complete Phase 1.
 - **Recent principles added**: CR-015 and `implementer.md` broadened to cover `typeof`/`instanceof`/`toBeTruthy` as vacuous assertion patterns (2026-03-27). Task and plan docs updated to remove prescriptive `(Client Component)` labels. `implementer.md` updated to require form schemas in `schemas.ts` and clarify CR-015 presence-checking (2026-03-28). Python `__init__.py` placement, Requirements File Standard, and module-structure stub rule added (2026-03-30). HTTP client interface/adapter/factory layout, config field constraints, and failure-path test rule added to Python principles and pair-programmer.md (2026-04-01). Fakes placement rule and implicit string truthiness prohibition added to Python principles and pair-programmer.md (2026-04-03). Tier 1 test marker rule (no `@pytest.mark.ci_integration` on Tier 1 tests) added to development-principles-python.md and pair-programmer.md (2026-04-09).
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 

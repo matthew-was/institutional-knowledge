@@ -913,7 +913,43 @@ required.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-05-18):
+
+- Automated checks: confirmed — all three stated acceptance conditions are covered by
+  falsifiable tests using `respx`-mocked HTTP transport; no live Ollama server required.
+  (1) `test_matching_dimension_returns_embedding_result` — mocks a 3-element vector response;
+  config sets `DIMENSION=3`; asserts `result.embedding`, `result.dimension == 3`, and
+  `result.model` match expected values. Removing the adapter's dimension check would not affect
+  this test, but the test verifies the happy-path return value is correctly constructed.
+  (2) `test_mismatched_dimension_raises_value_error` — config sets `DIMENSION=5`, response
+  returns a 3-element vector; asserts `pytest.raises(ValueError)` with exact message
+  `"ollama embedding dimension mismatch: expected 5, got 3"`. Fully falsifiable — removing
+  the dimension check in the adapter would cause the test to fail.
+  (3) `test_factory_returns_ollama_embedding_service` — calls `create_embedding_service()` with
+  `PROVIDER="ollama"`; asserts `isinstance(result, EmbeddingService)` (confirms factory returns
+  the interface type) and `isinstance(result, OllamaEmbeddingAdapter)`. Falsifiable: an
+  unknown provider would raise `ValueError` rather than returning an instance. S-001
+  (vacuous `isinstance(adapter, EmbeddingService)` assertion in `test_matching_dimension_returns_embedding_result`)
+  was actioned — that assertion is absent from the current test file. S-002 (Ollama API
+  version comment) is present at line 27 of the adapter. S-003 (informative `ValueError`
+  messages) is confirmed: both the None/empty branches and the dimension mismatch branch
+  include actual vs expected values in the message strings, and the corresponding test
+  assertions verify the exact strings. Five additional tests cover empty response, missing
+  key, HTTP 500 error, transport error, and unknown provider — all pass.
+- Manual checks: none required — condition type is automated; all tests use mocked HTTP
+  transport.
+- User need: satisfied — US-045 requires the embedding provider to be abstracted via an
+  interface and selected at runtime via configuration. US-096 requires every external service
+  to be abstracted with no hardcoded provider. The implementation delivers: `EmbeddingService`
+  ABC in `shared/interfaces/`, `OllamaEmbeddingAdapter` in `shared/adapters/`, and
+  `create_embedding_service` factory in `shared/factories/`, accepting `EmbeddingConfig`
+  (narrowed per Chore 1 — not `AppConfig`). `DIMENSION` carries `Annotated[int, Field(gt=0)]`
+  in `EmbeddingConfig`. Async conventions are correct (`embed` and `close` are `async def`;
+  `httpx.AsyncClient` used; `aclose()` called in `close()`). No gap between acceptance
+  condition and user need.
+- Outcome: done
 
 ---
 
@@ -1464,3 +1500,43 @@ they require; factories narrow before passing; `ruff check services/processing/`
   of Least Knowledge) is now applied consistently across all adapters and factories that
   pre-dated the rule
 - Outcome: done
+
+---
+
+### Chore 2: Make `OllamaLLMAdapter.combined_pass()` async
+
+**Description**: `OllamaLLMAdapter` was implemented in Task 10 using `httpx.Client` (sync).
+The project convention established during Task 12 is that all third-party network calls should
+be async, since the service runs in a FastAPI async context and sync HTTP calls block the
+event loop. This chore converts the adapter to match.
+
+Files to update:
+
+- `shared/interfaces/llm_service.py` — change `combined_pass()` signature from
+  `def combined_pass(...)` to `async def combined_pass(...)`; change `close()` to
+  `async def close()`
+- `shared/adapters/ollama_llm.py` — replace `httpx.Client` with `httpx.AsyncClient`;
+  make `combined_pass()` `async def`; `await` the `post()` and `raise_for_status()` calls;
+  make `close()` `async def` and call `await self._client.aclose()`
+- `tests/shared/test_llm_service.py` — update all test functions to `async def` with
+  `@pytest.mark.anyio`; add `await` to all `combined_pass()` call sites
+- `tests/fakes/llm_service.py` — update `combined_pass()` to `async def` to match the
+  updated interface
+- Any step or handler that calls `combined_pass()` — add `await` at each call site
+  (check `pipeline/steps/llm_combined_pass.py`)
+
+**Depends on**: Task 12 (establishes the async convention)
+
+**Recommended sequencing**: Complete before Task 15 (embedding generation step) and Task 18
+(pipeline orchestrator), both of which call `LLMService`. Doing this after those tasks would
+require revisiting multiple callers.
+
+**Complexity**: S
+
+**Acceptance condition**: `shared/adapters/ollama_llm.py` uses `httpx.AsyncClient`; all
+`combined_pass()` call sites use `await`; `mypy .` from `services/processing/` passes with
+zero errors; `python3 -m pytest services/processing/tests/` passes with no regressions.
+
+**Condition type**: automated
+
+**Status**: not_started

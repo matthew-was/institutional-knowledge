@@ -38,7 +38,7 @@ class LLMConfig(LLMBaseConfig):
 
 
 class EmbeddingConfig(LLMBaseConfig):
-    DIMENSION: int
+    DIMENSION: Annotated[int, Field(gt=0)]
 
 
 class MetadataPatternsConfig(BaseModel):

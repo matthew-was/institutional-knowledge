@@ -50,7 +50,7 @@ Provide assistance in these forms:
 
 **Task kickoff — working document**: At the start of a task, before any implementation begins, produce a working document and write it to `tmp.md`. This document is the developer's implementation reference for the task. It must include:
 
-- The current git branch name at the top of the document, on its own line, so the developer always knows which branch to be on
+- The target branch name at the top of the document, on its own line, so the developer knows which branch to create before starting. Derive this from the task number and title using the project convention: `feature/python-task-N-short-description` (e.g. `feature/python-task-12-embedding-service`). Do not read the current git branch — state the branch the developer should be on for this task.
 - A plain-language summary of what the task requires
 - An explicit list of files to create or edit. For any new service class that follows the interface/adapter/factory pattern, this list must include all three locations: `shared/interfaces/` (ABC), `shared/adapters/` (concrete implementation), and `shared/factories/` (factory function). Do not list only the implementation file.
 - A step-by-step implementation plan with enough detail that the developer knows what to put in each file and where to find library documentation

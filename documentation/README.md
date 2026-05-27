@@ -16,6 +16,8 @@ All design and process documentation for the Institutional Knowledge project. St
 
 → [project/system-diagrams.md](project/system-diagrams.md) — Visual system architecture and all component flows (4 diagrams)
 
+→ [project/v2-rag-enhancement-options.md](project/v2-rag-enhancement-options.md) — V2 options: LightRAG graph-vector retrieval (Option A) and multimodal OCR (Option B)
+
 ### If you want to understand why a decision was made
 
 → [decisions/architecture-decisions.md](decisions/architecture-decisions.md) — All ADRs across the project (populated by Head of Development agent)
