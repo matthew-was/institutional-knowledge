@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 import respx
@@ -7,7 +9,6 @@ from pipeline.steps.llm_combined_pass import (
     LLMCombinedPassResult,
     run_llm_combined_pass,
 )
-from shared.adapters.ollama_llm import OllamaLLMAdapter
 from shared.config import LLMConfig
 from shared.factories.llm_factory import create_llm_service
 from shared.interfaces.llm_service import ChunkResult, LLMCombinedResult, LLMService
@@ -110,14 +111,19 @@ async def test_llm_service_creates_ollama_service(
         return_value=httpx.Response(
             200,
             json={
-                "response": '{"chunks": [], "metadata_fields": {}, "entities": [], "relationships": []}'
+                "response": json.dumps(
+                    {
+                        "chunks": [],
+                        "metadata_fields": {},
+                        "entities": [],
+                        "relationships": [],
+                    }
+                )
             },
         )
     )
 
-    result = await llm_service.combined_pass(
-        text="test document", document_type="deed"
-    )
+    result = await llm_service.combined_pass(text="test document", document_type="deed")
 
     assert result is not None
     assert isinstance(result, LLMCombinedResult)

@@ -41,11 +41,23 @@ class LLMCombinedResult:
     relationships: list[RelationshipResult] = field(default_factory=list)
 
 
+@dataclass
+class QueryUnderstandingResult:
+    intent: str
+    refined_search_terms: str
+    extracted_entities: list[dict[str, str]] = field(default_factory=list)
+    routing_hint: str | None = None
+    confidence: float = 0.0
+
+
 class LLMService(ABC):
     @abstractmethod
     async def combined_pass(
         self, text: str, document_type: str | None
     ) -> LLMCombinedResult | None: ...
+
+    @abstractmethod
+    async def understand_query(self, query_text: str) -> QueryUnderstandingResult: ...
 
     @abstractmethod
     async def close(self) -> None: ...

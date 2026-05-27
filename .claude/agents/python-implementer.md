@@ -91,6 +91,12 @@ These are confirmed decisions — do not propose alternatives:
 - **Config narrowing**: every adapter and factory accepts only the narrowest sub-config it
   needs; neither should accept `AppConfig` just to dig into it — that violates the
   Principle of Least Knowledge (see Dependency Composition Pattern in principles)
+- **Factory type contracts**: when a factory's config parameter type differs across use cases
+  (e.g. `LLMConfig` for pipeline, `LLMBaseConfig` for query), document the mismatch in a
+  code comment at the factory definition and note the intended resolution (e.g. "Create a
+  separate `create_llm_service_for_query(config: LLMBaseConfig)` factory when wiring the
+  query service"). Do not work around type mismatches with casts or `Any` — flag them so
+  the next task that wires the affected service can resolve them explicitly.
 - **Internal types as dataclasses**: result types that circulate within the service use
   `@dataclass`; Pydantic is for config models and external API boundaries only
 - **Private Pydantic parsing models**: when parsing external JSON (Ollama, etc.), define a
@@ -135,6 +141,16 @@ Additional test rules:
   caught in review
 - If a failure-path is described in the acceptance condition (e.g. "dimension mismatch
   raises `ValueError`"), both the success path and the failure path must have separate tests
+- **Adapter error-path testing**: When an adapter method contains distinct catch blocks (e.g.
+  `JSONDecodeError`, `ValidationError`), write direct `respx`-mocked tests that call the adapter
+  directly and trigger each catch block. A fake-based test that injects a pre-built fallback
+  result confirms the step passes the fallback through, but does not verify the adapter
+  *produces* the fallback on the specific error. Follow the pattern in `test_llm_combined_pass.py`
+  lines 56–93 (respx-intercepted responses that trigger each error path).
+- **Noqa comments**: Only suppress `ruff` rules that are active in the project's `select` config
+  in `services/processing/pyproject.toml`. Do not add `# noqa` for disabled rules — it creates
+  invisible technical debt. If a rule is disabled project-wide (e.g. `BLE001` for blind except),
+  do not suppress it at the line level.
 
 ## Per-task workflow
 
