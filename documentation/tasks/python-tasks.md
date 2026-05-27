@@ -985,7 +985,39 @@ pass-through router always returns `strategy = "vector"` regardless of the input
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-05-27):
+
+- Automated checks: confirmed — four test functions present in
+  `tests/query/test_query_router.py`, each covering exactly one acceptance condition assertion.
+  (1) `test_passthrough_router_strategy_is_always_vector` calls `router.route()` with three
+  distinct inputs (entity query, relationship query, empty string) and asserts
+  `strategy == "vector"` for each; falsifiable — any non-"vector" return would fail.
+  (2) `test_passthrough_router_extracted_entities_is_always_empty` asserts
+  `result.extracted_entities == []`; falsifiable — a populated list would fail.
+  (3) `test_passthrough_router_reasoning_is_always_none` asserts `result.reasoning is None`;
+  falsifiable — any non-None value would fail.
+  (4) `test_create_query_router_returns_passthrough_for_passthrough_config` calls
+  `create_query_router()` with `ROUTER="passthrough"`, asserts `isinstance(router,
+  PassthroughQueryRouter)`, and adds a functional assertion on `decision.strategy == "vector"`.
+  The `isinstance` check is falsifiable (wrong type raises). All tests are Tier 1 with no
+  `@pytest.mark.ci_integration` marker. Correct per the Tier 1 marker rule.
+  S-001 from the code review (redundant `isinstance(decision, RouteDecision)`) is not present
+  in the current file — the suggestion was either applied or was never present in the committed
+  version; either way, the current test file is clean.
+- Manual checks: none required — condition type is automated.
+- User need: satisfied — the task delivers the C3 query routing abstraction for Phase 1.
+  `QueryRouter` ABC (ADR-040) provides the interface; `PassthroughQueryRouter` is the Phase 1
+  implementation; `create_query_router` factory enables config-driven selection (satisfying
+  US-096: every external service abstracted via an interface with concrete implementation
+  selected at runtime via configuration). The factory accepts `QueryConfig` (not `AppConfig`),
+  consistent with the config narrowing principle established in Chore 1. ADR-042 boundary
+  compliance confirmed: no `pipeline/` imports in `query/` or its tests. `settings.json`
+  carries `QUERY.ROUTER: "passthrough"`. US-097 (all operational values from config) is met —
+  the router selection is config-driven, not hardcoded. No gap between acceptance condition and
+  user need.
+- Outcome: done
 
 ---
 
