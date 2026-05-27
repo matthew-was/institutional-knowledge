@@ -27,6 +27,7 @@ The table below lists approved documents in precedence order. In case of contrad
 | `documentation/tasks/senior-developer-python-plan.md` | Approved | 2026/03/03 |
 | `documentation/tasks/integration-lead-contracts.md` | Approved | 2026/03/03 |
 | `documentation/tasks/integration-lead-backend-plan.md` | Approved | 2026/03/03 |
+| `documentation/tasks/python-tasks.md` | Approved | 2026/03/04 (Tasks 0–12 verified done 2026/05/18) |
 
 ## Audit Log
 
@@ -89,4 +90,5 @@ The table below lists approved documents in precedence order. In case of contrad
 2026/03/23 - senior-developer-frontend-plan.md revised - Developer - Hono custom server architecture added; three-tier testing model; framework agnosticism constraints; corrected DuplicateConflictResponse wire shape; nullable date fields; Base UI + Tailwind CSS (ADR-051); Temporal API (ADR-050); revision reviewed and approved via Senior Developer Frontend agent self-review
 2026/03/23 - architecture-decisions.md unapproved - Developer - ADR-050 (Temporal API) and ADR-051 (Base UI + Tailwind CSS) added; requires re-approval
 2026/03/23 - architecture-decisions.md approved - Developer - ADR-050 and ADR-051 are additive frontend decisions; no impact on backend, Python service, or existing ADRs; re-approved immediately
+2026/05/27 - python-tasks.md approved - Developer - task list has been in active use since 2026/03/04; Tasks 0–12 verified done; Tasks 13–24 not_started; approved for continued implementation
 ```

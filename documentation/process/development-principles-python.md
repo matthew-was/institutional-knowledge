@@ -132,6 +132,40 @@ class OllamaLLMAdapter(LLMService):
 
 ---
 
+## Pipeline Step Structure
+
+Files in `pipeline/steps/` follow one of two structures depending on whether the step has
+multiple implementations:
+
+**Module-level function** — when the step calls an injected service and handles its
+outcomes (the step itself is not the implementation):
+
+```python
+# pipeline/steps/ocr_extraction.py
+def run_ocr_extraction(
+    file_path: str, ocr_service: OCRService, log: structlog.BoundLogger
+) -> ExtractionResult:
+    ...
+```
+
+The function receives its service dependency as a plain parameter — no class required.
+
+**Class implementing an interface** — when the step IS the implementation and may have
+alternatives in future phases (the class is selected by a factory or composed directly):
+
+```python
+# pipeline/steps/text_quality_scoring.py
+class WeightedTextQualityScorer(TextQualityScorer):
+    def __init__(self, config: OCRConfig) -> None: ...
+    def score(self, text_per_page: list[str], ...) -> QualityResult: ...
+```
+
+The distinction: a step runner *orchestrates* a service call and handles its outcomes; a
+step implementation *is* the logic. When in doubt, check whether an ABC exists for the
+step — if it does, the step should be a class implementing it.
+
+---
+
 ## Service Pattern
 
 Services are classes instantiated by factory functions. The factory accepts injected
@@ -280,6 +314,73 @@ closing tasks that involve OCR, LLM, or embedding logic.
 is a Tier 2 test, not a unit test. The distinction matters — Tier 1 tests must run in
 milliseconds with zero I/O; Tier 2 tests may be slower but require no running services.
 
+### Async tests — `asyncio_mode = auto`
+
+`pytest.ini` sets `asyncio_mode = auto`. This means `async def test_...()` functions
+run without `@pytest.mark.asyncio`. Do not add that marker — it is redundant and
+inconsistent with the rest of the test suite. Write async tests as plain `async def`.
+
+### Guarding possibly-`None` results in tests
+
+When a function under test can return `None` on failure, guard the assertion with
+`pytest.fail()` rather than chaining assertions on a possibly-None value. This gives a
+clear failure message and avoids mypy warnings:
+
+```python
+# Correct
+result = run_llm_combined_pass(...)
+if result is None or result.result is None:
+    pytest.fail("step returned no result")
+assert result.step_status == "completed"
+
+# Wrong — opaque AttributeError if result is None
+assert result.step_status == "completed"
+```
+
+### `conftest.py` — structlog silencing
+
+`tests/conftest.py` configures structlog to suppress all output during tests:
+
+```python
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(0),
+    logger_factory=structlog.PrintLoggerFactory(),
+)
+```
+
+This runs once at session start and applies to all tests. Do not replicate this in
+individual test files or fixtures — it already exists in `conftest.py` and covers the
+entire test session.
+
+### Test-local `make_<thing>()` factory functions
+
+For constructing instances under test with specific configurations, use a module-level
+factory function in the test file rather than a pytest fixture:
+
+```python
+# Correct — explicit, readable, no conftest navigation needed
+def make_scorer(threshold: float, confidence_weight: float, ...) -> WeightedTextQualityScorer:
+    config = OCRConfig(QUALITY_THRESHOLD=threshold, ...)
+    return WeightedTextQualityScorer(config)
+
+def test_single_page_below_threshold() -> None:
+    scorer = make_scorer(threshold=50, confidence_weight=0.5, density_weight=0.5)
+    ...
+```
+
+Use conftest fixtures for setup that is shared *across test files* (e.g. the `http_client`
+fixture, the structlog silencing). Use local `make_<thing>()` functions for construction
+that is specific to one test file. This keeps test setup readable without requiring readers
+to navigate to `conftest.py`.
+
+### Coverage exclusion for interfaces and generated code
+
+`pyproject.toml` excludes `**/interfaces/*` and `*/shared/generated/*` from coverage
+measurement. ABCs in `interfaces/` are never directly instantiated so coverage of them is
+meaningless; generated code in `shared/generated/` is owned by the generator. Do not add
+`# pragma: no cover` to individual methods in those directories — exclusion is handled at
+the project level.
+
 ---
 
 ## Logging Standard
@@ -343,6 +444,70 @@ Python-internal types that have no Express equivalent.
 
 ---
 
+## Internal Type Representation — Dataclasses vs Pydantic
+
+Use `@dataclass` for all internal types that circulate within the Python service.
+Use Pydantic only at external boundaries.
+
+| Type | Use |
+| --- | --- |
+| Pipeline result types (`ExtractionResult`, `QualityResult`, `LLMCombinedResult`, etc.) | `@dataclass` |
+| Interface return types (`OCRResult`, `EmbeddingResult`, `MetadataResult`, etc.) | `@dataclass` |
+| Config models (`AppConfig`, `LLMConfig`, etc.) | Pydantic `BaseModel` |
+| External API request/response bodies (Express, Ollama) | Pydantic `BaseModel` |
+
+Pydantic's validation overhead and serialisation machinery are useful at boundaries where
+data arrives from untrusted external sources (HTTP, config files). Inside the service,
+dataclasses are lighter and sufficient — they have no implicit validation and their fields
+are directly readable without calling `.model_dump()`.
+
+```python
+# Correct — internal pipeline result uses dataclass
+@dataclass
+class ExtractionResult:
+    text_per_page: list[str]
+    step_status: Literal["completed", "failed"]
+
+# Wrong — internal result uses Pydantic
+class ExtractionResult(BaseModel):
+    text_per_page: list[str]
+    step_status: Literal["completed", "failed"]
+```
+
+---
+
+## Private Pydantic Parsing Models for External Responses
+
+When an adapter receives a JSON response from an external service (Ollama LLM, Ollama
+embeddings), parse and validate the raw JSON through a **private** Pydantic model, then
+convert to the public dataclass before returning. Private models are prefixed with `_` to
+signal they are internal implementation details not exported by the module.
+
+```python
+# In shared/adapters/ollama_llm.py
+
+class _ChunkResultModel(BaseModel):   # private — validates raw Ollama JSON
+    text: str
+    chunk_index: int
+    token_count: int
+
+class OllamaLLMAdapter(LLMService):
+    def combined_pass(self, ...) -> LLMCombinedResult | None:
+        ...
+        parsed = _LLMCombinedResultModel.model_validate(json_data)
+        return LLMCombinedResult(          # public dataclass — circulates in service
+            chunks=[ChunkResult(text=c.text, ...) for c in parsed.chunks],
+            ...
+        )
+```
+
+**Why this pattern**: Pydantic validates the external contract (wrong shapes raise
+`ValidationError` immediately); the dataclass is what callers depend on. Keeping them
+separate means a change to the Ollama response shape only touches the private model and
+the conversion step, not the entire codebase.
+
+---
+
 ## Config Key Casing Standard
 
 `settings.json` (and `settings.override.json`) must use `UPPER_SNAKE_CASE` for all keys at
@@ -386,6 +551,26 @@ at config load time, eliminating unreachable code paths in the implementation.
 Do not add constraints for values that are merely suboptimal (e.g. a very high `TOP_K`) —
 reserve constraints for values that would cause incorrect behaviour.
 
+When correctness depends on the **relationship between two fields** (not just the range of
+one), use `@model_validator(mode="after")`:
+
+```python
+class LLMConfig(LLMBaseConfig):
+    CHUNKING_MIN_TOKENS: Annotated[int, Field(gt=0)]
+    CHUNKING_MAX_TOKENS: Annotated[int, Field(gt=0)]
+
+    @model_validator(mode="after")
+    def check_token_bounds(self) -> "LLMConfig":
+        if self.CHUNKING_MIN_TOKENS >= self.CHUNKING_MAX_TOKENS:
+            raise ValueError(
+                "CHUNKING_MIN_TOKENS must be less than CHUNKING_MAX_TOKENS"
+            )
+        return self
+```
+
+Cross-field validation belongs in the config model, not in the factory's `ValueError`
+branch. The factory's responsibility is provider selection, not config sanity-checking.
+
 ---
 
 ## Requirements File Standard
@@ -402,15 +587,64 @@ and in the relevant task notes — do not comment out the entry itself. The cano
 ## Ruff Standard
 
 `ruff` is the single tool for linting and formatting (analogous to Biome). Run before every
-commit:
+commit from `services/processing/`:
 
 ```bash
-ruff check services/processing/
-ruff format services/processing/
+ruff check .
+ruff format .
 ```
 
-The `ruff` configuration lives in `services/processing/pyproject.toml`. Do not disable rules
-inline without a comment explaining the exception.
+The `ruff` configuration lives in `services/processing/pyproject.toml` (not a standalone
+`ruff.toml`). The canonical ruleset is:
+
+```toml
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+exclude = ["shared/generated/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "ANN"]
+```
+
+- `E` — pycodestyle errors
+- `F` — Pyflakes (undefined names, unused imports)
+- `I` — isort (import ordering)
+- `UP` — pyupgrade (enforces modern Python 3.13 syntax)
+- `ANN` — annotation enforcement (missing type annotations become lint errors, not just
+  a convention)
+
+`shared/generated/` is excluded because the generated models are owned by `datamodel-codegen`
+and not subject to manual style enforcement.
+
+**Long prompt strings**: LLM adapter files legitimately contain multi-line prompt strings that
+exceed the line length limit. Suppress `E501` for that file only using `per-file-ignores` in
+`pyproject.toml` — do not add inline `# noqa` comments to each long line:
+
+```toml
+[tool.ruff.lint.per-file-ignores]
+"shared/adapters/ollama_llm.py" = ["E501"]
+```
+
+Do not disable any other rules inline without a comment explaining the exception.
+
+---
+
+## Implementation Completion Checklist
+
+Before marking a task `code_written`, run all four checks from `services/processing/`
+with the virtualenv activated. All must pass with zero errors:
+
+```bash
+ruff check .
+ruff format --check .
+mypy .
+pytest -m "not integration" tests/
+```
+
+`ruff format --check .` reports unformatted files without modifying them — fix with
+`ruff format .`. `mypy .` catches signature errors, ABC mismatches, and return-type
+violations that `ruff` and `pytest` do not see. Do not defer mypy to the code reviewer.
 
 ---
 
@@ -451,3 +685,12 @@ Omit the citation if no ADR directly governs the file.
 | Direct key access (`data["key"]`) on an external API response body | `KeyError` propagates as an unhandled exception; use `data.get("key")` and guard the `None` case before proceeding | HTTP Client Pattern |
 | `ruff` rule suppressions without an explanatory comment | Creates invisible technical debt | Ruff Standard |
 | Hardcoded provider names, URLs, or credentials in application code | Prevents runtime swapping; breaks Infrastructure as Configuration | Technology Constraints |
+| Using Pydantic `BaseModel` for internal pipeline result types | Unnecessary overhead; dataclasses are sufficient for internal types | Internal Type Representation |
+| Hand-writing external response models without the `_` prefix or converting to a dataclass | Conflates parsing boundary with internal representation; breaks encapsulation | Private Pydantic Parsing Models |
+| `@pytest.mark.asyncio` on test functions | Redundant — `asyncio_mode = auto` in `pytest.ini` handles all async tests | Testing Strategy |
+| Using bare `assert result is not None` before accessing fields on a possibly-None result | Opaque failure message; mypy may still warn; use `pytest.fail()` guard instead | Testing Strategy |
+| Replicating structlog silencing in individual test files or fixtures | Already configured in `conftest.py` for the whole session | Testing Strategy |
+| Using a pytest fixture for construction that is only needed in one test file | Unnecessary conftest coupling; use a local `make_<thing>()` function instead | Testing Strategy |
+| `# pragma: no cover` on individual methods in `interfaces/` or `shared/generated/` | Coverage exclusion is handled at project level in `pyproject.toml` | Testing Strategy |
+| Cross-field config validation in the factory's `ValueError` branch | Validation belongs in the Pydantic model via `@model_validator(mode="after")` | Config Field Constraints |
+| Writing a step runner as a class when no ABC exists for the step | Step runners that call an injected service should be module-level functions | Pipeline Step Structure |
