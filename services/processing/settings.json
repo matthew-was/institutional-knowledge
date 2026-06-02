@@ -12,15 +12,15 @@
     "LLM": {
       "PROVIDER": "ollama",
       "BASE_URL": "http://localhost:11434",
-      "MODEL": "llama3.2",
+      "MODEL": "qwen3.5:9b",
       "CHUNKING_MIN_TOKENS": 100,
       "CHUNKING_MAX_TOKENS": 500
     },
     "EMBEDDING": {
       "PROVIDER": "ollama",
       "BASE_URL": "http://localhost:11434",
-      "MODEL": "CHANGE_ME",
-      "DIMENSION": 384
+      "MODEL": "qwen3-embedding:0.6b",
+      "DIMENSION": 1024
     },
     "METADATA": {
       "EXTRACTOR": "regex",
@@ -78,7 +78,7 @@
     "LLM": {
       "PROVIDER": "ollama",
       "BASE_URL": "http://localhost:11434",
-      "MODEL": "llama3.2"
+      "MODEL": "qwen3.5:9b"
     },
     "VECTOR_SEARCH": {
       "TOP_K": 20
@@ -91,7 +91,7 @@
       "LLM": {
         "PROVIDER": "ollama",
         "BASE_URL": "http://localhost:11434",
-        "MODEL": "llama3.2"
+        "MODEL": "qwen3.5:9b"
       },
       "CITATION_FIELDS": [
         "DOCUMENT_TYPE",
