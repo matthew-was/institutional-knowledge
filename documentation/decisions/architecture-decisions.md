@@ -1892,9 +1892,10 @@ replacing the model or re-embedding the corpus.
 
 **Consequences**:
 
-- A new migration must be written to `ALTER COLUMN embedding TYPE vector(1024)` on the
-  `embeddings` table. The migration comment in 004 explicitly anticipates this: *"If the
-  model changes, write a new migration to ALTER the column type."*
+- Migration 004 has been updated in place to use `vector(1024)`. No ALTER migration is
+  required — no database has ever been initialised against the original 384-dimension
+  schema, so the in-place edit gives a cleaner migration history than an ALTER migration
+  would.
 - `settings.json` must be updated: `PROCESSING.EMBEDDING.MODEL = "qwen3-embedding:0.6b"`,
   `PROCESSING.EMBEDDING.DIMENSION = 1024`.
 - `expected-outputs.json` (Task 22 fixture) must record `embedding_dimension: 1024`.
