@@ -1830,3 +1830,207 @@ adjacent to the submit button — outside any `Field.Root`.
 
 **Source**: Resolved 2026-03-25, frontend form validation architecture review.
 Cross-references ADR-051 (Base UI and Tailwind CSS), ADR-050 (Temporal API).
+
+---
+
+### ADR-053: Embedding Model — qwen3-embedding:0.6b via Ollama
+
+**Decision**: The embedding model for the C2 pipeline and C3 query path is
+**`qwen3-embedding:0.6b`** served locally via **Ollama**. The output dimension is
+**1024**. The database `embeddings.embedding` column must be altered from `vector(384)`
+to `vector(1024)` via a new migration before Task 15 (embedding generation step) can be
+closed. The `settings.json` keys `PROCESSING.EMBEDDING.MODEL` and
+`PROCESSING.EMBEDDING.DIMENSION` must be updated to match.
+
+**Context**: OQ-3 was deferred from the senior developer planning phase. The Python plan
+flagged that `embedding.dimension` in `settings.json`, the `expected-outputs.json`
+integration test fixture, and the `OllamaEmbeddingAdapter` implementation all require a
+concrete model selection. Task 15 (embedding generation step) and Task 22 (pipeline
+integration tests) are blocked until this decision is recorded.
+
+The database migration 004 hardcodes `EMBEDDING_DIMENSION = 384`, matching a provisional
+`e5-small` placeholder noted in ADR-024. That placeholder was never confirmed; it was a
+planning-time estimate. No production data exists against the 384-dimension schema, so the
+ALTER migration carries no data migration risk.
+
+**Options considered**:
+
+1. **`all-minilm`** (384 dim, 46 MB, 256-token context): matches the current migration
+   without a schema change. Weakest retrieval quality of the candidates; 256-token context
+   is tight given 100–500 token chunks.
+2. **`nomic-embed-text` v1.5** (768 dim, 274 MB, 8 192-token context): the most widely
+   tested local embedding model. Outperforms OpenAI `text-embedding-ada-002` and
+   `text-embedding-3-small` on most public benchmarks. 8 K context comfortably exceeds
+   current chunk sizes with room to grow.
+3. **`qwen3-embedding:0.6b`** (1024 dim, ~1.2 GB, 32 768-token context): released
+   June 2025. Currently leads the MTEB English v2 leaderboard at this parameter count.
+   Supports Matryoshka Representation Learning (MRL), allowing the output dimension to be
+   reduced to as low as 32 without retraining. 32 K context window provides headroom for
+   larger chunks or whole-document embedding if the chunking strategy evolves.
+4. **`qwen3-embedding:8b`** (~5 GB Q4, 4 096 dim): highest quality but disproportionate
+   for a personal archive and consumes significant VRAM that the LLM model also needs.
+
+**Why `qwen3-embedding:0.6b`**:
+
+The document corpus (historical family archive, 1950s–present) includes long-form legal
+documents — wills, deeds of conveyance, mortgage deeds — that can span many pages. At the
+current 500-token maximum chunk size these documents are split into many fragments, and
+there is uncertainty about whether that chunk size will prove optimal once real documents
+are processed. The 32 K context window of `qwen3-embedding:0.6b` gives genuine flexibility
+to increase chunk sizes (to 1 000–2 000 tokens or beyond) as the corpus characteristics
+become clear, without hitting an embedding ceiling. `nomic-embed-text`'s 8 K context is
+sufficient for the current config but offers less room for the chunking strategy to evolve.
+
+Benchmark quality at this parameter size is the highest currently available via Ollama
+(MTEB English v2 score of 70.7 for the 0.6 B variant), and the VRAM footprint (~1.2 GB)
+is well within the deployment target of 12 GB, leaving headroom for the LLM model running
+alongside it.
+
+MRL support is an additional benefit: if storage or query latency becomes a concern, the
+output dimension can be reduced (e.g. to 768) by truncating the vector prefix, without
+replacing the model or re-embedding the corpus.
+
+**Consequences**:
+
+- A new migration must be written to `ALTER COLUMN embedding TYPE vector(1024)` on the
+  `embeddings` table. The migration comment in 004 explicitly anticipates this: *"If the
+  model changes, write a new migration to ALTER the column type."*
+- `settings.json` must be updated: `PROCESSING.EMBEDDING.MODEL = "qwen3-embedding:0.6b"`,
+  `PROCESSING.EMBEDDING.DIMENSION = 1024`.
+- `expected-outputs.json` (Task 22 fixture) must record `embedding_dimension: 1024`.
+- FLAG-01 in `documentation/tasks/python-tasks.md` is resolved by this ADR.
+- The Ollama instance must have `qwen3-embedding:0.6b` pulled before Task 15 integration
+  testing: `ollama pull qwen3-embedding:0.6b`.
+- If MRL dimension reduction is adopted in future, a further ALTER migration will be
+  required at that point.
+
+**Source**: Resolved 2026-06-02, OQ-3 review.
+Cross-references ADR-024 (pgvector and embedding storage), Python Task 12
+(EmbeddingService interface and OllamaEmbeddingAdapter), python-tasks.md FLAG-01.
+
+---
+
+### ADR-054: LLM Model — qwen3.5:9b via Ollama for All Three LLM Roles
+
+**Decision**: The LLM for all three model roles in the Python processing service is
+**`qwen3.5:9b`** served locally via **Ollama**. The three config keys
+`PROCESSING.LLM.MODEL`, `QUERY.LLM.MODEL`, and `QUERY.SYNTHESIS.LLM.MODEL` in
+`settings.json` are all set to `qwen3.5:9b`. The Ollama provider and base URL settings
+are unchanged.
+
+**Context**: `llama3.2` (3B) was written into `settings.json` by the implementer agent
+during Python Task 1 scaffolding (commit `624de52`, 2026-03-30) as a placeholder to
+populate a required config field. The senior developer plan explicitly deferred the model
+choice: *"llm.model — model name (implementer decision; not specified at architecture
+level)"*. No architectural decision record was created at that time, and no OQ was
+registered to track the deferral. The choice was never validated against the structured
+output requirements of the three tasks that call the LLM.
+
+The three tasks that invoke an LLM in this service are structurally demanding:
+
+- **Entity extraction** (`pipeline/steps/llm_combined_pass.py`): the LLM must return a
+  strict JSON object containing chunks, entities, relationships, and metadata fields. A
+  malformed or non-JSON response causes the entire pipeline step to return `failed` and
+  triggers a retry via Express (`attempt_count`). Reliability of JSON output directly
+  determines pipeline throughput.
+- **Query understanding** (`query/query_understanding.py`): the LLM must return a
+  structured object containing intent, refined search terms, extracted entities, routing
+  hint, and confidence score. Malformed output causes the query to fail.
+- **Response synthesis** (`query/response_synthesis.py`): the LLM must produce cited
+  prose constrained strictly to the provided context — no general knowledge, no legal
+  interpretation, explicit statement when no relevant documents exist. This is an
+  instruction-following task with hard constraints (UR-099, UR-100, UR-101).
+
+**Options considered**:
+
+*Qwen family (Alibaba)*
+
+- **`qwen3.5:9b`** (~6.6 GB VRAM at Q4, 32K context, released February 2026): the
+  most current model in the recommended size class. Qwen3 models are consistently noted
+  across 2025–2026 benchmarks for the most stable tool calling, rarely hallucinating
+  calls or dropping parameters — directly relevant to the JSON output reliability
+  requirement. The 9B model is the new default recommendation for 8 GB VRAM cards and
+  delivers 40+ tokens/second fully in GPU memory.
+- **`qwen3:8b`** (~6 GB VRAM, previous generation): strong structured output but
+  superseded by `qwen3.5:9b`.
+- **`qwen3:14b`** (~9 GB VRAM): stronger reasoning at the cost of tighter headroom
+  against the 12 GB budget; the 9B generation improvement narrows the quality gap.
+
+*Mistral family*
+
+- **`mistral:7b`** (~4 GB VRAM, 2023): the original consideration. Adequate structured
+  output but the oldest model in the shortlist; superseded by several generations.
+- **`mistral-nemo`** (~7 GB VRAM, 12B): the most capable Mistral variant that fits
+  within the 12 GB budget. Good general quality but structured JSON output reliability
+  is reported as lower than the Qwen3 family.
+- **`mistral-small3.1` / `mistral-small3.2`** (24B, 16–19 GB VRAM): the Mistral
+  variants that supersede `mistral:7b` for quality. Both require 16–19 GB VRAM and do
+  not fit within the 12 GB deployment target alongside the embedding model.
+
+*Meta Llama family*
+
+- **`llama3.1:8b`** (~5 GB VRAM): solid and widely tested in RAG pipelines. Good
+  general instruction following. Does not lead on structured JSON output reliability
+  compared to Qwen3.
+- **`llama3.2`** (~2 GB VRAM, 3B, current placeholder): too small for reliable
+  structured output on multi-field JSON tasks.
+
+*Google Gemma family*
+
+- **`gemma3:12b`** (~8–12 GB VRAM, 128K context): strong general quality and long
+  context, but tool calling and structured JSON output are explicitly weaker than Llama
+  or Qwen. Leaves insufficient headroom for KV cache at the 12 GB budget limit.
+  Ruled out on JSON reliability grounds.
+
+*Microsoft Phi family*
+
+- **`phi4`** (14B, ~10–12 GB VRAM): exceptional reasoning per GB, exceeds many 30–70B
+  models on STEM benchmarks. However, it consumes almost the entire 12 GB budget with
+  minimal KV cache headroom. Ruled out on VRAM grounds.
+
+*DeepSeek family*
+
+- **`deepseek-r1:7b`** (~5 GB VRAM): a chain-of-thought reasoning model that emits
+  extended thinking traces before producing output. The additional tokens add latency,
+  increase context size, and complicate structured output parsing in a pipeline context.
+  Not a natural fit for this use case.
+
+**Why `qwen3.5:9b`**:
+
+The entity extraction task makes JSON output reliability the primary selection criterion.
+A model that occasionally produces malformed JSON does not just degrade quality — it
+causes pipeline steps to fail and retry, increasing processing time and load on the
+Express retry loop. The Qwen3 family's consistent lead in structured output stability
+across independent benchmarks is therefore the deciding factor.
+
+`qwen3.5:9b` is the most recent model in that family at the right size class. At ~6.6 GB
+VRAM it runs alongside `qwen3-embedding:0.6b` (~1.2 GB) for a combined footprint of
+~7.8 GB — well within the 12 GB deployment target and leaving ~4.2 GB of headroom for
+KV cache as context windows grow during synthesis.
+
+The model has been validated on the target hardware (20 GB VRAM across two GPUs) and
+confirmed to run at acceptable inference speeds.
+
+Using the same model for all three roles simplifies Ollama model management — a single
+`ollama pull` is required. The config-driven architecture (three independent model config
+keys) means individual roles can be switched to different models in future without any
+code changes, so this is not a permanent lock-in.
+
+**Consequences**:
+
+- `settings.json` must be updated: `PROCESSING.LLM.MODEL`, `QUERY.LLM.MODEL`, and
+  `QUERY.SYNTHESIS.LLM.MODEL` all set to `"qwen3.5:9b"`. The `PROVIDER` and `BASE_URL`
+  fields are unchanged (`"ollama"` and `"http://localhost:11434"`).
+- The Ollama instance must have `qwen3.5:9b` pulled before any LLM pipeline step or
+  query task runs: `ollama pull qwen3.5:9b`.
+- Combined VRAM footprint with `qwen3-embedding:0.6b` is approximately 7.8 GB at Q4
+  quantisation, within the 12 GB deployment target (ADR-053).
+- The `llama3.2` placeholder in `settings.json` is superseded by this decision.
+- If structured output reliability proves insufficient in practice (e.g. high pipeline
+  failure rates on the entity extraction step), `qwen3:14b` (~9 GB) is the recommended
+  first upgrade path — same model family, stronger reasoning, still within budget.
+
+**Source**: Resolved 2026-06-02, LLM model review.
+Cross-references ADR-053 (embedding model), Python Task 10 (LLMService interface and
+OllamaLLMAdapter), Python Task 11 (LLM combined pass step), Python Task 14 (query
+understanding).
