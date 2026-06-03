@@ -73,7 +73,8 @@ export function makeConfig(
     python: { baseUrl: 'http://localhost:5000' },
     vectorStore: { provider: 'pgvector' },
     graph: { provider: 'postgresql', maxTraversalDepth: 3 },
-    embedding: { dimension: 384 },
+    // ⚠️  Must match migration 004 EMBEDDING_DIMENSION and all test suite DIMENSION constants
+    embedding: { dimension: 1024 },
     ingestion: { partialAuditReport: false, reportOutputDirectory: '/reports' },
     logger: { level: 'info' as const },
   };

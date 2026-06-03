@@ -3,12 +3,12 @@ import type { Knex } from 'knex';
 /**
  * Migration 004: Enable pgvector and create the chunks and embeddings tables.
  *
- * The embedding dimension is hardcoded here (384, matching e5-small via ADR-024).
- * Migrations run outside the application lifecycle and cannot safely read nconf
- * config at migration time. An env var would introduce a second config surface
- * that must be kept in sync with embedding.dimension in config.json5 — rejected
- * in favour of an explicit value here. If the model changes, write a new migration
- * to ALTER the column type; do not change this value in place.
+ * The embedding dimension is hardcoded here (1024, matching qwen3-embedding:0.6b
+ * via ADR-053). Migrations run outside the application lifecycle and cannot safely
+ * read nconf config at migration time. An env var would introduce a second config
+ * surface that must be kept in sync with embedding.dimension in settings.json —
+ * rejected in favour of an explicit value here. If the model changes, write a new
+ * migration to ALTER the column type; do not change this value in place.
  *
  * The IVFFlat index is created with lists=1 initially. For production use after
  * initial data load, run POST /api/admin/reindex-embeddings to rebuild the index
@@ -18,7 +18,14 @@ import type { Knex } from 'knex';
  * Requires pgvector extension to be available in the PostgreSQL instance.
  */
 
-const EMBEDDING_DIMENSION = 384;
+// ⚠️  SYNC POINTS: If this dimension changes, update:
+//   - apps/backend/src/testing/testHelpers.ts (makeConfig embedding.dimension)
+//   - apps/backend/src/config/__tests__/config.test.ts (DIMENSION constant + assertion)
+//   - apps/backend/src/routes/__tests__/search.integration.test.ts (DIMENSION constant)
+//   - apps/backend/src/vectorstore/__tests__/PgVectorStore.integration.test.ts (DIMENSION)
+//   - apps/backend/src/routes/__tests__/admin.integration.test.ts (DIMENSION)
+//   - apps/backend/src/routes/__tests__/processing.integration.test.ts (embedding array size)
+const EMBEDDING_DIMENSION = 1024;
 
 export async function up(knex: Knex): Promise<void> {
   const dimension = EMBEDDING_DIMENSION;

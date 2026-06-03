@@ -10,14 +10,13 @@ Approved — 2026-03-04 (Tasks 0–12 done; Tasks 13–24 not\_started)
 
 ## Flagged issues
 
-**FLAG-01 — OQ-3: Embedding model choice blocks Task 15 and Task 22**
+**FLAG-01 — OQ-3: Embedding model choice blocks Task 15 and Task 22 — RESOLVED 2026-06-02**
 
-The Python plan explicitly flags (OQ-3) that the embedding model choice is deferred to
-the implementer. `embedding.dimension` in `settings.json`, the `expected-outputs.json`
-fixture file, and the `OllamaEmbeddingAdapter` implementation all depend on a concrete
-model selection. Task 15 (embedding generation step) and Task 22 (pipeline integration
-tests) cannot be fully implemented until this decision is made and documented. The decision
-must be recorded as a decision log entry before those tasks can be closed.
+Resolved by ADR-053. Model: `qwen3-embedding:0.6b` via Ollama; dimension: 1024.
+`settings.json` updated (`EMBEDDING.MODEL`, `EMBEDDING.DIMENSION`). Migration 008
+alters the `embeddings.embedding` column from `vector(384)` to `vector(1024)`.
+`expected-outputs.json` (Task 22) must record `embedding_dimension: 1024`.
+Task 15 and Task 22 are unblocked.
 
 **FLAG-02 — OQ-4: Initial regex patterns and completeness weights block Task 10 and US-040**
 
