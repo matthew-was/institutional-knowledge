@@ -17,6 +17,7 @@ from shared.interfaces.llm_service import (
     EntityResult,
     LLMCombinedResult,
     LLMService,
+    QueryUnderstandingResult,
     RelationshipResult,
 )
 
@@ -47,6 +48,19 @@ class _LLMCombinedResultModel(BaseModel):
     metadata_fields: dict[str, Any]
     entities: list[_EntityResultModel]
     relationships: list[_RelationshipResultModel]
+
+
+class _ExtractedEntityModel(BaseModel):
+    name: str
+    type: str
+
+
+class _QueryUnderstandingResultModel(BaseModel):
+    intent: str
+    refined_search_terms: str
+    extracted_entities: list[_ExtractedEntityModel]
+    routing_hint: str | None = None
+    confidence: float
 
 
 class OllamaLLMAdapter(LLMService):
@@ -184,3 +198,91 @@ Document text:
                 "error validating json response", error=type(pyd_err).__name__
             )
             return None
+
+    @staticmethod
+    def _build_query_understanding_prompt(query_text: str) -> str:
+        return f"""You are a query analysis assistant for a historical document archive.
+
+Analyse the following user query and return a structured JSON response to guide document retrieval.
+
+Return only a JSON object with exactly these five top-level keys and no other text:
+
+intent: string — the intent category of the query. Use one of: "find_content", "find_relationships", "timeline_search", "person_search", "property_search", "unknown".
+
+refined_search_terms: string — a cleaned or expanded version of the query suitable for semantic embedding search. Preserve the core meaning but remove filler words and clarify ambiguous references.
+
+extracted_entities: array of objects — named entities identified in the query. Each object must have:
+  - name: the entity name as it appears in the query
+  - type: the entity type, one of: People, Organisation, Land Parcel, Date, Legal Reference
+  If no entities are found, return an empty array.
+
+routing_hint: string or null — a preliminary routing suggestion based on the query type. Use "vector" for content or semantic queries, "graph" for relationship or network queries, "both" for queries that require both. Use null if uncertain.
+
+confidence: float 0.0–1.0 — your confidence in the analysis.
+
+User query:
+
+{query_text}"""
+
+    async def understand_query(self, query_text: str) -> QueryUnderstandingResult:
+        fallback = QueryUnderstandingResult(
+            intent="unknown",
+            refined_search_terms=query_text,
+            extracted_entities=[],
+            routing_hint=None,
+            confidence=0.0,
+        )
+        prompt = self._build_query_understanding_prompt(query_text)
+        payload = {
+            "prompt": prompt,
+            "model": self._model,
+            "stream": False,
+            "format": "json",
+        }
+
+        try:
+            response = await self._client.post("/api/generate", json=payload)
+            response.raise_for_status()
+            data = response.json()
+            response_data = data.get("response")
+            if response_data is None:
+                self._log.warning(
+                    "ollama returned no response field for query understanding"
+                )
+                return fallback
+            json_data = json.loads(response_data)
+            parsed = _QueryUnderstandingResultModel.model_validate(json_data)
+            return QueryUnderstandingResult(
+                intent=parsed.intent,
+                refined_search_terms=parsed.refined_search_terms,
+                extracted_entities=[
+                    {"name": e.name, "type": e.type} for e in parsed.extracted_entities
+                ],
+                routing_hint=parsed.routing_hint,
+                confidence=parsed.confidence,
+            )
+
+        except httpx.TransportError as tra_err:
+            self._log.error(
+                "transport error calling ollama for query understanding",
+                error=type(tra_err).__name__,
+            )
+            return fallback
+        except httpx.HTTPStatusError as stat_err:
+            self._log.error(
+                "http error from ollama for query understanding",
+                error=type(stat_err).__name__,
+            )
+            return fallback
+        except json.JSONDecodeError as json_err:
+            self._log.warning(
+                "malformed json in ollama query understanding response",
+                error=type(json_err).__name__,
+            )
+            return fallback
+        except ValidationError as pyd_err:
+            self._log.warning(
+                "validation error in ollama query understanding response",
+                error=type(pyd_err).__name__,
+            )
+            return fallback

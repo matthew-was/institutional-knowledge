@@ -392,8 +392,11 @@ No `print()` statements in application code.
 | --- | --- | --- |
 | `info` | State changes meaningful to operators | Document processing started/completed, query received |
 | `debug` | Internal operations that aid debugging | OCR step duration, chunk count, embedding dimension |
-| `warn` | Recoverable unexpected conditions | Fallback taken, retrying after transient error |
+| `warning` | Recoverable unexpected conditions | Fallback taken, retrying after transient error |
 | `error` | Non-recoverable failures requiring attention | Express unreachable after retries, malformed response |
+
+Use the canonical `structlog.warning()` method, not the deprecated `.warn()` alias. The `.warn()`
+method exists for backwards compatibility but should not appear in new code.
 
 Never log document content, extracted text, LLM output, or user-provided data at any level.
 Log only identifiers (`document_id`, `run_id`, `chunk_id`) and status values. This is a

@@ -42,6 +42,15 @@ Before any Python task that calls Express, the Pydantic models in
 spec. Run `datamodel-codegen` against the live spec and commit the output. Re-run whenever
 `packages/shared/src/schemas/` changes. See the code-gen task below (Task 0).
 
+**OQ-2 RESOLVED (2026-05-27)**
+
+LLMService extended with separate `understand_query()` async method in
+`shared/interfaces/llm_service.py`. Rationale: query understanding and document
+processing use distinct prompts, inputs, and output types; separate methods preserve
+the ADR-042 module boundary and keep `pipeline/` and `query/` logically independent
+for future service split. Implemented in OllamaLLMAdapter with same JSON parsing and
+fallback pattern as `combined_pass()`. See Task 14 implementation.
+
 ---
 
 ### Task 0: Generate Pydantic models from Express OpenAPI spec
@@ -1057,7 +1066,36 @@ query>`; (3) the fallback does not raise an unhandled exception.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-05-27):
+
+- Automated checks: confirmed. Six tests in `tests/query/test_query_understanding.py`, all
+  carrying `@pytest.mark.ci_integration`. Condition (1): `test_valid_response_parsed_into_result_with_correct_field_values`
+  asserts all five `QueryUnderstandingResult` fields using the fake `LLMService` via
+  `create_mock_llm_service_for_query`. Conditions (2) and (3): covered at two levels.
+  At the step level: `test_malformed_json_triggers_fallback_intent_unknown` and
+  `test_malformed_json_fallback_refined_search_terms_equals_original` each inject a
+  pre-built fallback result and assert the respective field values; `test_fallback_does_not_raise`
+  wraps the call in a try/except and asserts no exception escapes. At the adapter level:
+  `test_malformed_json_response_triggers_fallback` (respx, `{"response": "not json"}`) and
+  `test_validation_error_response_triggers_fallback` (respx, valid JSON missing required
+  fields) exercise both catch blocks in `OllamaLLMAdapter.understand_query()` directly.
+  All three acceptance conditions are met.
+- Manual checks: none required.
+- User need: satisfied. Task 14 delivers the first step of the C3 query pipeline
+  (US-069: answer natural language questions via the CLI with citations). The step converts a
+  raw query string into structured output — intent, refined search terms, extracted entities,
+  routing hint, confidence — that downstream retrieval steps (embedding, vector search, graph
+  search, RAG synthesis) will consume. The safe fallback (intent="unknown",
+  refined_search_terms=original query) ensures query processing continues gracefully when the
+  LLM returns unusable output, which is consistent with the US-069 requirement that the system
+  explicitly reports when no relevant documents exist rather than failing silently. ADR-042
+  module boundary is respected: `query/query_understanding.py` imports only from `shared/`
+  with no `pipeline/` imports. OQ-2 resolution (separate `understand_query()` method on
+  `LLMService`) is correctly placed in `shared/interfaces/llm_service.py`, preserving the
+  single shared service as the plan required.
+- Outcome: done
 
 ---
 
