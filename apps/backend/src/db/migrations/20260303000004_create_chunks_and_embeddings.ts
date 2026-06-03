@@ -18,6 +18,13 @@ import type { Knex } from 'knex';
  * Requires pgvector extension to be available in the PostgreSQL instance.
  */
 
+// ⚠️  SYNC POINTS: If this dimension changes, update:
+//   - apps/backend/src/testing/testHelpers.ts (makeConfig embedding.dimension)
+//   - apps/backend/src/config/__tests__/config.test.ts (DIMENSION constant + assertion)
+//   - apps/backend/src/routes/__tests__/search.integration.test.ts (DIMENSION constant)
+//   - apps/backend/src/vectorstore/__tests__/PgVectorStore.integration.test.ts (DIMENSION)
+//   - apps/backend/src/routes/__tests__/admin.integration.test.ts (DIMENSION)
+//   - apps/backend/src/routes/__tests__/processing.integration.test.ts (embedding array size)
 const EMBEDDING_DIMENSION = 1024;
 
 export async function up(knex: Knex): Promise<void> {

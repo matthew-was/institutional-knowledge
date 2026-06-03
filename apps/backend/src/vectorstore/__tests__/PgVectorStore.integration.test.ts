@@ -23,12 +23,14 @@ import { PgVectorStore } from '../PgVectorStore.js';
  *   pnpm --filter backend test
  *   docker compose -f apps/backend/docker-compose.test.yml down -v
  *
- * Embedding dimension: 384 (matches migration 004 — vector(384) column).
- * Test vectors use Array(384).fill(0) with a single position set to 1.0 to
+ * Embedding dimension: 1024 (matches migration 004 — vector(1024) column).
+ * Test vectors use Array(1024).fill(0) with a single position set to 1.0 to
  * produce distinct, orthogonal-ish vectors without needing real embeddings.
+ *
+ * ⚠️  DIMENSION must match migration 004 EMBEDDING_DIMENSION.
  */
 
-const DIMENSION = 384;
+const DIMENSION = 1024;
 
 const silentLog = pino({ level: 'silent' });
 

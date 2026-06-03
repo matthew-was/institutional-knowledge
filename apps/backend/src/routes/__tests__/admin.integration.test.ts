@@ -15,7 +15,7 @@
  * reindexEmbeddings (POST /api/admin/reindex-embeddings): auth required.
  * Auth header uses the frontend key 'fk' (from makeConfig()).
  *
- * Embedding dimension: 384 (matches migration 004 — vector(384) column).
+ * Embedding dimension: 1024 (matches migration 004 — vector(1024) column).
  */
 
 import fs from 'node:fs/promises';
@@ -37,8 +37,9 @@ import { createVectorStore } from '../../vectorstore/index.js';
 // ---------------------------------------------------------------------------
 // Suite setup
 // ---------------------------------------------------------------------------
+// ⚠️  DIMENSION must match migration 004 EMBEDDING_DIMENSION
 
-const DIMENSION = 384;
+const DIMENSION = 1024;
 
 let db: DbInstance;
 let app: ReturnType<typeof createTestApp>;

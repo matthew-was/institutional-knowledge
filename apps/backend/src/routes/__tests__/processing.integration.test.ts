@@ -579,8 +579,8 @@ describe('POST /api/processing/results (PROC-002)', () => {
       completedAt: null,
     });
 
-    // 384-dimension zero vector (matches makeConfig embedding.dimension)
-    const embedding = Array<number>(384).fill(0);
+    // ⚠️  1024-dimension size must match migration 004 EMBEDDING_DIMENSION
+    const embedding = Array<number>(1024).fill(0);
 
     const res = await request
       .post('/api/processing/results')
@@ -682,7 +682,7 @@ describe('POST /api/processing/results (PROC-002)', () => {
     });
 
     // Send a chunk with a deliberately wrong embedding dimension (1 instead of
-    // 384). The pgvector ?::vector cast will reject it with a DB error, causing
+    // 1024). The pgvector ?::vector cast will reject it with a DB error, causing
     // the transaction to roll back. The step result write (which comes before
     // the chunk insert in the transaction) must also be rolled back.
     const res = await request

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseConfig } from '../index.js';
 
+// ⚠️  embedding.dimension must match migration 004 EMBEDDING_DIMENSION
 const validRaw = {
   server: { port: 4000 },
   db: {
@@ -24,7 +25,7 @@ const validRaw = {
   python: { baseUrl: 'http://localhost:8000' },
   vectorStore: { provider: 'pgvector' },
   graph: { provider: 'postgresql', maxTraversalDepth: 3 },
-  embedding: { dimension: 384 },
+  embedding: { dimension: 1024 },
   ingestion: {
     partialAuditReport: false,
     reportOutputDirectory: './data/reports',
@@ -50,7 +51,8 @@ describe('parseConfig', () => {
     expect(cfg.python.baseUrl).toBe('http://localhost:8000');
     expect(cfg.vectorStore.provider).toBe('pgvector');
     expect(cfg.graph.provider).toBe('postgresql');
-    expect(cfg.embedding.dimension).toBe(384);
+    // ⚠️  Must match migration 004 EMBEDDING_DIMENSION
+    expect(cfg.embedding.dimension).toBe(1024);
     expect(cfg.ingestion.partialAuditReport).toBe(false);
     expect(cfg.ingestion.reportOutputDirectory).toBe('./data/reports');
     expect(cfg.logger.level).toBe('info');
