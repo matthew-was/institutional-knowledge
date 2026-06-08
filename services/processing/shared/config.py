@@ -84,7 +84,7 @@ class QueryVectorSearchConfig(BaseModel):
 
 
 class QueryContextAssemblyConfig(BaseModel):
-    TOKEN_BUDGET: int
+    TOKEN_BUDGET: Annotated[int, Field(gt=0)]
     INCLUDE_PARENT_METADATA: bool
 
 
