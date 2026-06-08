@@ -1201,7 +1201,29 @@ the budget causes exclusion; (3) when all chunks fit within the budget `truncate
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-06-08):
+
+- Automated checks: confirmed — all four acceptance conditions are covered by falsifiable
+  tests in `tests/query/test_context_assembly.py`. (1) Ordering test passes three results
+  in arbitrary order and asserts positions by `chunk_id`; removing `reverse=True` breaks it.
+  (2) Truncation test uses 40-char chunks (10 tokens each) with budget 15; asserts
+  `truncated is True` and one chunk selected; removing the budget check breaks both.
+  (3) No-truncation test uses budget 1000 for the same two chunks; asserts `truncated is
+  False`; hardcoding `True` breaks it. (4) Empty-input test asserts `chunks == []`,
+  `total_tokens == 0`, `truncated is False`; removing the early-return path breaks all
+  three. `isinstance` assertion in test 4 not vacuous (catches `None`/exception). Both
+  review suggestions applied: `TOKEN_BUDGET: Annotated[int, Field(gt=0)]` in
+  `shared/config.py` (S-001); accumulation loop uses `break` not `continue` (S-002).
+  Pure function confirmed (no external calls, no config access). Token estimation is
+  `len(result.text) // 4`. `include_parent_metadata` propagated through `AssembledContext`
+  in both early-return and normal paths.
+- Manual checks: none required
+- User need: satisfied — context assembly selects the highest-scored chunks within a token
+  budget and propagates document metadata, enabling Task 17 to produce grounded, cited
+  answers as required by US-069
+- Outcome: done
 
 ---
 
