@@ -1136,7 +1136,28 @@ return `step_status = "failed"`. Three test functions.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-06-08):
+
+- Automated checks: confirmed — three test functions present and falsifiable.
+  (1) `test_all_chunks_produce_embeddings_returns_completed`: 3 chunks; asserts
+  `step_status == "completed"`, `error_message is None`, `len(result.embeddings) == 3`,
+  and verifies each `chunk_index`. Would fail on wrong status, wrong count, or swapped
+  indices. (2) `test_dimension_mismatch_returns_failed_with_no_partial_results`: 2
+  chunks; service returns `dimension=5`, config expects 3; asserts `step_status ==
+  "failed"`, `"dimension mismatch" in result.error_message`, `len(result.embeddings) ==
+  0`. Would fail if partial results leaked or status was "completed". (3)
+  `test_provider_exception_returns_failed_with_no_partial_results`: `ErrorEmbeddingService`
+  raises `RuntimeError`; asserts `step_status == "failed"`, `error_message is not None`,
+  `len(result.embeddings) == 0`. Would fail if exception propagated or partial results
+  returned. All-or-nothing semantics verified: the loop returns immediately on mismatch or
+  exception with `embeddings=None` (→ `[]`), discarding any prior successful iterations.
+- Manual checks: none required.
+- User need: satisfied — US-047 requires that no partial embeddings are written; the step
+  returns an empty embeddings list on any failure path, giving the orchestrator nothing to
+  write to storage. Documents cannot be partially indexed.
+- Outcome: done
 
 ---
 
