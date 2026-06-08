@@ -50,6 +50,13 @@ class QueryUnderstandingResult:
     confidence: float = 0.0
 
 
+@dataclass
+class SynthesisLLMResult:
+    """Raw response text returned by the LLM for the synthesis call (Task 17)."""
+
+    response_text: str
+
+
 class LLMService(ABC):
     @abstractmethod
     async def combined_pass(
@@ -58,6 +65,9 @@ class LLMService(ABC):
 
     @abstractmethod
     async def understand_query(self, query_text: str) -> QueryUnderstandingResult: ...
+
+    @abstractmethod
+    async def synthesize(self, text: str) -> SynthesisLLMResult: ...
 
     @abstractmethod
     async def close(self) -> None: ...

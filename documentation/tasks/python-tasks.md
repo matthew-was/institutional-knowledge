@@ -1263,7 +1263,40 @@ is an empty list; (3) when the assembled context is empty (no relevant documents
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-06-08):
+
+- Automated checks: confirmed. All three acceptance conditions have explicit, falsifiable
+  tests in `tests/query/test_response_synthesis.py`:
+  (1) `test_citation_markers_map_to_correct_source_chunks` — two-chunk context, LLM response
+  references both `[Citation 1]` and `[Citation 2]`; asserts `chunk_id`, `document_id`,
+  `document_description`, `document_date` on each resolved citation. Removing the
+  citation-parsing logic would produce an empty list and fail the `len == 2` assertion.
+  (2) `test_no_citation_markers_in_response_returns_empty_citations` — non-empty context,
+  response with no `[Citation N]` markers; asserts `citations == []`. Falsifiable in
+  combination with test (1).
+  (3) `test_empty_assembled_context_returns_no_results_without_llm_call` — uses
+  `create_error_llm_service()` (raises if called); asserts `no_results is True` and
+  `"No relevant documents" in result.response_text`. Removing the early-return guard
+  causes the error fake to raise, immediately failing the test. All three tests are
+  marked `@pytest.mark.ci_integration` (correct for Tier 2). Three adapter-level respx
+  tests also confirm `OllamaLLMAdapter.synthesize()` against the real Ollama response
+  envelope: happy path, missing-field (ValidationError), and HTTP-error propagation.
+  `_SynthesisResponseModel.response` matches Ollama's `response` field (B-001 from round
+  2 correctly fixed).
+- Manual checks: none required.
+- User need: satisfied. US-069 requires grounded, cited answers from the archive with
+  explicit "no results" messaging. The implementation: (a) constrains the LLM to context
+  only via the system prompt (UR-101); (b) prohibits legal advice (UR-100); (c) short-
+  circuits to `no_results=True` with an explicit message when context is empty (UR-099);
+  (d) maps citation markers back to source `SearchResult` chunks (chunk_id, document_id,
+  document_description, document_date) so callers can render human-readable citations.
+  US-069's acceptance criterion requiring "human-readable archive reference" is correctly
+  deferred to the caller per ADR-023 — the implementation provides `document_id` and
+  `document_date` as the inputs the caller needs. Module boundary is clean: no `pipeline/`
+  imports; only `query/` and `shared/` used (ADR-042 satisfied).
+- Outcome: done
 
 ---
 
