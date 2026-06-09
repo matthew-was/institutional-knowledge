@@ -62,9 +62,10 @@ In `MEMORY.md` (`~/.claude/projects/.../memory/MEMORY.md`):
 
 Apply these changes automatically without asking for confirmation.
 
-### Step 5 — Confirm commit
+### Step 5 — Confirm commit and stage all changes
 
-Run `git diff HEAD --stat` and `git status` to understand what is staged/unstaged.
+Run `git diff HEAD --stat` and `git status` to understand what has been modified
+or created.
 
 Draft a commit message following the project convention:
 
@@ -81,7 +82,7 @@ Present the draft commit message to the developer and ask:
 Wait for confirmation before running `git commit`. If the developer says "edit", accept
 their revised message and use that instead.
 
-### Step 6 — Move the code review file (if found in Step 2)
+### Step 6 — Move code review file and stage all changes
 
 Before committing, move the review file to `archive/code-reviews/[service]/`:
 
@@ -89,7 +90,14 @@ Before committing, move the review file to `archive/code-reviews/[service]/`:
 mv documentation/tasks/code-reviews/[filename] archive/code-reviews/[service]/
 ```
 
-Stage it alongside the other changes (`git add`) so it is included in the commit.
+Then stage **all changes** (implementation, tests, documentation, configuration, memory files):
+
+```bash
+git add .
+```
+
+This ensures all modified files related to the task are included in the commit as an
+atomic unit.
 
 ### Step 7 — Commit
 
