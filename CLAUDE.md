@@ -129,15 +129,38 @@ For frontend tasks, substitute: `pnpm biome check apps/frontend/src`,
 
 ---
 
+## Pre-Implementation Task Auditing
+
+Before invoking an implementation agent, always conduct a **task specification audit** to identify internal contradictions and ambiguities. This is why you are asked to create and review a summary before the agent begins work.
+
+**What to audit:**
+
+- **Logical consistency**: Check whether different points in the task description contradict each other (e.g., a gating rule that says "halt on condition X" contradicts a downstream requirement that "must run after condition X to combine results").
+- **Temporal constraints**: Look for mutually exclusive ordering requirements (e.g., "if X happens, halt immediately" vs. "assemble final result after Y completes" when Y can only run if X doesn't halt).
+- **Acceptance condition alignment**: Verify that all acceptance conditions can be satisfied simultaneously by the implementation. If AC-1 and AC-3 conflict (e.g., one requires early halt, the other requires continuation), flag this.
+- **Scope ambiguity**: If a task description uses inclusive language ("step 1 or 2") alongside language that implies exclusivity ("only step 1 produces structural failures"), clarify which interpretation is intended.
+
+**When you find a contradiction:**
+
+- Document the specific conflicting points (quote them if possible)
+- Explain why they are mutually exclusive
+- Ask the user to clarify the intended behaviour before the agent proceeds
+
+**Historical example (Task 18, Python):**
+
+The task said "halt after steps 1 **or** 2" but also "combined-flag rule assembled **after step 4 completes**". These are incompatible — halting at step 2 prevents reaching step 4. The implementer chose the architecturally correct path (halt only on step 1 to allow combined-flag logic at step 4), but this meant AC-2 as written was not satisfied. Resolving this contradiction before implementation would have avoided a code review rejection.
+
+---
+
 ## Project Overview
 
 This is the **Institutional Knowledge** project — a family document archiving system (1950s–present) with an AI/ML learning component. See [documentation/README.md](documentation/README.md) for full navigation.
 
 ### Quick Orientation
 
-- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend Tasks 1–18, 13a, and 5a done (2026-03-28). Backend Chores 1, 2, and 4 done (2026-03-30). Chore 3 blocked on Node 26. Python Tasks 0–17 done (2026-06-08). Python Chores 1–2 done (2026-04-13, 2026-05-27).
+- **Current phase**: Implementation in progress. All 19 backend tasks done + post-audit chores. All merged to main. Frontend Tasks 1–18, 13a, and 5a done (2026-03-28). Backend Chores 1, 2, and 4 done (2026-03-30). Chore 3 blocked on Node 26. Python Tasks 0–18 done (2026-06-09). Python Chores 1–2 done (2026-04-13, 2026-05-27).
 - **Design status**: All design documents approved (ADR-001 to ADR-052). See [documentation/approvals.md](documentation/approvals.md).
-- **Next actionable step**: Python Task 18 (pipeline orchestrator). Python Phase 1 complete.
+- **Next actionable step**: Python Task 19 (query handler). Python Phase 1 complete.
 - **Recent principles added**: CR-015 and `implementer.md` broadened to cover `typeof`/`instanceof`/`toBeTruthy` as vacuous assertion patterns (2026-03-27). Task and plan docs updated to remove prescriptive `(Client Component)` labels. `implementer.md` updated to require form schemas in `schemas.ts` and clarify CR-015 presence-checking (2026-03-28). Python `__init__.py` placement, Requirements File Standard, and module-structure stub rule added (2026-03-30). HTTP client interface/adapter/factory layout, config field constraints, and failure-path test rule added to Python principles and pair-programmer.md (2026-04-01). Fakes placement rule and implicit string truthiness prohibition added to Python principles and pair-programmer.md (2026-04-03). Tier 1 test marker rule (no `@pytest.mark.ci_integration` on Tier 1 tests) added to development-principles-python.md and pair-programmer.md (2026-04-09).
 - **Full project status**: [documentation/SUMMARY.md](documentation/SUMMARY.md)
 

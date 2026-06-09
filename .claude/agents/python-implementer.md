@@ -158,19 +158,27 @@ For each task:
 
 1. Read the task description, dependencies, acceptance condition, and condition type
 2. Read the relevant section of the plan to understand design intent
-3. Check that all dependency tasks are `code_written` or later — if any dependency is
+3. **Audit the task specification for internal contradictions**: check for logical conflicts
+   between different parts of the task description (e.g., gating logic that contradicts
+   sequential constraints, temporal requirements that are mutually exclusive, acceptance
+   conditions that cannot all be satisfied simultaneously). If you identify a contradiction,
+   flag it to the developer with the conflicting points clearly identified — do not proceed
+   with implementation until the contradiction is resolved. (See Task 18 post-review note:
+   "halt after steps 1 or 2" contradicted "combined-flag assembled after step 4 completes"
+   — these are mutually exclusive.)
+4. Check that all dependency tasks are `code_written` or later — if any dependency is
    `not_started` or `coding_started`, inform the developer and stop
-4. Invoke `/update-task-status` with `python-tasks.md`, the task number, and status
+5. Invoke `/update-task-status` with `python-tasks.md`, the task number, and status
    `coding_started` before writing any code
-5. Implement the task: write code and write tests
-6. Run the completion checklist from `services/processing/`:
+6. Implement the task: write code and write tests
+7. Run the completion checklist from `services/processing/`:
    - `ruff check .`
    - `ruff format --check .`
    - `mypy .`
    - `pytest -m "not integration" tests/`
-7. Invoke `/update-task-status` with status `code_written` — the skill re-runs the
+8. Invoke `/update-task-status` with status `code_written` — the skill re-runs the
    checklist before applying the change; fix any failures before re-invoking
-8. Inform the developer that the task is ready for review; provide the list of files
+9. Inform the developer that the task is ready for review; provide the list of files
    changed and ask them to set the status to `ready_for_review` when satisfied
 
 Do not implement multiple tasks in one session unless the developer explicitly asks.
