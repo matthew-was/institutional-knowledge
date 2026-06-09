@@ -19,6 +19,7 @@ from shared.interfaces.llm_service import (
     LLMService,
     QueryUnderstandingResult,
     RelationshipResult,
+    SynthesisLLMResult,
 )
 
 
@@ -61,6 +62,10 @@ class _QueryUnderstandingResultModel(BaseModel):
     extracted_entities: list[_ExtractedEntityModel]
     routing_hint: str | None = None
     confidence: float
+
+
+class _SynthesisResponseModel(BaseModel):
+    response: str
 
 
 class OllamaLLMAdapter(LLMService):
@@ -286,3 +291,22 @@ User query:
                 error=type(pyd_err).__name__,
             )
             return fallback
+
+    async def synthesize(self, text: str) -> SynthesisLLMResult:
+        """Call Ollama with the pre-formatted synthesis prompt and return raw response text.
+
+        On any failure (transport error, HTTP error, or missing response field) this method
+        raises rather than returning a fallback — the caller (synthesize_response) propagates
+        the exception to the query handler. There is no partial synthesis.
+        """
+        payload = {
+            "prompt": text,
+            "model": self._model,
+            "stream": False,
+        }
+
+        response = await self._client.post("/api/generate", json=payload)
+        response.raise_for_status()
+        data = response.json()
+        parsed = _SynthesisResponseModel.model_validate(data)
+        return SynthesisLLMResult(response_text=parsed.response)

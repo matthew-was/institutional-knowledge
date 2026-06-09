@@ -9,6 +9,8 @@ select = ["E", "F", "I", "UP", "ANN"]
 [tool.ruff.lint.per-file-ignores]
 # Prompt strings in LLM adapters legitimately exceed the line length limit
 "shared/adapters/ollama_llm.py" = ["E501"]
+# System prompt string in synthesis module legitimately exceeds the line length limit
+"query/response_synthesis.py" = ["E501"]
 
 [tool.mypy]                                                                                                                                                                                                                                                                             
 ignore_missing_imports = true 
