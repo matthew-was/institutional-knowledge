@@ -1313,11 +1313,13 @@ contract: `document_id: str`, `file_reference: str`, `incomplete_steps: list[str
 2. If step 1 (`text_extraction`) is not in `incomplete_steps`, uses `previous_outputs` for
    the already-extracted text and confidence values
 3. Sequences steps 1–6, passing outputs from each step as inputs to the next
-4. Applies the flag gate: if steps 1 or 2 produce a `DocumentFlag`, the orchestrator halts
-   and does not run steps 3–6
-5. Applies the combined-flag rule (US-039/UR-055): if both text quality and completeness
-   thresholds fail on the same document, combines them into a single flag with both reasons;
-   this is assembled after step 4 completes
+4. Applies the flag gate: if step 1 (text extraction) produces a `DocumentFlag`, the
+   orchestrator halts and does not run steps 2–6. Step 2 quality threshold failures do not
+   halt the pipeline; they are recorded as flags and the pipeline continues to steps 3–4
+   to enable the combined-flag rule (see point 5)
+5. Applies the combined-flag rule (US-039/UR-055): if both text quality (step 2) and
+   completeness (step 4) thresholds fail on the same document, combines them into a single
+   flag with both reasons; this is assembled after step 4 completes
 6. Builds a `ProcessingResponse` (matching the PROC-002 request schema):
    - `step_results`: dict mapping step name to `StepResult` (status + error message)
    - `flags`: list of `DocumentFlag`
@@ -1340,15 +1342,22 @@ if not, use step 3's description; if neither, preserve the original intake descr
 
 **Acceptance condition**: Unit tests in `tests/pipeline/test_orchestrator.py` confirm using
 mocked step implementations: (1) when `incomplete_steps` does not include `text_extraction`,
-step 1 is skipped and `previous_outputs` text is used for step 2; (2) a document flag from
-step 1 or 2 halts the pipeline and steps 3–6 do not run; (3) when both text quality and
-completeness fail, the `ProcessingResponse` contains exactly one flag with both reasons; (4)
-when neither threshold fails, steps 1–6 all run and the response includes non-None `chunks`
-and `entities`. Four test functions.
+step 1 is skipped and `previous_outputs` text is used for step 2; (2) an extraction failure
+flag from step 1 halts the pipeline and steps 2–6 do not run; (3) when both text quality
+(step 2) and completeness (step 4) thresholds fail, the `ProcessingResponse` contains exactly
+one flag with both reasons; (4) when neither threshold fails, steps 1–6 all run and the
+response includes non-None `chunks` and `entities`. Four test functions.
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-06-09):
+
+- Automated checks: confirmed — all four acceptance conditions are met by falsifiable tests in `tests/pipeline/test_orchestrator.py`. AC-1: re-entrancy branch checked at `orchestrator.py:126`; `STEP_TEXT_EXTRACTION not in response.step_results` assertion would fail if step 1 ran unconditionally. AC-2: flag gate at `orchestrator.py:154` returns early when `extraction.document_flags` is non-empty; test injects zero-page OCR result to trigger the `extraction_failure` flag; all five downstream step names asserted absent. AC-3: combined-flag logic at lines 252–263 removes the quality flag and appends a single `quality_and_completeness_failure` flag; both `"quality threshold"` and `"completeness score"` substring assertions are falsifiable. AC-4: passing scorers and a full `LLMCombinedResult` exercise all six steps; `pytest.fail()` guards before `None` field access; all six step names asserted present.
+- Manual checks: none required
+- User need: satisfied — US-039/UR-055 requires exactly one flag with both reasons when both thresholds fail simultaneously, and a single-reason flag when only one fails. The `elif completeness_flag is not None` branch at line 262 handles the solo-completeness case correctly. The user need to prevent curation queue clutter from duplicate entries is directly addressed. ADR-027 re-entrancy is correctly implemented: each of the six steps is independently gated on `incomplete_steps`, and `previous_outputs` is used for any already-completed step's data.
+- Outcome: done
 
 ---
 
