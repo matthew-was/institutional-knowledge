@@ -80,7 +80,7 @@ class ProcessingConfig(BaseModel):
 
 # Query prefix used to avoid naming collisions with any future pipeline-side equivalents
 class QueryVectorSearchConfig(BaseModel):
-    TOP_K: int
+    TOP_K: Annotated[int, Field(gt=0)]
 
 
 class QueryContextAssemblyConfig(BaseModel):

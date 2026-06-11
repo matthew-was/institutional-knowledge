@@ -1396,7 +1396,37 @@ when vector search returns an empty list, `SynthesisResult.no_results = True`; (
 
 **Condition type**: automated
 
-**Status**: not_started
+**Status**: done
+
+**Verification** (2026-06-11):
+
+- Automated checks: confirmed — all three acceptance conditions are covered by exactly
+  one falsifiable test each. AC-1: `test_full_pipeline_returns_synthesis_result` asserts
+  `isinstance(result, SynthesisResult)`, `no_results is False`, `response_text != ""`,
+  that `vector_search` was called exactly once with the correct embedding and `top_k=5`
+  (via `fake_http.vector_search_calls`), and that the first citation carries the expected
+  `chunk_id`. AC-2: `test_empty_vector_search_returns_no_results` asserts `no_results is
+  True`, `citations == []`, and that vector search was still called once (confirming the
+  pipeline reached step 4 before the early-return in synthesis). AC-3:
+  `test_graph_search_raises_not_implemented` calls `handler._graph_search()` and asserts
+  `pytest.raises(NotImplementedError)`. All three tests carry `@pytest.mark.ci_integration`
+  (Tier 2, correct — fakes injected at the handler boundary). The `no_results=True` path is
+  correctly produced by `response_synthesis.py` when `assembled_context.chunks` is empty,
+  which is what step 4 returning an empty list causes. Two review rounds; no blocking
+  findings in either round; S-001 (inline fake → `FullFakeLLMService` in
+  `tests/fakes/llm_service.py`) and S-002 (`TOP_K: Annotated[int, Field(gt=0)]`) applied
+  between rounds.
+- Manual checks: none required
+- User need: satisfied — US-069 requires a synthesised answer with source citations from
+  a natural-language query. `QueryHandler` correctly orchestrates all six pipeline steps
+  (routing, understanding, embedding, vector search, context assembly, synthesis) and
+  returns a `SynthesisResult` containing `response_text` and `citations`. The `no_results`
+  flag ensures the caller can distinguish "no relevant documents found" from a successful
+  response, satisfying the implicit requirement from UR-098 and UR-101 to handle the empty
+  archive case. ADR-042 module boundary respected (no `pipeline/` imports). Config narrowing
+  applied correctly (`QueryVectorSearchConfig`, `QueryContextAssemblyConfig`). 98 tests
+  pass with zero lint, format, or type errors.
+- Outcome: done
 
 ---
 
