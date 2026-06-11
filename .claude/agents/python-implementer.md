@@ -91,6 +91,13 @@ These are confirmed decisions — do not propose alternatives:
 - **Config narrowing**: every adapter and factory accepts only the narrowest sub-config it
   needs; neither should accept `AppConfig` just to dig into it — that violates the
   Principle of Least Knowledge (see Dependency Composition Pattern in principles)
+- **Numeric config field constraints**: For every numeric config field, ask whether a zero
+  or negative value would cause silent incorrect behaviour (e.g. `TOP_K=0` produces no
+  results without error, `TOKEN_BUDGET=0` silently assembles no context). If yes, add
+  `Annotated[int, Field(gt=0)]` (or `ge=1` as appropriate) to the field definition in the
+  Pydantic config class. This prevents fail-silently bugs and is a fail-fast validation.
+  Check this rule for every numeric field in any config class you write, not just those
+  flagged in a task spec.
 - **Factory type contracts**: when a factory's config parameter type differs across use cases
   (e.g. `LLMConfig` for pipeline, `LLMBaseConfig` for query), document the mismatch in a
   code comment at the factory definition and note the intended resolution (e.g. "Create a

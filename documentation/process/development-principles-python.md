@@ -245,6 +245,28 @@ spec via `datamodel-codegen`. Committed to the repo. Re-generate whenever
 `packages/shared/src/schemas/` changes. Never hand-write models that duplicate what the
 generator produces.
 
+**Using generated model types in application code**: Generated models from `shared/generated/models.py`
+define the contract boundary with Express and should be used minimally in application code.
+However, they may appear in parameter type annotations for private/internal methods where they
+improve clarity and type safety:
+
+```python
+# Acceptable — private helper method transforming generated types to internal types
+@staticmethod
+def _map_search_results(results: list[Result]) -> list[SearchResult]:
+    """Transform Express API results to internal SearchResult dataclasses."""
+    return [SearchResult(...) for r in results]
+
+# Wrong — exposing generated type in public method signature
+async def handle(self, api_response: ApiSearchVectorPostResponse) -> SynthesisResult:
+    ...
+```
+
+The rule: generated types are acceptable in private/internal signatures (helper methods,
+adapters) where they are implementation details. Keep them out of public method signatures
+that callers depend on. This maintains a clean separation between "what Express sends" and
+"what our application uses internally".
+
 ---
 
 ## Testing Strategy — Three Tiers

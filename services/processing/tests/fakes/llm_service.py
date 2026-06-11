@@ -5,6 +5,18 @@ from shared.interfaces.llm_service import (
     SynthesisLLMResult,
 )
 
+# Default fallback values used by FullFakeLLMService when no override is supplied
+_DEFAULT_UNDERSTANDING = QueryUnderstandingResult(
+    intent="find_content",
+    refined_search_terms="test query",
+    extracted_entities=[],
+    routing_hint="vector",
+    confidence=0.9,
+)
+_DEFAULT_SYNTHESIS = SynthesisLLMResult(
+    response_text="East Meadow was transferred [Citation 1]."
+)
+
 
 def create_mock_llm_service(mocked_result: LLMCombinedResult | None) -> LLMService:
     class MockedLLMService(LLMService):
@@ -81,6 +93,40 @@ def create_mock_llm_service_for_synthesis(
             return None
 
     return MockedSynthesisLLMService()
+
+
+class FullFakeLLMService(LLMService):
+    """Full LLMService fake for query-layer tests.
+
+    Implements all four LLMService methods. ``understand_query`` and
+    ``synthesize`` accept optional overrides so test cases can control
+    the returned values without constructing a new class.
+
+    Intended for use in ``QueryHandler`` Tier 2 tests where both methods
+    are exercised in the same pipeline run.
+    """
+
+    def __init__(
+        self,
+        understanding_result: QueryUnderstandingResult | None = None,
+        synthesis_result: SynthesisLLMResult | None = None,
+    ) -> None:
+        self._understanding_result = understanding_result or _DEFAULT_UNDERSTANDING
+        self._synthesis_result = synthesis_result or _DEFAULT_SYNTHESIS
+
+    async def combined_pass(
+        self, text: str, document_type: str | None
+    ) -> LLMCombinedResult | None:
+        return None  # not used in C3
+
+    async def understand_query(self, query_text: str) -> QueryUnderstandingResult:
+        return self._understanding_result
+
+    async def synthesize(self, text: str) -> SynthesisLLMResult:
+        return self._synthesis_result
+
+    async def close(self) -> None:
+        return None
 
 
 def create_error_llm_service() -> LLMService:
