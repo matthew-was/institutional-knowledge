@@ -18,6 +18,10 @@ All design and process documentation for the Institutional Knowledge project. St
 
 → [project/v2-rag-enhancement-options.md](project/v2-rag-enhancement-options.md) — V2 options: LightRAG graph-vector retrieval (Option A) and multimodal OCR (Option B)
 
+→ [project/status-2026-11-22.md](project/status-2026-11-22.md) — Current status and handover: OCR bake-off outcome, open decisions, path to a running system
+
+→ [tasks/ocr-bakeoff-results.md](tasks/ocr-bakeoff-results.md) — OCR engine bake-off evidence and recommendation
+
 ### If you want to understand why a decision was made
 
 → [decisions/architecture-decisions.md](decisions/architecture-decisions.md) — All ADRs across the project (populated by Head of Development agent)
