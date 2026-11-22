@@ -28,5 +28,8 @@
       "msw",
       "sharp"
     ]
+  },
+  "devDependencies": {
+    "markdownlint-cli": "^0.50.0"
   }
 }

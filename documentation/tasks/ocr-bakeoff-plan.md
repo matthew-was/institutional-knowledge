@@ -1,6 +1,7 @@
 # OCR Engine Bake-Off Plan
 
-**Status**: proposed, not started. **Written**: 2026-11-22.
+**Status**: executed 2026-11-22; results and the open decision are in
+`ocr-bakeoff-results.md`. **Written**: 2026-11-22.
 
 ## Purpose
 
@@ -77,7 +78,7 @@ are private family and estate documents.
    can write plausible text for a stain; in an archive that is worse than a gap.
 4. **Structure**, scored 0-2 per page by eye: reading order, paragraph and heading
    boundaries, table rows.
-5. **Speed** per page and **peak VRAM**.
+5. **Speed** per page and **peak VRAM** (reported, not a pass/fail rule).
 6. **Repeatability**: run each VLM twice at temperature 0 and compare outputs.
 7. **Operational fit**: install effort, licence, output format, and whether it can
    produce a confidence signal (the quality gate depends on one; VLMs give none).
@@ -104,8 +105,9 @@ are private family and estate documents.
 
 - A candidate becomes the default for scans only if it **beats the baseline on key-fact
   recall by at least 5 points** and **cuts word error rate by at least 20%
-  (relative)**, with **no more invented text than the baseline** and **at most 30
-  seconds per page** on this hardware.
+  (relative)**, with **no more invented text than the baseline**. Speed is reported
+  but is not a rule: ingestion is a one-off, so quality is what counts (the original
+  30-seconds-per-page limit was removed on the owner's instruction, 2026-11-22).
 - **Hallucination veto**: an engine that invents names, dates or amounts in
   illegible regions cannot be the default, whatever its other scores.
 - **If a VLM wins but gives no confidence**, use it as an escalation, not the default:
