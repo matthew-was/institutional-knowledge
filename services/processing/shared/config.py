@@ -1,10 +1,11 @@
 """Dynaconf + Pydantic config singleton (ADR-015, ADR-016)."""
 
 import os
-from typing import Annotated, cast
+import re
+from typing import Annotated, Literal, cast
 
 from dynaconf import Dynaconf
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class LLMBaseConfig(BaseModel):
@@ -19,10 +20,38 @@ class OCRQualityScoringConfig(BaseModel):
     TARGET_CHARS_PER_PAGE: Annotated[int, Field(gt=0)]
 
 
+_OCR_DEVICE_PATTERN = re.compile(r"^(auto|cpu|cuda(:\d+)?|mps|xpu)$")
+
+
 class OCRConfig(BaseModel):
     PROVIDER: str
     QUALITY_THRESHOLD: float
     QUALITY_SCORING: OCRQualityScoringConfig
+    # Inference device for Docling's layout/table models: auto, cpu, cuda, cuda:N,
+    # mps or xpu. Use cuda:N to keep Docling off the GPU that Ollama is using.
+    # Ignored by the Tesseract adapter, which always runs on the CPU.
+    DEVICE: str = "auto"
+    # How PDF pages are read (images are always OCR'd; they have no text layer):
+    #   auto: decide per page. A page with real, visible text uses the PDF's own
+    #         text (exact, and keeps tables and drawings intact); a scan, whose text
+    #         layer is invisible OCR output or absent, is OCR'd as a whole page.
+    #   ocr:  OCR every page of every PDF, ignoring any text layer.
+    #   text: use the PDF's own text layer for every page, OCR'ing only embedded
+    #         bitmaps. Image-only pages lose their text in this mode.
+    PDF_MODE: Literal["auto", "ocr", "text"] = "auto"
+    # OCR engine for scanned pages and images. tesseract read typewritten letters
+    # best in testing but needs the tesseract binary on the host; auto lets Docling
+    # pick its own engine (RapidOCR, or others if installed).
+    ENGINE: Literal["tesseract", "auto"] = "tesseract"
+
+    @field_validator("DEVICE")
+    @classmethod
+    def check_device(cls, value: str) -> str:
+        if not _OCR_DEVICE_PATTERN.match(value):
+            raise ValueError(
+                f"DEVICE must be auto, cpu, cuda, cuda:N, mps or xpu; got {value!r}"
+            )
+        return value
 
 
 class LLMConfig(LLMBaseConfig):

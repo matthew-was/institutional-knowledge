@@ -2,6 +2,9 @@
   "PROCESSING": {
     "OCR": {
       "PROVIDER": "docling",
+      "DEVICE": "auto",
+      "PDF_MODE": "auto",
+      "ENGINE": "tesseract",
       "QUALITY_THRESHOLD": 60.0,
       "QUALITY_SCORING": {
         "CONFIDENCE_WEIGHT": 0.7,

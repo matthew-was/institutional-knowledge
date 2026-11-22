@@ -5,6 +5,7 @@ build/
 next-env.d.ts
 config.override.json
 config.override.json5
+settings.override.json
 *.local.json
 coverage/
 apps/frontend/test-results/
