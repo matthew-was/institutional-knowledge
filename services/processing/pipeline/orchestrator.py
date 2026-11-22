@@ -1,5 +1,6 @@
 """Pipeline orchestrator — single entry point for the C2 pipeline (ADR-027, ADR-042)."""
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import Literal
 from uuid import UUID
@@ -125,7 +126,10 @@ class PipelineOrchestrator:
         # ------------------------------------------------------------------ #
         if STEP_TEXT_EXTRACTION in request.incomplete_steps:
             log.info("running step: text_extraction")
-            extraction = run_ocr_extraction(
+            # OCR is CPU/GPU-bound and synchronous; run it in a worker thread so a
+            # long document does not block the event loop (including /health).
+            extraction = await asyncio.to_thread(
+                run_ocr_extraction,
                 file_path=request.file_reference,
                 ocr_service=self._ocr_service,
                 log=log,

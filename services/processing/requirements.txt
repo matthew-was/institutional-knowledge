@@ -8,3 +8,5 @@ structlog
 python-multipart
 docling
 pytesseract
+pillow
+pypdfium2
