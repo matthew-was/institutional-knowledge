@@ -175,7 +175,9 @@ jobs:
     name: Test frontend E2E (Playwright)
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.60.0-noble
+      # The image tag must match the @playwright/test version in
+      # apps/frontend/package.json — the image only ships that version's browsers.
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
 
     steps:
       - name: Checkout

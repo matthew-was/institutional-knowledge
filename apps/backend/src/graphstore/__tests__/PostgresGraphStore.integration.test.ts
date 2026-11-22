@@ -334,30 +334,29 @@ describe('PostgresGraphStore — traverse', () => {
         ids[2],
       ],
     },
-  ])('(c) traverse depth $depth returns $expectedRelCount relationship(s)', async ({
-    depth,
-    expectedRelCount,
-    expectedSources,
-  }) => {
-    const store = makeStore();
-    const ids = await buildChain(store);
+  ])(
+    '(c) traverse depth $depth returns $expectedRelCount relationship(s)',
+    async ({ depth, expectedRelCount, expectedSources }) => {
+      const store = makeStore();
+      const ids = await buildChain(store);
 
-    const result = await store.traverse(ids[0], depth);
+      const result = await store.traverse(ids[0], depth);
 
-    expect(result.relationships).toHaveLength(expectedRelCount);
-    expect(result.depth).toBe(depth);
-    const relSources = result.relationships.map((r) => r.sourceEntityId);
-    for (const src of expectedSources(ids)) {
-      expect(relSources).toContain(src);
-    }
+      expect(result.relationships).toHaveLength(expectedRelCount);
+      expect(result.depth).toBe(depth);
+      const relSources = result.relationships.map((r) => r.sourceEntityId);
+      for (const src of expectedSources(ids)) {
+        expect(relSources).toContain(src);
+      }
 
-    // Assert all raw SQL columns are mapped (guards against silent column remapping errors)
-    for (const rel of result.relationships) {
-      expect(rel.sourceEntityId).toBeDefined();
-      expect(rel.targetEntityId).toBeDefined();
-      expect(rel.relationshipType).toBeDefined();
-    }
-  });
+      // Assert all raw SQL columns are mapped (guards against silent column remapping errors)
+      for (const rel of result.relationships) {
+        expect(rel.sourceEntityId).toBeDefined();
+        expect(rel.targetEntityId).toBeDefined();
+        expect(rel.relationshipType).toBeDefined();
+      }
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

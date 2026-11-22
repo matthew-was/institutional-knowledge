@@ -4,7 +4,7 @@
  * Each function is a thin wrapper: URL construction, HTTP call, and response
  * parsing only. No framework imports; no business logic.
  *
- * Paths must not start with '/' — Ky prefixUrl constraint.
+ * Paths must not start with '/' — Ky prefix convention.
  *
  * The 5 error-capable methods (fetchDocumentDetail, clearDocumentFlag,
  * updateDocumentMetadata, acceptTerm, rejectTerm) return ServiceResult rather
@@ -35,6 +35,7 @@ import type {
   VocabularyQueueResponse,
 } from '@institutional-knowledge/shared';
 import { HTTPError, type KyInstance } from 'ky';
+import { readErrorBody } from './readErrorBody';
 
 export type CurationErrorType =
   | 'not_found'
@@ -132,11 +133,7 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const body = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'not_found',
-            }));
+          const body = readErrorBody(err, 'not_found');
           return {
             outcome: 'error',
             errorType: body.error as CurationErrorType,
@@ -157,11 +154,7 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const body = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'not_found',
-            }));
+          const body = readErrorBody(err, 'not_found');
           return {
             outcome: 'error',
             errorType: body.error as CurationErrorType,
@@ -185,11 +178,7 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const body = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'invalid_params',
-            }));
+          const body = readErrorBody(err, 'invalid_params');
           return {
             outcome: 'error',
             errorType: body.error as CurationErrorType,
@@ -220,11 +209,7 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const body = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'not_found',
-            }));
+          const body = readErrorBody(err, 'not_found');
           return {
             outcome: 'error',
             errorType: body.error as CurationErrorType,
@@ -245,11 +230,7 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const body = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'not_found',
-            }));
+          const body = readErrorBody(err, 'not_found');
           return {
             outcome: 'error',
             errorType: body.error as CurationErrorType,
@@ -270,11 +251,7 @@ export function createCurationRequests(http: KyInstance): CurationRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const responseBody = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'invalid_params',
-            }));
+          const responseBody = readErrorBody(err, 'invalid_params');
           return {
             outcome: 'error',
             errorType: responseBody.error as CurationErrorType,

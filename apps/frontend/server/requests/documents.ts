@@ -4,7 +4,7 @@
  * Each function is a thin wrapper: URL construction, HTTP call, and response
  * parsing only. No framework imports; no business logic.
  *
- * Paths must not start with '/' — Ky prefixUrl constraint.
+ * Paths must not start with '/' — Ky prefix convention.
  *
  * The three upload methods (initiateUpload, uploadFile, finalizeUpload) return
  * ServiceResult rather than throwing, so the handler layer can branch on outcome
@@ -25,6 +25,7 @@ import type {
   UploadFileResponse,
 } from '@institutional-knowledge/shared';
 import { HTTPError, type KyInstance } from 'ky';
+import { readErrorBody } from './readErrorBody';
 
 /**
  * Error type union for the three-step upload lifecycle.
@@ -90,11 +91,7 @@ export function createDocumentsRequests(http: KyInstance): DocumentsRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const responseBody = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'upload_failed',
-            }));
+          const responseBody = readErrorBody(err, 'upload_failed');
           return {
             outcome: 'error',
             errorType: responseBody.error as UploadErrorType,
@@ -125,23 +122,19 @@ export function createDocumentsRequests(http: KyInstance): DocumentsRequests {
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
           if (err.response.status === 409) {
-            const responseBody = await err.response
-              .json<{ data: DuplicateConflictResponse }>()
-              .catch(() => null);
-            if (responseBody !== null) {
+            const conflict = err.data as
+              | { data?: DuplicateConflictResponse }
+              | undefined;
+            if (conflict?.data !== undefined) {
               return {
                 outcome: 'error',
                 errorType: 'duplicate_detected',
                 errorMessage: 'A document with this file already exists.',
-                errorData: responseBody.data.existingRecord,
+                errorData: conflict.data.existingRecord,
               };
             }
           }
-          const responseBody = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'upload_failed',
-            }));
+          const responseBody = readErrorBody(err, 'upload_failed');
           return {
             outcome: 'error',
             errorType: responseBody.error as UploadErrorType,
@@ -162,11 +155,7 @@ export function createDocumentsRequests(http: KyInstance): DocumentsRequests {
         return { outcome: 'success', data };
       } catch (err) {
         if (err instanceof HTTPError && err.response.status < 500) {
-          const responseBody = await err.response
-            .json<{ error: string; message?: string }>()
-            .catch((): { error: string; message?: string } => ({
-              error: 'upload_failed',
-            }));
+          const responseBody = readErrorBody(err, 'upload_failed');
           return {
             outcome: 'error',
             errorType: responseBody.error as UploadErrorType,

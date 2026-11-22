@@ -25,7 +25,7 @@ export interface ExpressClient {
 
 export function createExpressClient(config: AppConfig): ExpressClient {
   const http = ky.create({
-    prefixUrl: config.express.baseUrl,
+    prefix: config.express.baseUrl,
     headers: { 'x-internal-key': config.express.internalKey },
   });
 

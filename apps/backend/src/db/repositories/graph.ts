@@ -169,7 +169,7 @@ export function createGraphRepository(db: Knex) {
         relationshipTypes !== undefined && relationshipTypes.length > 0;
 
       let rawSql: string;
-      let bindings: unknown[];
+      let bindings: Knex.RawBinding[];
 
       // The filtered and unfiltered branches below duplicate the CTE structure
       // intentionally. Knex uses positional bindings (?), so merging them via a
